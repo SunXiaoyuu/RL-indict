@@ -1,24 +1,11 @@
 from __future__ import annotations
 
 import os
-import shutil
 import subprocess
 import sys
 import tempfile
 import time
 from typing import Any
-
-try:
-    from search_engine_parser.core.engines.yahoo import Search as YahooSearch
-except Exception:
-    YahooSearch = None
-
-try:
-    from langchain.agents.react.base import DocstoreExplorer
-    from langchain_community.docstore.wikipedia import Wikipedia
-except Exception:
-    DocstoreExplorer = None
-    Wikipedia = None
 
 try:
     import dashscope
@@ -38,9 +25,6 @@ refusal_seqs = [
     "sorry i",
     "i refuse",
 ]
-
-yahoo_api = YahooSearch() if YahooSearch is not None else None
-wikipedia_api = DocstoreExplorer(Wikipedia()) if DocstoreExplorer is not None and Wikipedia is not None else None
 
 if dashscope is not None:
     dashscope_api_key = os.getenv("DASHSCOPE_API_KEY")
@@ -99,39 +83,9 @@ def run_code(code: str, timeout_seconds: int = 120) -> str:
     return completed.stderr or completed.stdout or f"Process exited with code {completed.returncode}"
 
 
-def internet_search(query: str) -> dict[str, Any] | None:
-    if yahoo_api is None:
-        return None
-    try:
-        results = yahoo_api.search(query, 1)
-        output: dict[str, Any] = {}
-        for result in results:
-            titles = result.get("titles")
-            descriptions = result.get("descriptions")
-            output["title"] = f"{query} - {titles}" if titles else query
-            if descriptions:
-                output["description"] = descriptions
-                break
-        return output if output else None
-    except Exception:
-        return None
-
-
 def query_qwen(query: str) -> dict[str, Any] | None:
     try:
         result = qwen_api.query_with_retries(query, max_tokens=256)
-        return {"title": query, "description": result}
-    except Exception:
-        return None
-
-
-def query_wikipedia(query: str) -> dict[str, Any] | None:
-    if wikipedia_api is None:
-        return None
-    try:
-        result = wikipedia_api.search(query)
-        if "could not find" in result.lower():
-            return None
         return {"title": query, "description": result}
     except Exception:
         return None
@@ -148,17 +102,12 @@ def invalid_response(response: dict[str, Any] | None) -> bool:
 
 
 def query_all_tools(query: str | None, combined_query: str) -> list[dict[str, Any]]:
+    del query
     tool_outputs = []
-    for source in ("qwen", "internet", "wikipedia"):
-        if source == "qwen":
-            result = query_qwen(combined_query)
-        elif source == "internet":
-            result = internet_search(combined_query)
-        else:
-            result = query_wikipedia(query) if query else None
-        if not invalid_response(result):
-            result["source"] = source
-            tool_outputs.append(result)
+    result = query_qwen(combined_query)
+    if not invalid_response(result):
+        result["source"] = "qwen"
+        tool_outputs.append(result)
     return tool_outputs
 
 
