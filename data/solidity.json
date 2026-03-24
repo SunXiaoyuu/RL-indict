@@ -1,6 +1,500 @@
 [
   {
-    "instruction": "Write a Solidity contract named CounterVault. The contract should store an owner address, maintain a counter, allow only the owner to increment the counter, expose a view function to read the counter, and emit an event whenever the counter changes. Only return the Solidity code in a single code block.",
+    "id": 0,
+    "contract_name": "CounterVault",
+    "category": "access_control",
+    "difficulty": "easy",
+    "instruction": "Write a Solidity contract named CounterVault. The contract should store an owner address, maintain a counter, allow only the owner to increment the counter, expose a view function to read the counter, and emit an event whenever the counter changes. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 1,
+    "contract_name": "OwnedFaucet",
+    "category": "payments",
+    "difficulty": "easy",
+    "instruction": "Write a Solidity contract named OwnedFaucet. The contract should store an owner address, accept Ether deposits, allow only the owner to set a maximum withdrawal amount per request, let any user withdraw up to that amount if the contract has enough balance, expose a function to read the current limit and contract balance, and emit events for deposits, withdrawals, and limit updates. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 2,
+    "contract_name": "TimeLockWallet",
+    "category": "timelock",
+    "difficulty": "easy",
+    "instruction": "Write a Solidity contract named TimeLockWallet. The contract should store a beneficiary address and an unlock timestamp set in the constructor, accept Ether deposits, allow only the beneficiary to withdraw all Ether after the unlock time, expose view functions for the beneficiary, unlock time, and current balance, and emit events for deposits and withdrawals. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 3,
+    "contract_name": "PausableVault",
+    "category": "access_control",
+    "difficulty": "easy",
+    "instruction": "Write a Solidity contract named PausableVault. The contract should store an owner address and a paused flag, accept Ether deposits when not paused, allow only the owner to pause and unpause the contract, allow only the owner to withdraw Ether to a specified recipient, expose view functions for paused state and balance, and emit events for deposits, withdrawals, pause, and unpause actions. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 4,
+    "contract_name": "SimpleEscrow",
+    "category": "escrow",
+    "difficulty": "easy",
+    "instruction": "Write a Solidity contract named SimpleEscrow. The constructor should set a buyer, a seller, and an arbiter. The buyer should be able to deposit Ether once. The arbiter should be able to release the full balance to the seller or refund the full balance to the buyer. Expose view functions for the participants and escrow balance, and emit events for deposit, release, and refund. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 5,
+    "contract_name": "AllowanceVault",
+    "category": "accounting",
+    "difficulty": "easy",
+    "instruction": "Write a Solidity contract named AllowanceVault. The contract should store an owner address, accept Ether deposits, allow only the owner to assign Ether withdrawal allowances to specific addresses, let an approved address withdraw up to its remaining allowance if the contract balance is sufficient, expose view functions for a user's allowance and total balance, and emit events for deposits, allowance changes, and withdrawals. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 6,
+    "contract_name": "WhitelistRegistry",
+    "category": "registry",
+    "difficulty": "easy",
+    "instruction": "Write a Solidity contract named WhitelistRegistry. The contract should store an owner address and a mapping of approved addresses. Only the owner can add and remove addresses from the whitelist. The contract should expose a view function to check whether an address is whitelisted and emit events when entries are added or removed. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 7,
+    "contract_name": "DeadlineAuction",
+    "category": "auction",
+    "difficulty": "medium",
+    "instruction": "Write a Solidity contract named DeadlineAuction. The constructor should set a seller address and an auction end timestamp. Users should be able to place bids with Ether before the deadline if the new bid is higher than the current highest bid. Outbid users should be able to withdraw their pending refunds. After the deadline, only the seller can finalize the auction and receive the highest bid. Expose view functions for the current highest bidder, highest bid, deadline, and pending refund of an address. Emit events for bids, refunds, and finalization. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 8,
+    "contract_name": "VoteCounter",
+    "category": "governance",
+    "difficulty": "easy",
+    "instruction": "Write a Solidity contract named VoteCounter. The constructor should take an array of proposal names. Each address may vote exactly once for one proposal. The contract should store vote counts per proposal, expose functions to cast a vote and to read the winning proposal index and name, and emit an event whenever a vote is cast. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 9,
+    "contract_name": "DocumentRegistry",
+    "category": "registry",
+    "difficulty": "easy",
+    "instruction": "Write a Solidity contract named DocumentRegistry. The contract should store an owner address and allow only the owner to register a document hash string for a numeric document id if that id has not been used before. Expose view functions to check whether a document exists and to read a stored hash by id. Emit an event when a document is registered. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 10,
+    "contract_name": "SavingsGoal",
+    "category": "fundraising",
+    "difficulty": "easy",
+    "instruction": "Write a Solidity contract named SavingsGoal. The constructor should set an owner, a funding goal in wei, and a deadline timestamp. Anyone may contribute Ether before the deadline. If the goal is reached by the deadline, only the owner may withdraw the full balance. If the goal is not reached after the deadline, contributors may claim refunds equal to what they contributed. Expose view functions for total raised, goal, deadline, and a contributor's amount. Emit events for contributions, owner withdrawal, and refunds. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 11,
+    "contract_name": "RefundEscrow",
+    "category": "escrow",
+    "difficulty": "medium",
+    "instruction": "Write a Solidity contract named RefundEscrow. The constructor should set a payer, a payee, and an arbiter. Only the payer can deposit Ether. The arbiter can either release the full balance to the payee or enable refunds. If refunds are enabled, only the payer can withdraw the balance. Expose view functions for the current state and contract balance, and emit events for deposit, release, refund activation, and refund withdrawal. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 12,
+    "contract_name": "SubscriptionManager",
+    "category": "payments",
+    "difficulty": "medium",
+    "instruction": "Write a Solidity contract named SubscriptionManager. The contract should store an owner address and a subscription price in wei. Users should be able to pay for a subscription, which sets their subscription expiration to the current block timestamp plus 30 days, extending from their current expiration if they are already active. Only the owner can withdraw contract funds or update the price. Expose view functions to check whether a user is active, read a user's expiration, and read the current price. Emit events for subscription purchases, withdrawals, and price updates. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 13,
+    "contract_name": "PaymentSplitterLite",
+    "category": "payments",
+    "difficulty": "medium",
+    "instruction": "Write a Solidity contract named PaymentSplitterLite. The constructor should take exactly two payee addresses and their share weights. The contract should accept Ether deposits and track total released amounts. Each payee should be able to release only their proportional share of the total received funds minus what was already released to them. Expose view functions for total received, total released, and releasable amount per payee. Emit events for deposits and releases. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 14,
+    "contract_name": "RateLimiterVault",
+    "category": "access_control",
+    "difficulty": "medium",
+    "instruction": "Write a Solidity contract named RateLimiterVault. The contract should store an owner and accept Ether deposits. The owner can assign a cooldown period in seconds to specific approved withdrawers. Each approved withdrawer can withdraw a fixed owner-defined amount only if enough time has passed since their previous withdrawal and the contract has enough balance. Expose view functions for user cooldown, last withdrawal timestamp, and contract balance. Emit events for deposits, approvals, cooldown updates, and withdrawals. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 15,
+    "contract_name": "DepositCapVault",
+    "category": "payments",
+    "difficulty": "easy",
+    "instruction": "Write a Solidity contract named DepositCapVault. The contract should store an owner and a maximum total deposit cap in wei. Anyone may deposit Ether as long as the new total balance would not exceed the cap. Only the owner may update the cap or withdraw funds. Expose view functions for the cap and current balance, and emit events for deposits, cap updates, and withdrawals. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 16,
+    "contract_name": "DonationPool",
+    "category": "fundraising",
+    "difficulty": "easy",
+    "instruction": "Write a Solidity contract named DonationPool. The contract should store an owner address, accept Ether donations, track the cumulative donated amount per donor, and allow only the owner to transfer a requested amount to a beneficiary address if sufficient balance exists. Expose view functions for total donations, a donor's total contributions, and current balance. Emit events for donations and outgoing transfers. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 17,
+    "contract_name": "FixedSupplyToken",
+    "category": "token",
+    "difficulty": "medium",
+    "instruction": "Write a Solidity contract named FixedSupplyToken. Implement a minimal fungible token without imports. The constructor should set a name, symbol, and fixed total supply assigned to the deployer. Provide public functions totalSupply, balanceOf, transfer, allowance, approve, and transferFrom, and emit standard Transfer and Approval events. Use Solidity 0.8.x checks and do not add minting or burning. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 18,
+    "contract_name": "MintableBadge",
+    "category": "token",
+    "difficulty": "medium",
+    "instruction": "Write a Solidity contract named MintableBadge. The contract should store an owner address and maintain a non-transferable badge balance for each address. Only the owner can mint badges to a user or revoke badges from a user. Expose view functions for balanceOf and owner, and emit events for mint and revoke actions. Do not add ERC20 imports, transfers, or extra contracts. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 19,
+    "contract_name": "TreasuryApprovals",
+    "category": "governance",
+    "difficulty": "medium",
+    "instruction": "Write a Solidity contract named TreasuryApprovals. The constructor should take exactly three approver addresses and a required approval count of two. Anyone may send Ether to the contract. An approver can submit a transfer request specifying a recipient and amount, and approvers can approve pending requests once each. When a request reaches two approvals, the Ether should be sent automatically if the contract has enough balance. Expose view functions for request count and request details, and emit events for deposits, request creation, approval, and execution. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 20,
+    "contract_name": "VestingWalletLite",
+    "category": "vesting",
+    "difficulty": "medium",
+    "instruction": "Write a Solidity contract named VestingWalletLite. The constructor should set a beneficiary, a start timestamp, a vesting duration, and a total token amount represented only as an internal accounting number, not an ERC20 transfer. The contract should expose a function releasableAmount that returns the vested but unreleased amount using linear vesting, a function release that records the release to the beneficiary, and view functions for released amount and beneficiary. Emit an event whenever tokens are released. Do not import external token contracts and do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 21,
+    "contract_name": "TimedCrowdfunding",
+    "category": "fundraising",
+    "difficulty": "medium",
+    "instruction": "Write a Solidity contract named TimedCrowdfunding. The constructor should set a creator address, a funding goal, and a campaign deadline. Contributors may send Ether before the deadline. After the deadline, if the goal is reached, only the creator may withdraw the funds once. Otherwise contributors may claim refunds. Expose view functions for total raised, campaign success, deadline, and a contributor's amount. Emit events for contributions, creator withdrawal, and refunds. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 22,
+    "contract_name": "PriceOracleStore",
+    "category": "registry",
+    "difficulty": "easy",
+    "instruction": "Write a Solidity contract named PriceOracleStore. The contract should store an owner and a mapping from asset symbol strings to unsigned integer prices. Only the owner can update prices. Anyone can read the latest price and whether a symbol exists. Emit an event whenever a price is updated. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 23,
+    "contract_name": "AccessPassRegistry",
+    "category": "registry",
+    "difficulty": "easy",
+    "instruction": "Write a Solidity contract named AccessPassRegistry. The contract should store an owner and a mapping of addresses to expiration timestamps. Only the owner can grant or revoke access for a user. A user is active if their expiration is in the future. Expose view functions to check access status and expiration, and emit events for grant and revoke actions. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 24,
+    "contract_name": "RentalEscrow",
+    "category": "escrow",
+    "difficulty": "medium",
+    "instruction": "Write a Solidity contract named RentalEscrow. The constructor should set a landlord and a tenant. The tenant can deposit a security amount once. The landlord can mark the rental as completed. After completion, the landlord can claim a configurable damage charge up to the deposit amount and the remaining balance should become withdrawable by the tenant. Expose view functions for deposit amount, claimed damage charge, and completion status. Emit events for deposit, completion, damage claim, and tenant withdrawal. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 25,
+    "contract_name": "SimpleMarketplace",
+    "category": "marketplace",
+    "difficulty": "medium",
+    "instruction": "Write a Solidity contract named SimpleMarketplace. The contract should let a seller create listings with an item id and price. A buyer can purchase an active listing by paying the exact price, and the payment should go to the seller. A seller can cancel an unsold listing. Expose view functions for listing details and the next listing id. Emit events for listing creation, purchase, and cancellation. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 26,
+    "contract_name": "BatchDistributor",
+    "category": "payments",
+    "difficulty": "medium",
+    "instruction": "Write a Solidity contract named BatchDistributor. The contract should store an owner and accept Ether deposits. Only the owner can execute a batch payout that sends specified Ether amounts to a list of recipients, requiring the recipient and amount arrays to have the same length and the contract to have enough balance for the total. Expose a view function for contract balance and emit events for deposits and each payout. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 27,
+    "contract_name": "DividendVault",
+    "category": "accounting",
+    "difficulty": "medium",
+    "instruction": "Write a Solidity contract named DividendVault. The constructor should set an owner and a fixed list of shareholder addresses with share weights. The contract should accept Ether deposits, track cumulative released amounts, and let each shareholder withdraw only their proportional share of total received Ether minus prior withdrawals. Expose view functions for releasable amount per shareholder and total received. Emit events for deposits and withdrawals. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 28,
+    "contract_name": "NonTransferablePoints",
+    "category": "token",
+    "difficulty": "easy",
+    "instruction": "Write a Solidity contract named NonTransferablePoints. The contract should store an owner and maintain point balances for users. Only the owner can award or deduct points. Anyone can read a user's points and the total points ever awarded. Emit events for award and deduction actions. Do not add transfers, imports, or extra contracts. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 29,
+    "contract_name": "RoleBasedCounter",
+    "category": "access_control",
+    "difficulty": "easy",
+    "instruction": "Write a Solidity contract named RoleBasedCounter. The contract should store an admin address and a mapping of operator addresses. Only the admin can add or remove operators. Operators can increment a shared counter, and only the admin can reset the counter to zero. Expose view functions for the current counter and whether an address is an operator. Emit events for operator updates, increments, and resets. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 30,
+    "contract_name": "ClaimWindowAirdrop",
+    "category": "distribution",
+    "difficulty": "medium",
+    "instruction": "Write a Solidity contract named ClaimWindowAirdrop. The constructor should set an owner, a claim start timestamp, and a claim end timestamp. The owner can assign claimable token amounts, represented only as internal balances, to recipients before the claim period starts. During the claim window, a recipient can claim once, which records the amount as claimed. Expose view functions for claimable amount, claimed amount, and whether the claim window is active. Emit events for allocation and claim actions. Do not add imports, external token transfers, or extra contracts. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 31,
+    "contract_name": "MilestonePayout",
+    "category": "escrow",
+    "difficulty": "medium",
+    "instruction": "Write a Solidity contract named MilestonePayout. The constructor should set a client and a freelancer. The client can fund the contract with Ether. The client can create milestone amounts, and for each milestone the client can approve release to the freelancer exactly once. The freelancer can withdraw approved milestone funds. Expose view functions for milestone count, milestone status, and contract balance. Emit events for funding, milestone creation, approval, and withdrawal. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 32,
+    "contract_name": "ProposalQueue",
+    "category": "governance",
+    "difficulty": "medium",
+    "instruction": "Write a Solidity contract named ProposalQueue. The contract should let anyone submit a proposal string and assign it an incrementing id. Each address may upvote a proposal at most once. Expose view functions for proposal details, total proposal count, and the current top proposal id by vote count, breaking ties by smaller id. Emit events for proposal creation and upvotes. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 33,
+    "contract_name": "StakingPoolLite",
+    "category": "staking",
+    "difficulty": "medium",
+    "instruction": "Write a Solidity contract named StakingPoolLite. The contract should accept Ether staking deposits from users, track each user's staked amount and last update timestamp, and let users withdraw part or all of their stake. Reward accounting should be internal only: each full day of staking earns 1 reward point per wei staked, and rewards should accumulate when the user deposits or withdraws. Expose view functions for staked amount and reward points per user. Emit events for stake and unstake actions. Do not add external token transfers or extra contracts. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 34,
+    "contract_name": "SavingsJar",
+    "category": "payments",
+    "difficulty": "easy",
+    "instruction": "Write a Solidity contract named SavingsJar. The contract should allow any user to create a personal balance by depositing Ether into the contract, track balances per user, and allow a user to withdraw only their own deposited Ether. Expose a view function for a user's saved balance and emit events for deposits and withdrawals. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 35,
+    "contract_name": "FeeCollector",
+    "category": "payments",
+    "difficulty": "easy",
+    "instruction": "Write a Solidity contract named FeeCollector. The contract should store an owner address and a fee rate in basis points. A user can pay Ether into the contract on behalf of a recipient id represented as a uint256, and the contract should record the gross amount and fee amount collected. Only the owner can withdraw accumulated Ether or update the fee rate. Expose view functions for total gross volume and total fees collected. Emit events for payments, withdrawals, and fee updates. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 36,
+    "contract_name": "WithdrawalQueue",
+    "category": "accounting",
+    "difficulty": "medium",
+    "instruction": "Write a Solidity contract named WithdrawalQueue. The contract should accept Ether deposits from users, store each user's balance, and let a user create a withdrawal request for part of their balance. The request should become executable only after a fixed delay set in the constructor. A user can cancel a pending request before execution, or execute it after the delay. Expose view functions for balance, pending request amount, and execute timestamp per user. Emit events for deposits, request creation, cancellation, and execution. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 37,
+    "contract_name": "CommitRevealGuess",
+    "category": "game",
+    "difficulty": "medium",
+    "instruction": "Write a Solidity contract named CommitRevealGuess. The constructor should set a host address and a reveal deadline offset. A player can commit exactly one hashed guess by providing a bytes32 commitment and an Ether stake. Before the reveal deadline, the player can reveal a uint256 guess and salt that match the commitment. The host can mark the round as resolved and optionally refund the stake to the player. Expose view functions for the player's commitment, revealed guess, and resolution state. Emit events for commit, reveal, resolve, and refund actions. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 38,
+    "contract_name": "CharityVault",
+    "category": "fundraising",
+    "difficulty": "easy",
+    "instruction": "Write a Solidity contract named CharityVault. The contract should store an owner and a beneficiary address. Anyone may donate Ether. Only the owner can change the beneficiary or send part of the contract balance to the current beneficiary. Expose view functions for total donated, current beneficiary, and current balance. Emit events for donations, beneficiary updates, and distributions. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 39,
+    "contract_name": "CouponRegistry",
+    "category": "registry",
+    "difficulty": "easy",
+    "instruction": "Write a Solidity contract named CouponRegistry. The contract should store an owner and a mapping from coupon code strings to remaining usage counts. Only the owner can create or restock a coupon. Any user can redeem a coupon code if the remaining count is greater than zero, which decrements the count and emits an event. Expose a view function to read the remaining uses for a coupon. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 40,
+    "contract_name": "ShipmentEscrow",
+    "category": "escrow",
+    "difficulty": "medium",
+    "instruction": "Write a Solidity contract named ShipmentEscrow. The constructor should set a buyer, a seller, and a verifier. The buyer can deposit Ether once. The verifier can mark the shipment as delivered. After delivery, the seller can withdraw the balance. Before delivery, the verifier can also cancel the order and allow the buyer to refund the balance. Expose view functions for delivery state, cancellation state, and balance. Emit events for deposit, delivery confirmation, seller withdrawal, cancellation, and refund. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 41,
+    "contract_name": "RevenueShareVault",
+    "category": "payments",
+    "difficulty": "medium",
+    "instruction": "Write a Solidity contract named RevenueShareVault. The constructor should take three beneficiary addresses and three share weights. The contract should accept Ether revenue and let each beneficiary withdraw only their proportional claim based on total received minus prior withdrawals. Expose view functions for total received, total withdrawn by a beneficiary, and current releasable amount. Emit events for deposits and withdrawals. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 42,
+    "contract_name": "DelayedOwnerTransfer",
+    "category": "access_control",
+    "difficulty": "medium",
+    "instruction": "Write a Solidity contract named DelayedOwnerTransfer. The contract should store an owner and a transfer delay in seconds. Only the owner can nominate a pending owner along with an acceptance timestamp equal to the current block timestamp plus the delay. After that timestamp, only the pending owner can accept ownership. The current owner can cancel a pending transfer before acceptance. Expose view functions for owner, pending owner, and acceptance time. Emit events for nomination, cancellation, and ownership acceptance. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 43,
+    "contract_name": "TokenVestingCliff",
+    "category": "vesting",
+    "difficulty": "medium",
+    "instruction": "Write a Solidity contract named TokenVestingCliff. The constructor should set a beneficiary, a cliff timestamp, a vesting end timestamp, and a total token amount represented only as internal accounting. Before the cliff, releasable amount is zero. After the cliff and before the vesting end, vesting should be linear. After the end, the full remaining amount is releasable. Provide functions releasableAmount and release, plus view functions for released and beneficiary. Emit an event on release. Do not import external token contracts and do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 44,
+    "contract_name": "InvoiceEscrow",
+    "category": "escrow",
+    "difficulty": "medium",
+    "instruction": "Write a Solidity contract named InvoiceEscrow. The constructor should set a payer, a payee, and an invoice amount in wei. The payer can fund the exact invoice amount once. The payer can confirm the invoice as accepted, after which the payee can withdraw the funds. Before acceptance, the payer can cancel and reclaim the full amount. Expose view functions for amount, funded status, accepted status, and balance. Emit events for funding, acceptance, withdrawal, cancellation, and refund. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 45,
+    "contract_name": "DepositReceiptRegistry",
+    "category": "registry",
+    "difficulty": "easy",
+    "instruction": "Write a Solidity contract named DepositReceiptRegistry. The contract should accept Ether deposits and assign each deposit a sequential receipt id. For each receipt, store the depositor address, amount, and timestamp. Expose view functions to read a receipt by id and the total number of receipts. Emit an event on every deposit. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 46,
+    "contract_name": "EmergencyPausableToken",
+    "category": "token",
+    "difficulty": "medium",
+    "instruction": "Write a Solidity contract named EmergencyPausableToken. Implement a minimal fungible token without imports. The constructor should set an owner, name, symbol, and fixed total supply assigned to the deployer. Provide transfer, approve, transferFrom, balanceOf, allowance, and totalSupply functions. Only the owner can pause and unpause transfers. Emit Transfer, Approval, Pause, and Unpause events. Do not add minting, burning, or extra contracts. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 47,
+    "contract_name": "ManagerSelectedLottery",
+    "category": "game",
+    "difficulty": "easy",
+    "instruction": "Write a Solidity contract named ManagerSelectedLottery. The contract should store a manager address, accept Ether entries of a fixed ticket price, keep a list of players, and let only the manager select a winner by providing the winner's index after at least one player has entered. The full balance should be sent to that winner and the player list should reset for the next round. Expose view functions for player count, ticket price, and current balance. Emit events for entry and winner selection. Do not add on-chain randomness, imports, or extra contracts. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 48,
+    "contract_name": "SequentialNonceWallet",
+    "category": "accounting",
+    "difficulty": "medium",
+    "instruction": "Write a Solidity contract named SequentialNonceWallet. The contract should store an owner, accept Ether deposits, and maintain a sequential nonce starting at zero. Only the owner can execute a withdrawal by providing the expected current nonce, recipient, and amount. A successful withdrawal should increment the nonce. Expose view functions for nonce and current balance, and emit events for deposits and withdrawals. Do not add signatures, imports, or extra contracts. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  },
+  {
+    "id": 49,
+    "contract_name": "SplitEscrow",
+    "category": "escrow",
+    "difficulty": "medium",
+    "instruction": "Write a Solidity contract named SplitEscrow. The constructor should set a buyer, a seller, an arbiter, and two payout amounts that sum to the expected deposit. The buyer can fund the contract once with the exact expected deposit. The arbiter can release the two payout amounts in two separate steps to the seller and a service provider address set in the constructor, or refund the full amount to the buyer if no release happened yet. Expose view functions for funded status, released amount, and current balance. Emit events for funding, each release step, and refund. Do not add extra contracts or extra features beyond the requirements. Only return the Solidity code in a single code block.",
     "language": "solidity",
     "source_relpath": "src/Generated.sol",
     "evm_version": "shanghai"
