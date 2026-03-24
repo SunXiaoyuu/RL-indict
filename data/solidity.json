@@ -1,0 +1,8 @@
+[
+  {
+    "instruction": "Write a Solidity contract named CounterVault. The contract should store an owner address, maintain a counter, allow only the owner to increment the counter, expose a view function to read the counter, and emit an event whenever the counter changes. Only return the Solidity code in a single code block.",
+    "language": "solidity",
+    "source_relpath": "src/Generated.sol",
+    "evm_version": "shanghai"
+  }
+]

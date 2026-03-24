@@ -1,4 +1,13 @@
-from langchain.prompts import PromptTemplate
+try:
+    from langchain.prompts import PromptTemplate
+except Exception:
+    class PromptTemplate:
+        def __init__(self, input_variables, template):
+            self.input_variables = input_variables
+            self.template = template
+
+        def format(self, **kwargs):
+            return self.template.format(**kwargs)
 
 ACTOR_INSTRUCTION = """
 {question}
@@ -85,6 +94,64 @@ Solution: {answer}
 
 """
 
+SOLIDITY_SECURITY_CRITIC_INSTRUCTION = """You are a Solidity smart-contract security critic. You will be given a smart contract task and a candidate contract solution.
+
+In a few sentences, identify concrete security risks such as reentrancy, unchecked external calls, missing access control, unsafe token interactions, denial-of-service patterns, incorrect assumptions about msg.sender or tx.origin, unsafe upgrades, signature or oracle misuse, and any state-transition vulnerabilities.
+
+Debate collaboratively with a functionality critic and a gas critic, but always prioritize protocol safety and fund security over convenience or gas savings.
+
+Task: {question}
+Solution: {answer}
+
+{scratchpad}"""
+
+SOLIDITY_FUNCTIONALITY_CRITIC_INSTRUCTION = """You are a Solidity smart-contract functionality critic. You will be given a smart contract task and a candidate contract solution.
+
+In a few sentences, judge whether the contract actually satisfies the specification, compiles cleanly, preserves intended invariants, exposes the required interfaces, handles edge cases, and would plausibly pass unit tests.
+
+Debate collaboratively with a security critic and a gas critic, but always prioritize behavioral correctness and spec compliance over stylistic preferences.
+
+Task: {question}
+Solution: {answer}
+
+{scratchpad}"""
+
+SOLIDITY_GAS_CRITIC_INSTRUCTION = """You are a Solidity gas-efficiency critic. You will be given a smart contract task and a candidate contract solution.
+
+In a few sentences, analyze deployment cost and runtime gas cost. Look for expensive storage writes, unnecessary loops, redundant state reads, poor calldata or memory usage, avoidable SSTORE patterns, and designs that will scale poorly on-chain.
+
+Debate collaboratively with a security critic and a functionality critic, but do not recommend gas optimizations that would weaken security or break required behavior.
+
+Task: {question}
+Solution: {answer}
+
+{scratchpad}"""
+
+SOLIDITY_SUMMARY_CRITIC_INSTRUCTION = """You are a senior smart-contract reviewer. You will be given an internal discussion among critics focusing on security, functionality, and gas efficiency for a Solidity solution.
+
+Summarize the strongest points from the debate and explain what must change so the contract is correct, secure, and reasonably gas-efficient. Prefer concrete, implementation-level feedback that the code generator can use to revise the contract.
+
+{scratchpad}"""
+
+SOLIDITY_SUMMARY_CRITIC_INSTRUCTION_POSTHOC = """You are a senior smart-contract reviewer. You will be given an internal discussion among critics focusing on security, functionality, and gas efficiency for a Solidity solution.
+
+The discussion may include observations from compilation, unit tests, static analysis, and gas reports. Summarize the most important findings and explain what must change so the revised contract is correct, secure, and reasonably gas-efficient.
+
+{scratchpad}"""
+
+SOLIDITY_QUERY_TOOL_INSTRUCTION_CODE = """You are an advanced intelligent agent with direct access to Internet. You are given a Solidity task, a candidate smart contract solution, and critic analysis.
+
+Produce a short Solidity snippet that would help search for relevant secure patterns, anti-patterns, or implementation references. Keep it short and representative. Wrap the snippet in a single code block.
+
+Task: {question}
+Solution: {answer}
+
+{scratchpad}
+
+Query: {query}
+
+Short Solidity snippet in a single code block (wrap in ```):"""
+
 
 actor_prompt = PromptTemplate(
                         input_variables=["question", "scratchpad"],
@@ -132,3 +199,32 @@ query_tool_use_prompt_posthoc = PromptTemplate(
                         template = QUERY_TOOL_USE_INSTRUCTION_POSTHOC,
                         )
 
+solidity_security_critic_prompt = PromptTemplate(
+                        input_variables=["question", "answer", "scratchpad"],
+                        template = SOLIDITY_SECURITY_CRITIC_INSTRUCTION,
+                        )
+
+solidity_functionality_critic_prompt = PromptTemplate(
+                        input_variables=["question", "answer", "scratchpad"],
+                        template = SOLIDITY_FUNCTIONALITY_CRITIC_INSTRUCTION,
+                        )
+
+solidity_gas_critic_prompt = PromptTemplate(
+                        input_variables=["question", "answer", "scratchpad"],
+                        template = SOLIDITY_GAS_CRITIC_INSTRUCTION,
+                        )
+
+solidity_summary_critic_prompt = PromptTemplate(
+                        input_variables=["scratchpad"],
+                        template = SOLIDITY_SUMMARY_CRITIC_INSTRUCTION,
+                        )
+
+solidity_summary_critic_prompt_posthoc = PromptTemplate(
+                        input_variables=["scratchpad"],
+                        template = SOLIDITY_SUMMARY_CRITIC_INSTRUCTION_POSTHOC,
+                        )
+
+solidity_query_tool_prompt_with_code = PromptTemplate(
+                        input_variables=["question", "answer", "scratchpad", "query"],
+                        template = SOLIDITY_QUERY_TOOL_INSTRUCTION_CODE,
+                        )

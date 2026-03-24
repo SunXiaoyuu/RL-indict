@@ -9,12 +9,13 @@ import pdb
 from tqdm import tqdm 
 import copy 
 
-from transformers import AutoTokenizer
-from datasets import load_dataset
+try:
+    from transformers import AutoTokenizer
+except Exception:
+    AutoTokenizer = None
 
 from configs import * 
 from parse_arguments import *
-from llm import OPENAI 
 from agents import AgentStrategy, Agents 
 from util import load_data, get_model, get_code_before
 
@@ -36,12 +37,14 @@ search_tool_posthoc = [tool_definitions['codereview']]
 
 # Set up tokenizer 
 tokenizer = None 
-if args.model == 'commandr': 
+if args.model == 'commandr' and AutoTokenizer is not None: 
     tokenizer = AutoTokenizer.from_pretrained(model_mapping[args.model])
     
 # Set up agent
 model = get_model(args.model, model_mapping)
-agent_config = agent_configs[strategy.value]
+agent_config = copy.deepcopy(agent_configs[strategy.value])
+task_config = task_agent_configs.get(args.task, {}).get(strategy.value, {})
+agent_config.update(task_config)
 all_agents = [Agents(idx, 
                item[question_prompt_key],
                
@@ -50,6 +53,7 @@ all_agents = [Agents(idx,
                
                safety_critic_prompt=agent_config.get('safety_critic_prompt', None),
                helpful_critic_prompt=agent_config.get('helpful_critic_prompt', None),
+               gas_critic_prompt=agent_config.get('gas_critic_prompt', None),
                summary_critic_prompt=agent_config.get('summary_critic_prompt', None), 
                summary_critic_prompt_posthoc=agent_config.get('summary_critic_prompt_posthoc', None),
                
@@ -67,6 +71,7 @@ all_agents = [Agents(idx,
                tokenizer=tokenizer,
                programming_language=item.get('language', item.get('lang', None)),
                code_before = get_code_before(item),
+               sample_metadata=item,
                prev_trial=args.prev_trial + '/{}.json'.format(idx) if args.prev_trial else None, 
                      
                ) for idx, item in enumerate(data)] 

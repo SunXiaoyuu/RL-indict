@@ -43,6 +43,26 @@ agent_configs = {
     }
 }
 
+task_agent_configs = {
+    "solidity": {
+        "indict_llama": {
+            "safety_critic_prompt": solidity_security_critic_prompt,
+            "helpful_critic_prompt": solidity_functionality_critic_prompt,
+            "gas_critic_prompt": solidity_gas_critic_prompt,
+            "summary_critic_prompt": solidity_summary_critic_prompt,
+            "summary_critic_prompt_posthoc": solidity_summary_critic_prompt_posthoc,
+            "tool_prompt_code": solidity_query_tool_prompt_with_code,
+        },
+        "indict_commandr": {
+            "safety_critic_prompt": solidity_security_critic_prompt,
+            "helpful_critic_prompt": solidity_functionality_critic_prompt,
+            "gas_critic_prompt": solidity_gas_critic_prompt,
+            "summary_critic_prompt": solidity_summary_critic_prompt,
+            "summary_critic_prompt_posthoc": solidity_summary_critic_prompt_posthoc,
+        },
+    }
+}
+
 tool_definitions = {
   'codesearch': {
     "name": "code_search",

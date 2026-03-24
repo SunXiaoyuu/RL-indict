@@ -5,7 +5,7 @@ parser = argparse.ArgumentParser(description="Run INDICT generation process")
 # Data configuration 
 parser.add_argument(
     "--task", type=str, default='mitre', 
-    choices={'mitre', 'instruct', 'autocomplete', 'promptinject', 'frr', 'interpreter', 'cvs'}, 
+    choices={'mitre', 'instruct', 'autocomplete', 'promptinject', 'frr', 'interpreter', 'cvs', 'solidity'}, 
     help="Type of generation tasks to be run",
 )
 parser.add_argument(
