@@ -305,7 +305,8 @@ def indent_replacement(original_line: str, replacement_text: str) -> str:
         return ""
     indent = original_line[: len(original_line) - len(original_line.lstrip(" \t"))]
     rendered_lines = normalized.splitlines()
-    rendered_lines[0] = f"{indent}{rendered_lines[0].lstrip(' \t')}"
+    whitespace = " \t"
+    rendered_lines[0] = indent + rendered_lines[0].lstrip(whitespace)
     return "\n".join(rendered_lines)
 
 
