@@ -252,7 +252,7 @@ def prepare_workspace(
 
     source_relpath = sample.get("source_relpath", "src/Generated.sol")
     source_path = workdir / source_relpath
-    source_text = f"{sample.get('source_prefix', '')}{generated_code}{sample.get('source_suffix', '')}"
+    source_text = build_source_text(source_path, sample, generated_code)
     write_text(source_path, source_text)
 
     test_relpath = sample.get("test_relpath", "test/Generated.t.sol")
@@ -272,6 +272,45 @@ def prepare_workspace(
         "slither_target": sample.get("slither_target", source_relpath),
     }
     return workdir, context
+
+
+def build_source_text(source_path: Path, sample: dict[str, Any], generated_code: str) -> str:
+    start_line = sample.get("replace_start_line")
+    end_line = sample.get("replace_end_line")
+    if start_line is not None and end_line is not None and source_path.exists():
+        return replace_line_range(
+            source_path=source_path,
+            generated_code=generated_code,
+            start_line=int(start_line),
+            end_line=int(end_line),
+        )
+    return f"{sample.get('source_prefix', '')}{generated_code}{sample.get('source_suffix', '')}"
+
+
+def replace_line_range(source_path: Path, generated_code: str, start_line: int, end_line: int) -> str:
+    original_lines = source_path.read_text(encoding="utf-8").splitlines(keepends=True)
+    if start_line < 1 or end_line < start_line or end_line > len(original_lines):
+        raise ValueError(
+            f"Invalid replacement range {start_line}-{end_line} for {source_path} with {len(original_lines)} lines."
+        )
+
+    replacement = indent_replacement(original_lines[start_line - 1], generated_code)
+    if replacement and not replacement.endswith(("\n", "\r")):
+        replacement += "\n"
+
+    prefix = "".join(original_lines[: start_line - 1])
+    suffix = "".join(original_lines[end_line:])
+    return prefix + replacement + suffix
+
+
+def indent_replacement(original_line: str, generated_code: str) -> str:
+    normalized = generated_code.strip("\n")
+    if not normalized:
+        return ""
+    indent = original_line[: len(original_line) - len(original_line.lstrip(" \t"))]
+    rendered_lines = normalized.splitlines()
+    rendered_lines[0] = f"{indent}{rendered_lines[0].lstrip(' \t')}"
+    return "\n".join(rendered_lines)
 
 
 def shell_quote(path_like: str) -> str:
@@ -378,6 +417,15 @@ def default_slither_command(cwd: Path, sample: dict[str, Any], context: dict[str
     if not tool_exists("slither"):
         return None
     target = context["slither_target"]
+    if (cwd / "foundry.toml").exists():
+        return (
+            f"slither {shell_quote(target)} "
+            f"--exclude-dependencies "
+            f"--exclude-informational "
+            f"--exclude-optimization "
+            f"--fail-none "
+            f"--json {shell_quote(str(json_path.resolve()))}"
+        )
     solc_flags = build_relative_solc_flags(sample).replace('"', '\\"')
     return (
         f"slither {shell_quote(target)} "

@@ -163,7 +163,7 @@ class SolidityExecutionBackend(BaseExecutionBackend):
         source_relpath = self.sample_metadata.get("source_relpath", "src/Generated.sol")
         source_path = workdir / source_relpath
         source_path.parent.mkdir(parents=True, exist_ok=True)
-        source_text = f"{self.sample_metadata.get('source_prefix', '')}{generated_code}{self.sample_metadata.get('source_suffix', '')}"
+        source_text = self._build_source_text(source_path, generated_code)
         source_path.write_text(source_text, encoding="utf-8")
 
         test_relpath = self.sample_metadata.get("test_relpath", "test/Generated.t.sol")
@@ -181,6 +181,42 @@ class SolidityExecutionBackend(BaseExecutionBackend):
             "test_relpath": test_relpath,
             "slither_target": self.sample_metadata.get("slither_target", source_relpath),
         }
+
+    def _build_source_text(self, source_path: Path, generated_code: str) -> str:
+        start_line = self.sample_metadata.get("replace_start_line")
+        end_line = self.sample_metadata.get("replace_end_line")
+        if start_line is not None and end_line is not None and source_path.exists():
+            return self._replace_line_range(
+                source_path=source_path,
+                generated_code=generated_code,
+                start_line=int(start_line),
+                end_line=int(end_line),
+            )
+        return f"{self.sample_metadata.get('source_prefix', '')}{generated_code}{self.sample_metadata.get('source_suffix', '')}"
+
+    def _replace_line_range(self, source_path: Path, generated_code: str, start_line: int, end_line: int) -> str:
+        original_lines = source_path.read_text(encoding="utf-8").splitlines(keepends=True)
+        if start_line < 1 or end_line < start_line or end_line > len(original_lines):
+            raise ValueError(
+                f"Invalid replacement range {start_line}-{end_line} for {source_path} with {len(original_lines)} lines."
+            )
+
+        replacement = self._indent_replacement(original_lines[start_line - 1], generated_code)
+        if replacement and not replacement.endswith(("\n", "\r")):
+            replacement += "\n"
+
+        prefix = "".join(original_lines[: start_line - 1])
+        suffix = "".join(original_lines[end_line:])
+        return prefix + replacement + suffix
+
+    def _indent_replacement(self, original_line: str, generated_code: str) -> str:
+        normalized = generated_code.strip("\n")
+        if not normalized:
+            return ""
+        indent = original_line[: len(original_line) - len(original_line.lstrip(" \t"))]
+        rendered_lines = normalized.splitlines()
+        rendered_lines[0] = f"{indent}{rendered_lines[0].lstrip(' \t')}"
+        return "\n".join(rendered_lines)
 
     def _compile_command(self, workdir: Path, context: dict[str, str]) -> str:
         explicit = self.sample_metadata.get("compile_command")
@@ -214,6 +250,15 @@ class SolidityExecutionBackend(BaseExecutionBackend):
             return explicit.format(slither_json=str(json_path.resolve()), **context)
         if not self._tool_exists("slither"):
             return None
+        if (workdir / "foundry.toml").exists():
+            return (
+                f"slither \"{context['slither_target']}\" "
+                f"--exclude-dependencies "
+                f"--exclude-informational "
+                f"--exclude-optimization "
+                f"--fail-none "
+                f"--json \"{json_path.resolve()}\""
+            )
         solc_args = self._build_relative_solc_flags().replace('"', '\\"')
         return (
             f"slither \"{context['slither_target']}\" "

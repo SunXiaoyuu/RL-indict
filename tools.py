@@ -83,6 +83,28 @@ def run_code(code: str, timeout_seconds: int = 120) -> str:
     return completed.stderr or completed.stdout or f"Process exited with code {completed.returncode}"
 
 
+def looks_like_solidity(code: str) -> bool:
+    snippet = code.strip().lower()
+    if snippet.startswith("```"):
+        snippet = snippet.strip("`").strip()
+    indicators = (
+        "pragma solidity",
+        "contract ",
+        "library ",
+        "interface ",
+        "abstract contract ",
+        "function ",
+        "constructor(",
+        "constructor ",
+        "modifier ",
+        "event ",
+        "error ",
+        "struct ",
+        "enum ",
+    )
+    return snippet.startswith(indicators)
+
+
 def query_qwen(query: str) -> dict[str, Any] | None:
     try:
         result = qwen_api.query_with_retries(query, max_tokens=256)
@@ -125,7 +147,13 @@ def code_review(query: str | None = None, code: str | None = None) -> list[dict[
 
     combined_query = ""
     if code and code.strip():
-        execution_result = run_code(code)
+        if looks_like_solidity(code):
+            execution_result = (
+                "Skipped local execution because the provided snippet appears to be Solidity. "
+                "Rely on compile, test, static-analysis, and gas observations instead."
+            )
+        else:
+            execution_result = run_code(code)
         if not execution_result.strip():
             execution_result = "the code is compiled successfully without any error."
         combined_query += f"Code context:\n```{code}\n```\nCode output: {execution_result}"
