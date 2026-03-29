@@ -94,9 +94,9 @@ Solution: {answer}
 
 """
 
-SOLIDITY_SECURITY_CRITIC_INSTRUCTION = """You are a Solidity smart-contract security critic. You will be given a Solidity task and a candidate implementation.
+SOLIDITY_SECURITY_CRITIC_INSTRUCTION = """You are a Solidity smart-contract security critic. You will be given a smart contract task and a candidate contract solution.
 
-The implementation may be a full contract or a replacement function or method to be inserted into an existing repository file. In a few sentences, identify concrete security risks such as reentrancy, unchecked external calls, missing access control, unsafe token interactions, denial-of-service patterns, incorrect assumptions about msg.sender or tx.origin, unsafe upgrades, signature or oracle misuse, and any state-transition vulnerabilities.
+In a few sentences, identify concrete security risks such as reentrancy, unchecked external calls, missing access control, unsafe token interactions, denial-of-service patterns, incorrect assumptions about msg.sender or tx.origin, unsafe upgrades, signature or oracle misuse, and any state-transition vulnerabilities.
 
 Debate collaboratively with a functionality critic and a gas critic, but always prioritize protocol safety and fund security over convenience or gas savings.
 
@@ -105,9 +105,9 @@ Solution: {answer}
 
 {scratchpad}"""
 
-SOLIDITY_FUNCTIONALITY_CRITIC_INSTRUCTION = """You are a Solidity smart-contract functionality critic. You will be given a Solidity task and a candidate implementation.
+SOLIDITY_FUNCTIONALITY_CRITIC_INSTRUCTION = """You are a Solidity smart-contract functionality critic. You will be given a smart contract task and a candidate contract solution.
 
-The implementation may be a full contract or a replacement function or method to be inserted into an existing repository file. In a few sentences, judge whether it satisfies the specification, remains compatible with the surrounding repository context, compiles cleanly, preserves intended invariants, handles edge cases, and would plausibly pass the mapped unit tests.
+In a few sentences, judge whether the contract actually satisfies the specification, compiles cleanly, preserves intended invariants, exposes the required interfaces, handles edge cases, and would plausibly pass unit tests.
 
 Debate collaboratively with a security critic and a gas critic, but always prioritize behavioral correctness and spec compliance over stylistic preferences.
 
@@ -116,9 +116,9 @@ Solution: {answer}
 
 {scratchpad}"""
 
-SOLIDITY_GAS_CRITIC_INSTRUCTION = """You are a Solidity gas-efficiency critic. You will be given a Solidity task and a candidate implementation.
+SOLIDITY_GAS_CRITIC_INSTRUCTION = """You are a Solidity gas-efficiency critic. You will be given a smart contract task and a candidate contract solution.
 
-The implementation may be a full contract or a replacement function or method to be inserted into an existing repository file. In a few sentences, analyze deployment cost and runtime gas cost. Look for expensive storage writes, unnecessary loops, redundant state reads, poor calldata or memory usage, avoidable SSTORE patterns, and designs that will scale poorly on-chain.
+In a few sentences, analyze deployment cost and runtime gas cost. Look for expensive storage writes, unnecessary loops, redundant state reads, poor calldata or memory usage, avoidable SSTORE patterns, and designs that will scale poorly on-chain.
 
 Debate collaboratively with a security critic and a functionality critic, but do not recommend gas optimizations that would weaken security or break required behavior.
 
@@ -127,15 +127,15 @@ Solution: {answer}
 
 {scratchpad}"""
 
-SOLIDITY_SUMMARY_CRITIC_INSTRUCTION = """You are a senior smart-contract reviewer. You will be given an internal discussion among critics focusing on security, functionality, and gas efficiency for a Solidity implementation.
+SOLIDITY_SUMMARY_CRITIC_INSTRUCTION = """You are a senior smart-contract reviewer. You will be given an internal discussion among critics focusing on security, functionality, and gas efficiency for a Solidity solution.
 
-The implementation may be a full contract or a replacement function or method inside a larger repository file. Summarize the strongest points from the debate and explain what must change so the result is correct, secure, repository-compatible, and reasonably gas-efficient. Prefer concrete, implementation-level feedback that the code generator can use to revise the code.
+Summarize the strongest points from the debate and explain what must change so the contract is correct, secure, and reasonably gas-efficient. Prefer concrete, implementation-level feedback that the code generator can use to revise the contract.
 
 {scratchpad}"""
 
-SOLIDITY_SUMMARY_CRITIC_INSTRUCTION_POSTHOC = """You are a senior smart-contract reviewer. You will be given an internal discussion among critics focusing on security, functionality, and gas efficiency for a Solidity implementation.
+SOLIDITY_SUMMARY_CRITIC_INSTRUCTION_POSTHOC = """You are a senior smart-contract reviewer. You will be given an internal discussion among critics focusing on security, functionality, and gas efficiency for a Solidity solution.
 
-The implementation may be a full contract or a replacement function or method inside a larger repository file. The discussion may include observations from compilation, unit tests, static analysis, and gas reports. Summarize the most important findings and explain what must change so the revised code is correct, secure, repository-compatible, and reasonably gas-efficient.
+The discussion may include observations from compilation, unit tests, static analysis, and gas reports. Summarize the most important findings and explain what must change so the revised contract is correct, secure, and reasonably gas-efficient.
 
 {scratchpad}"""
 
