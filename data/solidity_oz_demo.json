@@ -1,0 +1,29 @@
+[
+  {
+    "id": 0,
+    "contract_name": "SimpleVault",
+    "category": "oz_demo",
+    "difficulty": "easy",
+    "instruction": "Write a complete Solidity smart contract named SimpleVault using Solidity 0.8.20. You must use OpenZeppelin Ownable from `@openzeppelin/contracts/access/Ownable.sol`. Because this project uses OpenZeppelin v5, your contract must initialize ownership in the constructor with `Ownable(msg.sender)`. The contract must: 1. inherit from Ownable; 2. store a private uint256 value initialized to 0; 3. expose a public onlyOwner function setValue(uint256 newValue) that updates the stored value; 4. expose a public view function getValue() returns (uint256); 5. revert when a non-owner calls setValue. Return only the Solidity code in a single ```solidity``` block.",
+    "language": "solidity",
+    "version": "0.8.20",
+    "evm_version": "shanghai",
+    "source_relpath": "src/Generated.sol",
+    "project_template_dir": "benchmarks/foundry_oz",
+    "test_relpath": "test/Generated.t.sol",
+    "include_paths": [
+      "lib"
+    ],
+    "extra_files": [
+      {
+        "path": "lib/openzeppelin-contracts/contracts/access/Ownable.sol",
+        "source": "SolEval/repository/openzeppelin-contracts/contracts/access/Ownable.sol"
+      },
+      {
+        "path": "lib/openzeppelin-contracts/contracts/utils/Context.sol",
+        "source": "SolEval/repository/openzeppelin-contracts/contracts/utils/Context.sol"
+      }
+    ],
+    "test_code": "// SPDX-License-Identifier: UNLICENSED\npragma solidity ^0.8.20;\n\nimport \"forge-std/Test.sol\";\nimport \"../src/Generated.sol\";\n\ncontract GeneratedTest is Test {\n    SimpleVault vault;\n    address user = address(0xBEEF);\n\n    function setUp() public {\n        vault = new SimpleVault();\n    }\n\n    function testOwnerIsDeployer() public {\n        assertEq(vault.owner(), address(this));\n    }\n\n    function testInitialValueIsZero() public {\n        assertEq(vault.getValue(), 0);\n    }\n\n    function testOwnerCanSetValue() public {\n        vault.setValue(42);\n        assertEq(vault.getValue(), 42);\n    }\n\n    function testNonOwnerCannotSetValue() public {\n        vm.prank(user);\n        vm.expectRevert();\n        vault.setValue(7);\n    }\n}\n"
+  }
+]
