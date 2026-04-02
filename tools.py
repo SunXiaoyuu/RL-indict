@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 import tempfile
 import time
 from typing import Any
-
+# The DashScope Generation API is used to query Qwen for information about the code. If the API is not available, the code will still run but will not be able to query Qwen.
 try:
     import dashscope
     from dashscope import Generation
@@ -14,7 +15,7 @@ except Exception:
     dashscope = None
     Generation = None
 
-
+# These are sequences that may appear in Qwen's response when it is refusing to answer the question.
 refusal_seqs = [
     "i can't",
     "i cannot",
@@ -83,16 +84,33 @@ def run_code(code: str, timeout_seconds: int = 120) -> str:
     return completed.stderr or completed.stdout or f"Process exited with code {completed.returncode}"
 
 
+def _extract_fenced_code_blocks(text: str) -> list[str]:
+    pattern = re.compile(r"`{3,}[^\n]*\n(.*?)\n`{3,}", re.DOTALL)
+    return [match.group(1).strip() for match in pattern.finditer(text)]
+
+
 def looks_like_solidity(code: str) -> bool:
-    snippet = code.strip().lower()
-    if snippet.startswith("```"):
-        snippet = snippet.strip("`").strip()
-    indicators = (
+    snippet = code.strip()
+    lowered = snippet.lower()
+
+    if "```solidity" in lowered or "pragma solidity" in lowered:
+        return True
+
+    fenced_blocks = _extract_fenced_code_blocks(snippet)
+    if fenced_blocks:
+        snippet = fenced_blocks[0]
+        lowered = snippet.lower()
+
+    indicators = [
         "pragma solidity",
         "contract ",
         "library ",
         "interface ",
         "abstract contract ",
+        "import \"@openzeppelin/",
+        "import '@openzeppelin/",
+        "import \"./",
+        "import '../",
         "function ",
         "constructor(",
         "constructor ",
@@ -101,8 +119,14 @@ def looks_like_solidity(code: str) -> bool:
         "error ",
         "struct ",
         "enum ",
-    )
-    return snippet.startswith(indicators)
+    ]
+
+    if lowered.startswith(tuple(indicators)):
+        return True
+
+    # Truncated snippets may begin mid-contract; scan the first part of the body too.
+    head = lowered[:500]
+    return any(indicator in head for indicator in indicators)
 
 
 def query_qwen(query: str) -> dict[str, Any] | None:
