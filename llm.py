@@ -13,7 +13,7 @@ except Exception:
     Generation = None
 
 
-NUM_LLM_RETRIES = 10
+NUM_LLM_RETRIES = 3
 LOG: logging.Logger = logging.getLogger(__name__)
 
 

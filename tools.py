@@ -34,8 +34,12 @@ if dashscope is not None:
     dashscope.api_key = dashscope_api_key
 
 
+ENABLE_QWEN_TOOL = os.getenv("INDICT_ENABLE_QWEN_TOOL", "0").lower() in {"1", "true", "yes", "on"}
+QWEN_TOOL_MODEL = os.getenv("INDICT_QWEN_TOOL_MODEL", "qwen2.5-14b-instruct")
+
+
 class QWEN:
-    def __init__(self, model_name: str = "qwen-max") -> None:
+    def __init__(self, model_name: str = QWEN_TOOL_MODEL) -> None:
         self.model_name = model_name
 
     def query_with_retries(self, query: str, max_tokens: int = 256, max_retries: int = 3) -> str:
@@ -61,7 +65,7 @@ class QWEN:
         raise RuntimeError(last_error)
 
 
-qwen_api = QWEN(model_name="qwen-max")
+qwen_api = QWEN(model_name=QWEN_TOOL_MODEL)
 
 
 def run_code(code: str, timeout_seconds: int = 120) -> str:
@@ -130,6 +134,9 @@ def looks_like_solidity(code: str) -> bool:
 
 
 def query_qwen(query: str) -> dict[str, Any] | None:
+    if not ENABLE_QWEN_TOOL:
+        return None
+
     try:
         result = qwen_api.query_with_retries(query, max_tokens=256)
         return {"title": query, "description": result}
@@ -152,7 +159,7 @@ def query_all_tools(query: str | None, combined_query: str) -> list[dict[str, An
     tool_outputs = []
     result = query_qwen(combined_query)
     if not invalid_response(result):
-        result["source"] = "qwen"
+        result["source"] = f"qwen:{qwen_api.model_name}"
         tool_outputs.append(result)
     return tool_outputs
 

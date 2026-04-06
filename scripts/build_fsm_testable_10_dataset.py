@@ -49,6 +49,7 @@ SAMPLES = [
         instruction="""
 Write a complete Solidity smart contract named MembershipAirdrop using Solidity 0.8.20.
 This task is curated from an FSM-SCG membership/airdrop sample. Do not use external imports.
+Preserve the exact public interface specified below; do not narrow uint256 arguments to smaller integer types for gas optimization.
 The contract must:
 1. store an owner set to the deployer;
 2. expose setTier(address user, uint256 tier) as an only-owner function;
@@ -70,13 +71,17 @@ contract GeneratedTest is Test {
     MembershipAirdrop c;
     address user = address(0xBEEF);
 
+    receive() external payable {}
+
     function setUp() public {
         c = new MembershipAirdrop();
         vm.deal(user, 2 ether);
     }
 
     function testOwnerCanSetTierAndUserClaimsOnce() public {
-        c.setTier(user, 2);
+        uint256 tier = 2;
+        c.setTier(user, tier);
+        assertEq(c.tierOf(user), tier);
         vm.prank(user);
         c.claimAirdrop();
         assertEq(c.airdropCredits(user), 200);
@@ -92,8 +97,15 @@ contract GeneratedTest is Test {
         c.setTier(user, 1);
     }
 
+    function testUntieredUserCannotClaim() public {
+        vm.prank(user);
+        vm.expectRevert();
+        c.claimAirdrop();
+    }
+
     function testTieredUserCanPurchase() public {
-        c.setTier(user, 1);
+        uint256 tier = 1;
+        c.setTier(user, tier);
         vm.prank(user);
         c.purchaseTokens{value: 1 ether}();
         assertEq(c.purchasedTokens(user), 1000);
@@ -103,6 +115,32 @@ contract GeneratedTest is Test {
         vm.prank(user);
         vm.expectRevert();
         c.purchaseTokens{value: 1 ether}();
+    }
+
+    function testZeroValuePurchaseReverts() public {
+        uint256 tier = 1;
+        c.setTier(user, tier);
+        vm.prank(user);
+        vm.expectRevert();
+        c.purchaseTokens{value: 0}();
+    }
+
+    function testNonOwnerCannotWithdrawAll() public {
+        vm.prank(user);
+        vm.expectRevert();
+        c.withdrawAll();
+    }
+
+    function testOwnerCanWithdrawAll() public {
+        uint256 tier = 1;
+        c.setTier(user, tier);
+        vm.prank(user);
+        c.purchaseTokens{value: 1 ether}();
+
+        uint256 ownerBalanceBefore = address(this).balance;
+        c.withdrawAll();
+        assertEq(address(c).balance, 0);
+        assertEq(address(this).balance, ownerBalanceBefore + 1 ether);
     }
 }
 """,
