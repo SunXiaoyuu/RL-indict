@@ -392,6 +392,54 @@ class SolidityExecutionBackend(BaseExecutionBackend):
         return len(detectors), severity_counts
 
     def _parse_gas_output(self, text: str) -> int | None:
+        forge_report_value = self._parse_forge_gas_report(text)
+        if forge_report_value is not None:
+            return forge_report_value
+
+        return self._parse_solc_gas_output(text)
+
+    def _parse_forge_gas_report(self, text: str) -> int | None:
+        max_value = None
+        awaiting_deployment_row = False
+        in_function_table = False
+
+        for line in text.splitlines():
+            stripped = line.strip()
+            if "|" not in stripped:
+                continue
+
+            cells = [cell.strip() for cell in stripped.split("|")[1:-1]]
+            if not cells:
+                continue
+
+            first_cell = cells[0].lower()
+            if first_cell == "deployment cost":
+                awaiting_deployment_row = True
+                in_function_table = False
+                continue
+            if first_cell == "function name":
+                awaiting_deployment_row = False
+                in_function_table = True
+                continue
+            if not any(cells):
+                continue
+
+            if awaiting_deployment_row:
+                deployment_cost = self._parse_number(cells[0])
+                if deployment_cost is not None:
+                    max_value = deployment_cost if max_value is None else max(max_value, deployment_cost)
+                    awaiting_deployment_row = False
+                continue
+
+            if in_function_table and len(cells) >= 5:
+                # Forge gas reports use: Function Name | Min | Avg | Median | Max | # Calls.
+                function_max = self._parse_number(cells[4])
+                if function_max is not None:
+                    max_value = function_max if max_value is None else max(max_value, function_max)
+
+        return max_value
+
+    def _parse_solc_gas_output(self, text: str) -> int | None:
         max_value = None
         for line in text.splitlines():
             stripped = line.strip()
