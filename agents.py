@@ -170,6 +170,14 @@ class Agents:
         if self._has_posthoc():
             output["execution_observation"] = getattr(self, "action_execution", "")
             output["execution_metrics"] = getattr(self, "action_execution_metrics", {})
+            output["mid_action_execution_observation"] = getattr(self, "mid_action_execution", "")
+            output["mid_action_execution_metrics"] = getattr(self, "mid_action_execution_metrics", {})
+            output["final_action_execution_observation"] = getattr(self, "final_action_execution", "")
+            output["final_action_execution_metrics"] = getattr(self, "final_action_execution_metrics", {})
+            if hasattr(self, "degradation_guard"):
+                output["degradation_guard"] = self.degradation_guard
+            if hasattr(self, "rejected_action"):
+                output["rejected_action"] = self.rejected_action
             output["critic_posthoc"] = self._append_prev_trial_field("critic_posthoc", self.critic_posthoc)
             output["mid_action"] = self.mid_action
             output["critic_scratchpad_posthoc"] = self.critic_scratchpad_posthoc
@@ -213,6 +221,8 @@ class Agents:
         observation = self.execution_backend.evaluate(extract_code(self.action), code_before=self.code_before)
         self.action_execution = observation.to_text()
         self.action_execution_metrics = observation.as_dict()
+        self.mid_action_execution = self.action_execution
+        self.mid_action_execution_metrics = self.action_execution_metrics
         self.scratchpad += "\nObservation: " + self.action_execution
 
         self.critic_posthoc = self.perform_critic_debate(
@@ -230,6 +240,23 @@ class Agents:
         self.mid_action = self.action
         self.action = self.prompt_agent(self.action_llm, self.actor_prompt, stop_seqs=["\nCritic:"])
         self.scratchpad += self.action
+        final_observation = self.execution_backend.evaluate(extract_code(self.action), code_before=self.code_before)
+        self.final_action_execution = final_observation.to_text()
+        self.final_action_execution_metrics = final_observation.as_dict()
+
+        if self._compile_success(self.mid_action_execution_metrics) and not self._compile_success(self.final_action_execution_metrics):
+            self.rejected_action = self.action
+            self.action = self.mid_action
+            self.action_execution = self.mid_action_execution
+            self.action_execution_metrics = self.mid_action_execution_metrics
+            self.degradation_guard = "reverted_to_mid_action_after_final_compile_failure"
+            self.scratchpad += (
+                "\nDegradation Guard: final rewrite failed compilation; "
+                "reverted to the first improved solution."
+            )
+        else:
+            self.action_execution = self.final_action_execution
+            self.action_execution_metrics = self.final_action_execution_metrics
 
     def perform_critic_debate(self, max_steps=1, prefix="", answer=None, posthoc=False):
         posthoc_suffix = "_posthoc" if posthoc else ""
@@ -384,6 +411,13 @@ class Agents:
 
     def reset(self) -> None:
         self.scratchpad = ""
+
+    @staticmethod
+    def _compile_success(metrics: dict[str, Any] | None) -> bool:
+        if not isinstance(metrics, dict):
+            return False
+        compile_result = metrics.get("compile")
+        return isinstance(compile_result, dict) and compile_result.get("success") is True
 
     def prompt_agent(self, llm_module, prompt_template, max_tokens=1024, stop_seqs=None, num_outputs=1, main_action=True) -> str:
         stop_seqs = stop_seqs or []

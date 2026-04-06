@@ -12,6 +12,10 @@ parser.add_argument(
     "--prev_trial", type=str, default=None, 
     help="Path to the last generation iteration",
 )
+parser.add_argument(
+    "--data_path", type=str, default=None,
+    help="Optional dataset JSON path. If omitted, the task default in util.py is used.",
+)
 
 # Agent configuration
 parser.add_argument(

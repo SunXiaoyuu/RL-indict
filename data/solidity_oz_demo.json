@@ -14,16 +14,6 @@
     "include_paths": [
       "lib"
     ],
-    "extra_files": [
-      {
-        "path": "lib/openzeppelin-contracts/contracts/access/Ownable.sol",
-        "source": "SolEval/repository/openzeppelin-contracts/contracts/access/Ownable.sol"
-      },
-      {
-        "path": "lib/openzeppelin-contracts/contracts/utils/Context.sol",
-        "source": "SolEval/repository/openzeppelin-contracts/contracts/utils/Context.sol"
-      }
-    ],
     "test_code": "// SPDX-License-Identifier: UNLICENSED\npragma solidity ^0.8.20;\n\nimport \"forge-std/Test.sol\";\nimport \"../src/Generated.sol\";\n\ncontract GeneratedTest is Test {\n    SimpleVault vault;\n    address user = address(0xBEEF);\n\n    function setUp() public {\n        vault = new SimpleVault();\n    }\n\n    function testOwnerIsDeployer() public {\n        assertEq(vault.owner(), address(this));\n    }\n\n    function testInitialValueIsZero() public {\n        assertEq(vault.getValue(), 0);\n    }\n\n    function testOwnerCanSetValue() public {\n        vault.setValue(42);\n        assertEq(vault.getValue(), 42);\n    }\n\n    function testNonOwnerCannotSetValue() public {\n        vm.prank(user);\n        vm.expectRevert();\n        vault.setValue(7);\n    }\n}\n"
   }
 ]

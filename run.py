@@ -29,7 +29,7 @@ output_path = os.path.join(output_dir, strategy_id)
 os.makedirs(output_path, exist_ok=True)
 
 # Load data 
-data, action_prompt_header, question_prompt_key = load_data(args.task)
+data, action_prompt_header, question_prompt_key = load_data(args.task, data_path=args.data_path)
     
 # Set up tool 
 search_tool = [tool_definitions['codesearch']]

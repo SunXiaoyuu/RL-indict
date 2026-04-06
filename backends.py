@@ -98,6 +98,28 @@ class SolidityExecutionBackend(BaseExecutionBackend):
                 compile_command = self._compile_command(workdir, context)
                 compile_result = self._run_command(compile_command, workdir)
 
+                if not compile_result["success"]:
+                    summary = self._build_summary(
+                        compile_result=compile_result,
+                        test_result=None,
+                        vulnerability_count=None,
+                        severity_counts={},
+                        max_gas_value=None,
+                    )
+                    return BackendObservation(
+                        summary=summary,
+                        details={
+                            "compile": compile_result,
+                            "tests": None,
+                            "slither": None,
+                            "gas": None,
+                            "vulnerability_count": None,
+                            "vulnerability_severity_counts": {},
+                            "max_gas_value": None,
+                            "skipped_after_compile_failure": True,
+                        },
+                    )
+
                 test_result = None
                 test_command = self._test_command(workdir, context)
                 if test_command is not None:

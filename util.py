@@ -45,9 +45,9 @@ TASK_CONFIGS = {
 }
 
 
-def load_data(task):
+def load_data(task, data_path=None):
     config = TASK_CONFIGS[task]
-    data = json.load(open(config["data_path"], "r", encoding="utf-8"))
+    data = json.load(open(data_path or config["data_path"], "r", encoding="utf-8"))
     default_language = config.get("default_language")
     if default_language:
         for sample in data:
