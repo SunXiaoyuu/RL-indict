@@ -1,0 +1,107 @@
+[
+  {
+    "id": 1,
+    "source_fsm_id": "5632",
+    "source_contract_name": "CrowdsaleContract",
+    "dataset_source": "fsm_scg_curated_testable",
+    "contract_name": "SimpleCrowdsale",
+    "category": "crowdsale",
+    "difficulty": "easy",
+    "instruction": "Write a complete Solidity smart contract named SimpleCrowdsale using Solidity 0.8.20.\nThis task is curated from an FSM-SCG crowdsale sample. Do not use external imports.\nThe contract must:\n1. be constructed with address payable wallet and uint256 rate;\n2. reject a zero wallet or zero rate in the constructor;\n3. expose public wallet(), rate(), weiRaised(), and tokensPurchased(address) values;\n4. expose buyTokens(address beneficiary) payable;\n5. buyTokens must require a nonzero beneficiary and nonzero msg.value, add msg.value to weiRaised, add msg.value * rate to tokensPurchased[beneficiary], emit TokensPurchased(address purchaser, address beneficiary, uint256 value, uint256 amount), and forward the ETH to wallet.\nReturn only the Solidity code in a single ```solidity``` block.",
+    "language": "solidity",
+    "version": "0.8.20",
+    "evm_version": "shanghai",
+    "source_relpath": "src/Generated.sol",
+    "project_template_dir": "benchmarks/foundry_oz",
+    "test_relpath": "test/Generated.t.sol",
+    "include_paths": [
+      "lib"
+    ],
+    "test_code": "// SPDX-License-Identifier: UNLICENSED\npragma solidity ^0.8.20;\n\nimport \"forge-std/Test.sol\";\nimport \"../src/Generated.sol\";\n\ncontract GeneratedTest is Test {\n    SimpleCrowdsale c;\n    address payable wallet = payable(address(0xCAFE));\n    address buyer = address(0xBEEF);\n\n    function setUp() public {\n        c = new SimpleCrowdsale(wallet, 5);\n        vm.deal(buyer, 3 ether);\n    }\n\n    function testBuyTokensForwardsFundsAndRecordsPurchase() public {\n        vm.prank(buyer);\n        c.buyTokens{value: 2 ether}(buyer);\n        assertEq(c.weiRaised(), 2 ether);\n        assertEq(c.tokensPurchased(buyer), 10 ether);\n        assertEq(wallet.balance, 2 ether);\n    }\n\n    function testRejectsZeroValue() public {\n        vm.prank(buyer);\n        vm.expectRevert();\n        c.buyTokens{value: 0}(buyer);\n    }\n\n    function testRejectsZeroBeneficiary() public {\n        vm.prank(buyer);\n        vm.expectRevert();\n        c.buyTokens{value: 1 ether}(address(0));\n    }\n}\n",
+    "benchmark_partition": "diagnostic"
+  },
+  {
+    "id": 3,
+    "source_fsm_id": "49",
+    "source_contract_name": "TokenVotingContract",
+    "dataset_source": "fsm_scg_curated_testable",
+    "contract_name": "TokenVoting",
+    "category": "voting",
+    "difficulty": "easy",
+    "instruction": "Write a complete Solidity smart contract named TokenVoting using Solidity 0.8.20.\nThis task is curated from an FSM-SCG token/voting sample. Do not use external imports.\nThe contract must:\n1. store an owner set to the deployer;\n2. define candidates by id and name, and expose candidateCount(), candidateNames(uint256), and candidateVotes(uint256);\n3. expose addCandidate(string memory name) as only-owner;\n4. expose grantVotingRights(address voter) as only-owner and a public hasVotingRights(address) mapping or getter;\n5. expose vote(uint256 candidateId), allowing each granted voter to vote exactly once;\n6. reject invalid candidate ids, duplicate votes, and votes from addresses without voting rights.\nReturn only the Solidity code in a single ```solidity``` block.",
+    "language": "solidity",
+    "version": "0.8.20",
+    "evm_version": "shanghai",
+    "source_relpath": "src/Generated.sol",
+    "project_template_dir": "benchmarks/foundry_oz",
+    "test_relpath": "test/Generated.t.sol",
+    "include_paths": [
+      "lib"
+    ],
+    "test_code": "// SPDX-License-Identifier: UNLICENSED\npragma solidity ^0.8.20;\n\nimport \"forge-std/Test.sol\";\nimport \"../src/Generated.sol\";\n\ncontract GeneratedTest is Test {\n    TokenVoting c;\n    address voter = address(0xBEEF);\n\n    function setUp() public {\n        c = new TokenVoting();\n        c.addCandidate(\"Alice\");\n        c.addCandidate(\"Bob\");\n    }\n\n    function testOwnerAddsCandidates() public {\n        assertEq(c.candidateCount(), 2);\n        assertEq(c.candidateNames(1), \"Alice\");\n    }\n\n    function testGrantedVoterCanVoteOnce() public {\n        c.grantVotingRights(voter);\n        vm.prank(voter);\n        c.vote(1);\n        assertEq(c.candidateVotes(1), 1);\n        vm.prank(voter);\n        vm.expectRevert();\n        c.vote(1);\n    }\n\n    function testUngrantVoterCannotVote() public {\n        vm.prank(voter);\n        vm.expectRevert();\n        c.vote(1);\n    }\n}\n",
+    "benchmark_partition": "diagnostic"
+  },
+  {
+    "id": 4,
+    "source_fsm_id": "53",
+    "source_contract_name": "UncensorablePostingContract",
+    "dataset_source": "fsm_scg_curated_testable",
+    "contract_name": "PostingBoard",
+    "category": "posting",
+    "difficulty": "easy",
+    "instruction": "Write a complete Solidity smart contract named PostingBoard using Solidity 0.8.20.\nThis task is curated from an FSM-SCG uncensorable posting sample. Do not use external imports.\nThe contract must:\n1. define a public postCount;\n2. define a public posts(uint256) getter for a struct containing address author, string content, and uint256 totalPower;\n3. expose createPost(string calldata content) returning the new post id and rejecting empty content;\n4. expose boostPost(uint256 postId) payable, requiring an existing post and msg.value > 0, increasing that post's totalPower and adding the value to authorBalances(author);\n5. expose authorBalances(address);\n6. expose withdraw() so an author can withdraw their accumulated balance and the balance is set to zero before transferring ETH.\nReturn only the Solidity code in a single ```solidity``` block.",
+    "language": "solidity",
+    "version": "0.8.20",
+    "evm_version": "shanghai",
+    "source_relpath": "src/Generated.sol",
+    "project_template_dir": "benchmarks/foundry_oz",
+    "test_relpath": "test/Generated.t.sol",
+    "include_paths": [
+      "lib"
+    ],
+    "test_code": "// SPDX-License-Identifier: UNLICENSED\npragma solidity ^0.8.20;\n\nimport \"forge-std/Test.sol\";\nimport \"../src/Generated.sol\";\n\ncontract GeneratedTest is Test {\n    PostingBoard c;\n    address author = address(0xA11CE);\n    address booster = address(0xBEEF);\n\n    function setUp() public {\n        c = new PostingBoard();\n        vm.deal(booster, 2 ether);\n    }\n\n    function testCreatePostStoresAuthorAndContent() public {\n        vm.prank(author);\n        uint256 postId = c.createPost(\"hello\");\n        (address storedAuthor, string memory content, uint256 power) = c.posts(postId);\n        assertEq(storedAuthor, author);\n        assertEq(content, \"hello\");\n        assertEq(power, 0);\n    }\n\n    function testBoostCreditsAuthor() public {\n        vm.prank(author);\n        uint256 postId = c.createPost(\"hello\");\n        vm.prank(booster);\n        c.boostPost{value: 1 ether}(postId);\n        assertEq(c.authorBalances(author), 1 ether);\n    }\n\n    function testInvalidBoostReverts() public {\n        vm.prank(booster);\n        vm.expectRevert();\n        c.boostPost{value: 1 ether}(999);\n    }\n}\n",
+    "benchmark_partition": "diagnostic"
+  },
+  {
+    "id": 6,
+    "source_fsm_id": "48",
+    "source_contract_name": "FundManagementContract",
+    "dataset_source": "fsm_scg_curated_testable",
+    "contract_name": "FundPoolManager",
+    "category": "fund_management",
+    "difficulty": "easy",
+    "instruction": "Write a complete Solidity smart contract named FundPoolManager using Solidity 0.8.20.\nThis task is curated from an FSM-SCG fund management sample. Do not use external imports.\nThe contract must:\n1. store an owner set to the deployer;\n2. expose pools(address pool) returning the reward token address for that pool;\n3. expose addPool(address pool, address rewardToken) and removePool(address pool) as only-owner functions;\n4. expose transferTo(address payable to, uint256 amount), callable only by a registered pool, transferring ETH from the contract to to;\n5. expose rescueFund(address payable to, uint256 amount) as only-owner;\n6. include receive() external payable;\n7. reject zero pool addresses, unregistered pool transfers, and insufficient ETH balance transfers.\nReturn only the Solidity code in a single ```solidity``` block.",
+    "language": "solidity",
+    "version": "0.8.20",
+    "evm_version": "shanghai",
+    "source_relpath": "src/Generated.sol",
+    "project_template_dir": "benchmarks/foundry_oz",
+    "test_relpath": "test/Generated.t.sol",
+    "include_paths": [
+      "lib"
+    ],
+    "test_code": "// SPDX-License-Identifier: UNLICENSED\npragma solidity ^0.8.20;\n\nimport \"forge-std/Test.sol\";\nimport \"../src/Generated.sol\";\n\ncontract GeneratedTest is Test {\n    FundPoolManager c;\n    address pool = address(0xBEEF);\n    address reward = address(0xCAFE);\n    address payable receiver = payable(address(0xD00D));\n\n    function setUp() public {\n        c = new FundPoolManager();\n        payable(address(c)).transfer(2 ether);\n    }\n\n    receive() external payable {}\n\n    function testOwnerAddsAndRemovesPool() public {\n        c.addPool(pool, reward);\n        assertEq(c.pools(pool), reward);\n        c.removePool(pool);\n        assertEq(c.pools(pool), address(0));\n    }\n\n    function testRegisteredPoolTransfersFunds() public {\n        c.addPool(pool, reward);\n        vm.prank(pool);\n        c.transferTo(receiver, 1 ether);\n        assertEq(receiver.balance, 1 ether);\n    }\n\n    function testUnregisteredPoolCannotTransfer() public {\n        vm.prank(pool);\n        vm.expectRevert();\n        c.transferTo(receiver, 1 ether);\n    }\n}\n",
+    "benchmark_partition": "diagnostic"
+  },
+  {
+    "id": 7,
+    "source_fsm_id": "2006",
+    "source_contract_name": "NFTTokenContract",
+    "dataset_source": "fsm_scg_curated_testable",
+    "contract_name": "PresaleMint",
+    "category": "minting",
+    "difficulty": "easy",
+    "instruction": "Write a complete Solidity smart contract named PresaleMint using Solidity 0.8.20.\nThis task is curated from an FSM-SCG presale/public sale minting sample. Do not use external imports.\nThe contract must:\n1. store an owner set to the deployer;\n2. define enum State { PresaleLive, SaleLive, SaleClosed } and public currentState initialized to PresaleLive;\n3. expose whitelist(address user, bool status) as only-owner and public presalerList(address);\n4. expose toggleSale() as only-owner, moving PresaleLive -> SaleLive and SaleLive -> SaleClosed;\n5. expose presaleBuy() payable, requiring PresaleLive and presalerList[msg.sender] true, incrementing presaleAmountMinted;\n6. expose buy() payable, requiring SaleLive and incrementing publicAmountMinted;\n7. reject non-owner whitelist/toggle calls and invalid state purchases.\nReturn only the Solidity code in a single ```solidity``` block.",
+    "language": "solidity",
+    "version": "0.8.20",
+    "evm_version": "shanghai",
+    "source_relpath": "src/Generated.sol",
+    "project_template_dir": "benchmarks/foundry_oz",
+    "test_relpath": "test/Generated.t.sol",
+    "include_paths": [
+      "lib"
+    ],
+    "test_code": "// SPDX-License-Identifier: UNLICENSED\npragma solidity ^0.8.20;\n\nimport \"forge-std/Test.sol\";\nimport \"../src/Generated.sol\";\n\ncontract GeneratedTest is Test {\n    PresaleMint c;\n    address user = address(0xBEEF);\n\n    function setUp() public {\n        c = new PresaleMint();\n        vm.deal(user, 1 ether);\n    }\n\n    function testWhitelistedUserCanPresaleBuy() public {\n        c.whitelist(user, true);\n        vm.prank(user);\n        c.presaleBuy{value: 0.1 ether}();\n        assertEq(c.presaleAmountMinted(), 1);\n    }\n\n    function testUnwhitelistedUserCannotPresaleBuy() public {\n        vm.prank(user);\n        vm.expectRevert();\n        c.presaleBuy{value: 0.1 ether}();\n    }\n\n    function testPublicBuyOnlyWhenSaleLive() public {\n        c.toggleSale();\n        vm.prank(user);\n        c.buy{value: 0.1 ether}();\n        assertEq(c.publicAmountMinted(), 1);\n    }\n}\n",
+    "benchmark_partition": "diagnostic"
+  }
+]

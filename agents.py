@@ -168,6 +168,8 @@ class Agents:
             output[f"{key}_tool_output"] = getattr(self, f"{key}_tool_output")
 
         if self._has_posthoc():
+            output["initial_action_execution_observation"] = getattr(self, "initial_action_execution", "")
+            output["initial_action_execution_metrics"] = getattr(self, "initial_action_execution_metrics", {})
             output["execution_observation"] = getattr(self, "action_execution", "")
             output["execution_metrics"] = getattr(self, "action_execution_metrics", {})
             output["mid_action_execution_observation"] = getattr(self, "mid_action_execution", "")
@@ -218,6 +220,10 @@ class Agents:
         if not self._has_posthoc():
             return
 
+        initial_observation = self.execution_backend.evaluate(extract_code(self.initial_action), code_before=self.code_before)
+        self.initial_action_execution = initial_observation.to_text()
+        self.initial_action_execution_metrics = initial_observation.as_dict()
+
         observation = self.execution_backend.evaluate(extract_code(self.action), code_before=self.code_before)
         self.action_execution = observation.to_text()
         self.action_execution_metrics = observation.as_dict()
@@ -257,6 +263,21 @@ class Agents:
         else:
             self.action_execution = self.final_action_execution
             self.action_execution_metrics = self.final_action_execution_metrics
+
+        if self._is_better_outcome(self.initial_action_execution_metrics, self.action_execution_metrics):
+            self.rejected_action = self.action
+            self.action = self.initial_action
+            self.action_execution = self.initial_action_execution
+            self.action_execution_metrics = self.initial_action_execution_metrics
+            initial_guard = "reverted_to_initial_action_after_better_compile_or_test_outcome"
+            if hasattr(self, "degradation_guard"):
+                self.degradation_guard = self.degradation_guard + ";" + initial_guard
+            else:
+                self.degradation_guard = initial_guard
+            self.scratchpad += (
+                "\nDegradation Guard: improved rewrites underperformed the initial solution; "
+                "reverted to the initial solution."
+            )
 
     def perform_critic_debate(self, max_steps=1, prefix="", answer=None, posthoc=False):
         posthoc_suffix = "_posthoc" if posthoc else ""
@@ -418,6 +439,27 @@ class Agents:
             return False
         compile_result = metrics.get("compile")
         return isinstance(compile_result, dict) and compile_result.get("success") is True
+
+    @staticmethod
+    def _tests_success(metrics: dict[str, Any] | None) -> bool:
+        if not isinstance(metrics, dict):
+            return False
+        tests_result = metrics.get("tests")
+        return isinstance(tests_result, dict) and tests_result.get("success") is True
+
+    @classmethod
+    def _is_better_outcome(cls, candidate_metrics: dict[str, Any] | None, baseline_metrics: dict[str, Any] | None) -> bool:
+        candidate_compile = cls._compile_success(candidate_metrics)
+        baseline_compile = cls._compile_success(baseline_metrics)
+        if candidate_compile != baseline_compile:
+            return candidate_compile and not baseline_compile
+
+        if not candidate_compile:
+            return False
+
+        candidate_tests = cls._tests_success(candidate_metrics)
+        baseline_tests = cls._tests_success(baseline_metrics)
+        return candidate_tests and not baseline_tests
 
     def prompt_agent(self, llm_module, prompt_template, max_tokens=1024, stop_seqs=None, num_outputs=1, main_action=True) -> str:
         stop_seqs = stop_seqs or []

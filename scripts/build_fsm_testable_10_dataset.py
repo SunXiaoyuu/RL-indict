@@ -7,6 +7,8 @@ from pathlib import Path
 PROJECT_TEMPLATE_DIR = "benchmarks/foundry_oz"
 SOURCE_RELPATH = "src/Generated.sol"
 TEST_RELPATH = "test/Generated.t.sol"
+MAIN_SAMPLE_IDS = {0, 2, 5, 8, 9}
+DIAGNOSTIC_SAMPLE_IDS = {1, 3, 4, 6, 7}
 
 
 def sample(
@@ -49,6 +51,7 @@ SAMPLES = [
         instruction="""
 Write a complete Solidity smart contract named MembershipAirdrop using Solidity 0.8.20.
 This task is curated from an FSM-SCG membership/airdrop sample. Do not use external imports.
+Preserve the exact public interface specified below; do not narrow uint256 arguments to smaller integer types for gas optimization.
 The contract must:
 1. store an owner set to the deployer;
 2. expose setTier(address user, uint256 tier) as an only-owner function;
@@ -70,13 +73,17 @@ contract GeneratedTest is Test {
     MembershipAirdrop c;
     address user = address(0xBEEF);
 
+    receive() external payable {}
+
     function setUp() public {
         c = new MembershipAirdrop();
         vm.deal(user, 2 ether);
     }
 
     function testOwnerCanSetTierAndUserClaimsOnce() public {
-        c.setTier(user, 2);
+        uint256 tier = 2;
+        c.setTier(user, tier);
+        assertEq(c.tierOf(user), tier);
         vm.prank(user);
         c.claimAirdrop();
         assertEq(c.airdropCredits(user), 200);
@@ -92,8 +99,15 @@ contract GeneratedTest is Test {
         c.setTier(user, 1);
     }
 
+    function testUntieredUserCannotClaim() public {
+        vm.prank(user);
+        vm.expectRevert();
+        c.claimAirdrop();
+    }
+
     function testTieredUserCanPurchase() public {
-        c.setTier(user, 1);
+        uint256 tier = 1;
+        c.setTier(user, tier);
         vm.prank(user);
         c.purchaseTokens{value: 1 ether}();
         assertEq(c.purchasedTokens(user), 1000);
@@ -103,6 +117,32 @@ contract GeneratedTest is Test {
         vm.prank(user);
         vm.expectRevert();
         c.purchaseTokens{value: 1 ether}();
+    }
+
+    function testZeroValuePurchaseReverts() public {
+        uint256 tier = 1;
+        c.setTier(user, tier);
+        vm.prank(user);
+        vm.expectRevert();
+        c.purchaseTokens{value: 0}();
+    }
+
+    function testNonOwnerCannotWithdrawAll() public {
+        vm.prank(user);
+        vm.expectRevert();
+        c.withdrawAll();
+    }
+
+    function testOwnerCanWithdrawAll() public {
+        uint256 tier = 1;
+        c.setTier(user, tier);
+        vm.prank(user);
+        c.purchaseTokens{value: 1 ether}();
+
+        uint256 ownerBalanceBefore = address(this).balance;
+        c.withdrawAll();
+        assertEq(address(c).balance, 0);
+        assertEq(address(this).balance, ownerBalanceBefore + 1 ether);
     }
 }
 """,
@@ -640,10 +680,34 @@ contract GeneratedTest is Test {
 ]
 
 
+def with_partition_tags(samples: list[dict]) -> list[dict]:
+    tagged = []
+    for entry in samples:
+        item = dict(entry)
+        if item["id"] in MAIN_SAMPLE_IDS:
+            item["benchmark_partition"] = "main"
+        elif item["id"] in DIAGNOSTIC_SAMPLE_IDS:
+            item["benchmark_partition"] = "diagnostic"
+        else:
+            item["benchmark_partition"] = "unassigned"
+        tagged.append(item)
+    return tagged
+
+
 def main() -> None:
-    output_path = Path("data/solidity_fsm_testable_10.json")
-    output_path.write_text(json.dumps(SAMPLES, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    print(f"Wrote {len(SAMPLES)} samples to {output_path}")
+    tagged_samples = with_partition_tags(SAMPLES)
+    main_samples = [sample for sample in tagged_samples if sample["benchmark_partition"] == "main"]
+    diagnostic_samples = [sample for sample in tagged_samples if sample["benchmark_partition"] == "diagnostic"]
+
+    outputs = {
+        Path("data/solidity_fsm_testable_10.json"): tagged_samples,
+        Path("data/solidity_fsm_testable_main_5.json"): main_samples,
+        Path("data/solidity_fsm_testable_diagnostic_5.json"): diagnostic_samples,
+    }
+
+    for output_path, samples in outputs.items():
+        output_path.write_text(json.dumps(samples, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        print(f"Wrote {len(samples)} samples to {output_path}")
 
 
 if __name__ == "__main__":

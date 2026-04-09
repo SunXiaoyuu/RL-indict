@@ -87,12 +87,31 @@ def extract_content_in_code_blocks(text: str, keyword: str = ""):
     return text
 
 
-def extract_code(text: str):
-    code = extract_content_in_code_blocks(text).strip()
+def _strip_code_language_prefix(code: str) -> str:
+    stripped = code.strip()
     for prefix in ("python", "solidity", "sol"):
-        if code.startswith(prefix):
-            return code[len(prefix):].strip()
-    return code
+        if stripped.startswith(prefix):
+            remainder = stripped[len(prefix):]
+            if remainder == "" or remainder[0].isspace():
+                return remainder.strip()
+    return stripped
+
+
+def extract_code(text: str):
+    stripped = text.strip()
+    if not stripped:
+        return stripped
+
+    fenced_blocks = re.findall(r"```(?:[A-Za-z0-9_+-]+)?\s*\n?(.*?)```", stripped, re.DOTALL)
+    if fenced_blocks:
+        return _strip_code_language_prefix(fenced_blocks[0])
+
+    if stripped.startswith("```"):
+        lines = stripped.splitlines()
+        if len(lines) > 1:
+            return _strip_code_language_prefix("\n".join(lines[1:]))
+
+    return _strip_code_language_prefix(stripped)
 
 
 def extract_tools(tool_selections):
