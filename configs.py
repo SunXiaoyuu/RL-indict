@@ -18,6 +18,7 @@ model_mapping = {
     'gpt4': 'gpt-4-32k',
     'gpt3.5': 'gpt-3.5-turbo',
     'qwen2.5-14b': 'qwen2.5-14b-instruct',
+    'qwen2.5-14b-instruct': 'qwen2.5-14b-instruct',
     "qwen": "qwen2.5-14b-instruct"
 }
 

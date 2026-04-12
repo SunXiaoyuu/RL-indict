@@ -20,6 +20,8 @@ def sample(
     category: str,
     instruction: str,
     test_code: str,
+    required_abi_signatures: list[str],
+    forbidden_abi_signatures: list[str] | None = None,
 ) -> dict:
     return {
         "id": sample_id,
@@ -38,6 +40,8 @@ def sample(
         "test_relpath": TEST_RELPATH,
         "include_paths": ["lib"],
         "test_code": test_code.strip() + "\n",
+        "required_abi_signatures": required_abi_signatures,
+        "forbidden_abi_signatures": forbidden_abi_signatures or [],
     }
 
 
@@ -146,6 +150,16 @@ contract GeneratedTest is Test {
     }
 }
 """,
+        required_abi_signatures=[
+            "setTier(address,uint256)",
+            "tierOf(address)",
+            "claimed(address)",
+            "airdropCredits(address)",
+            "purchasedTokens(address)",
+            "claimAirdrop()",
+            "purchaseTokens()",
+            "withdrawAll()",
+        ],
     ),
     sample(
         sample_id=1,
@@ -202,6 +216,14 @@ contract GeneratedTest is Test {
     }
 }
 """,
+        required_abi_signatures=[
+            "constructor(address,uint256)",
+            "wallet()",
+            "rate()",
+            "weiRaised()",
+            "tokensPurchased(address)",
+            "buyTokens(address)",
+        ],
     ),
     sample(
         sample_id=2,
@@ -260,6 +282,13 @@ contract GeneratedTest is Test {
     }
 }
 """,
+        required_abi_signatures=[
+            "allocation(address)",
+            "releaseTime(address)",
+            "withdrawn(address)",
+            "addInvestor(address,uint256,uint256)",
+            "withdraw()",
+        ],
     ),
     sample(
         sample_id=3,
@@ -318,6 +347,15 @@ contract GeneratedTest is Test {
     }
 }
 """,
+        required_abi_signatures=[
+            "candidateCount()",
+            "candidateNames(uint256)",
+            "candidateVotes(uint256)",
+            "addCandidate(string)",
+            "grantVotingRights(address)",
+            "hasVotingRights(address)",
+            "vote(uint256)",
+        ],
     ),
     sample(
         sample_id=4,
@@ -378,6 +416,14 @@ contract GeneratedTest is Test {
     }
 }
 """,
+        required_abi_signatures=[
+            "postCount()",
+            "posts(uint256)",
+            "createPost(string)",
+            "boostPost(uint256)",
+            "authorBalances(address)",
+            "withdraw()",
+        ],
     ),
     sample(
         sample_id=5,
@@ -436,6 +482,17 @@ contract GeneratedTest is Test {
     }
 }
 """,
+        required_abi_signatures=[
+            "constructor(uint256,uint256)",
+            "maxSupply()",
+            "price()",
+            "totalMinted()",
+            "saleEnded()",
+            "balances(address)",
+            "buy(uint256)",
+            "setPrice(uint256)",
+            "withdraw()",
+        ],
     ),
     sample(
         sample_id=6,
@@ -497,6 +554,14 @@ contract GeneratedTest is Test {
     }
 }
 """,
+        required_abi_signatures=[
+            "pools(address)",
+            "addPool(address,address)",
+            "removePool(address)",
+            "transferTo(address,uint256)",
+            "rescueFund(address,uint256)",
+            "receive()",
+        ],
     ),
     sample(
         sample_id=7,
@@ -554,6 +619,16 @@ contract GeneratedTest is Test {
     }
 }
 """,
+        required_abi_signatures=[
+            "currentState()",
+            "presalerList(address)",
+            "whitelist(address,bool)",
+            "toggleSale()",
+            "presaleBuy()",
+            "buy()",
+            "presaleAmountMinted()",
+            "publicAmountMinted()",
+        ],
     ),
     sample(
         sample_id=8,
@@ -615,6 +690,21 @@ contract GeneratedTest is Test {
     }
 }
 """,
+        required_abi_signatures=[
+            "supply()",
+            "cost()",
+            "maxSupply()",
+            "preSaleWalletLimit()",
+            "currentSaleStatus()",
+            "whitelistUser(address,bool)",
+            "startPresale()",
+            "startPublicSale()",
+            "setCost(uint256)",
+            "isWhitelisted(address)",
+            "mintTokenWhitelisted(uint256)",
+            "mintTokenPublic(uint256)",
+            "preSaleWalletMinted(address)",
+        ],
     ),
     sample(
         sample_id=9,
@@ -676,6 +766,18 @@ contract GeneratedTest is Test {
     }
 }
 """,
+        required_abi_signatures=[
+            "constructor(uint256,uint256)",
+            "currentState()",
+            "startPresale()",
+            "startPublicSale()",
+            "price()",
+            "totalSupply()",
+            "maxSupply()",
+            "claimedWhitelistStatus(address)",
+            "mintNFT()",
+            "mintPublicNFT(uint256)",
+        ],
     ),
 ]
 

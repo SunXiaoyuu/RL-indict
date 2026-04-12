@@ -1,8 +1,5 @@
 import sys, os
 
-#os.environ["OPENAI_API_KEY"] = "OPENAI API KEY HERE"
-os.environ["DASHSCOPE_API_KEY"] = "sk-e0684cacf12246528358ae32ee4fc135"
-os.environ["QWEN_API_BASE"] = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 import numpy as np
 import json
 import pdb 

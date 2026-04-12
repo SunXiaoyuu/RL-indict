@@ -57,15 +57,24 @@ def load_data(task, data_path=None):
 
 def get_model(model_name, model_mapping):
     from llm import QWEN
+    from qwen_client import DEFAULT_QWEN_MODEL
 
-    api_key = "sk-e0684cacf12246528358ae32ee4fc135"
     if model_name in ["gpt4", "gpt3.5", "qwen"]:
         qwen_model_name = model_mapping.get(model_name, "qwen2.5-14b-instruct")
-        print(f"Using Qwen model for {model_name}: {qwen_model_name}")
-        return QWEN(model_name=qwen_model_name, api_key=api_key)
+        print(f"Using Qwen client model for {model_name}: {qwen_model_name}")
+        return QWEN(model_name=qwen_model_name)
 
-    print("Using default Qwen model: qwen2.5-14b-instruct")
-    return QWEN(model_name="qwen2.5-14b-instruct", api_key=api_key)
+    if model_name in model_mapping and model_name.startswith("qwen"):
+        qwen_model_name = model_mapping[model_name]
+        print(f"Using Qwen client model: {qwen_model_name}")
+        return QWEN(model_name=qwen_model_name)
+
+    if model_name and model_name.startswith("qwen"):
+        print(f"Using Qwen client model: {model_name}")
+        return QWEN(model_name=model_name)
+
+    print(f"Using default Qwen client model: {DEFAULT_QWEN_MODEL}")
+    return QWEN(model_name=DEFAULT_QWEN_MODEL)
 
 
 def get_code_before(sample):

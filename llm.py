@@ -5,12 +5,7 @@ import time
 from abc import ABC, abstractmethod
 from typing import Callable
 
-try:
-    import dashscope
-    from dashscope import Generation
-except Exception:
-    dashscope = None
-    Generation = None
+from qwen_client import QwenClient
 
 
 NUM_LLM_RETRIES = 3
@@ -88,29 +83,13 @@ class LLM(ABC):
 
 class QWEN(LLM):
     def __init__(self, model_name: str = "qwen2.5-14b-instruct", api_key: str | None = None, base_url=None) -> None:
-        del base_url
-        api_key = api_key or "sk-e0684cacf12246528358ae32ee4fc135"
         super().__init__(model_name, api_key)
-        if dashscope is not None:
-            dashscope.api_key = self.api_key
+        self.client = QwenClient(model_name=model_name, api_key=api_key, base_url=base_url)
         self.name = model_name
-
-    def _ensure_generation(self) -> None:
-        if Generation is None:
-            raise RuntimeError("DashScope Generation API is unavailable. Please install/configure dashscope first.")
 
     def query(self, prompt: str, stop_seqs=None, max_tokens: int = 1024, num_outputs: int = 1) -> str:
         del stop_seqs, num_outputs
-        self._ensure_generation()
-        response = Generation.call(
-            model=self.model,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=max_tokens,
-            result_format="message",
-        )
-        if response.status_code != 200:
-            raise RuntimeError(str(response.message))
-        return response.output.choices[0].message.content
+        return self.client.query(prompt, max_tokens=max_tokens)
 
     def query_with_system_prompt(
         self,
@@ -121,19 +100,7 @@ class QWEN(LLM):
         num_outputs: int = 1,
     ) -> str:
         del stop_seqs, num_outputs
-        self._ensure_generation()
-        response = Generation.call(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt},
-            ],
-            max_tokens=max_tokens,
-            result_format="message",
-        )
-        if response.status_code != 200:
-            raise RuntimeError(str(response.message))
-        return response.output.choices[0].message.content
+        return self.client.query_with_system_prompt(system_prompt, prompt, max_tokens=max_tokens)
 
 
 OPENAI = QWEN

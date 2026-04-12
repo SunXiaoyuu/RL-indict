@@ -101,6 +101,7 @@ class SolidityExecutionBackend(BaseExecutionBackend):
                 if not compile_result["success"]:
                     summary = self._build_summary(
                         compile_result=compile_result,
+                        abi_result=None,
                         test_result=None,
                         vulnerability_count=None,
                         severity_counts={},
@@ -110,6 +111,7 @@ class SolidityExecutionBackend(BaseExecutionBackend):
                         summary=summary,
                         details={
                             "compile": compile_result,
+                            "abi": None,
                             "tests": None,
                             "slither": None,
                             "gas": None,
@@ -119,6 +121,8 @@ class SolidityExecutionBackend(BaseExecutionBackend):
                             "skipped_after_compile_failure": True,
                         },
                     )
+
+                abi_result = self._check_abi_conformity(workdir, context)
 
                 test_result = None
                 test_command = self._test_command(workdir, context)
@@ -143,6 +147,7 @@ class SolidityExecutionBackend(BaseExecutionBackend):
 
                 summary = self._build_summary(
                     compile_result=compile_result,
+                    abi_result=abi_result,
                     test_result=test_result,
                     vulnerability_count=vulnerability_count,
                     severity_counts=severity_counts,
@@ -150,6 +155,7 @@ class SolidityExecutionBackend(BaseExecutionBackend):
                 )
                 details = {
                     "compile": compile_result,
+                    "abi": abi_result,
                     "tests": test_result,
                     "slither": slither_result,
                     "gas": gas_result,
@@ -338,9 +344,171 @@ class SolidityExecutionBackend(BaseExecutionBackend):
             "success": completed.returncode == 0,
         }
 
+    def _check_abi_conformity(self, workdir: Path, context: dict[str, str]) -> dict[str, Any]:
+        required = self._normalize_signature_list(self.sample_metadata.get("required_abi_signatures", []))
+        forbidden = self._normalize_signature_list(self.sample_metadata.get("forbidden_abi_signatures", []))
+        if not required and not forbidden:
+            return {
+                "checked": False,
+                "success": None,
+                "required": [],
+                "forbidden": [],
+                "available": [],
+                "missing": [],
+                "forbidden_present": [],
+            }
+
+        try:
+            artifact_path = self._find_contract_artifact(workdir, context)
+            if artifact_path is not None:
+                abi = self._load_abi_from_artifact(artifact_path)
+                abi_source = str(artifact_path)
+            else:
+                abi, abi_source = self._load_abi_from_solc(workdir, context)
+            available = sorted(self._abi_signatures(abi))
+        except Exception as exc:
+            return {
+                "checked": True,
+                "success": False,
+                "required": required,
+                "forbidden": forbidden,
+                "available": [],
+                "missing": required,
+                "forbidden_present": [],
+                "error": str(exc),
+            }
+
+        available_set = set(available)
+        missing = [signature for signature in required if signature not in available_set]
+        forbidden_present = [signature for signature in forbidden if signature in available_set]
+        return {
+            "checked": True,
+            "success": len(missing) == 0 and len(forbidden_present) == 0,
+            "required": required,
+            "forbidden": forbidden,
+            "available": available,
+            "missing": missing,
+            "forbidden_present": forbidden_present,
+            "artifact": abi_source,
+        }
+
+    def _load_abi_from_artifact(self, artifact_path: Path) -> list[dict[str, Any]]:
+        artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
+        abi = artifact.get("abi", [])
+        if isinstance(abi, str):
+            abi = json.loads(abi)
+        if not isinstance(abi, list):
+            raise ValueError(f"Artifact ABI is not a list: {artifact_path}")
+        return abi
+
+    def _load_abi_from_solc(self, workdir: Path, context: dict[str, str]) -> tuple[list[dict[str, Any]], str]:
+        if not self._tool_exists("solc"):
+            raise FileNotFoundError("Compiled contract artifact not found and solc is unavailable for ABI extraction.")
+
+        command = f"solc {self._build_solc_flags(workdir)} --combined-json abi \"{context['source_relpath']}\""
+        result = self._run_command(command, workdir)
+        if not result["success"]:
+            error_text = result["stderr"].strip() or result["stdout"].strip() or "Unknown solc ABI extraction error."
+            raise RuntimeError(error_text)
+
+        data = json.loads(result["stdout"])
+        contracts = data.get("contracts", {})
+        contract_name = self.sample_metadata.get("contract_name")
+        for key, value in contracts.items():
+            if key.split(":")[-1] != contract_name:
+                continue
+            abi = value.get("abi", [])
+            if isinstance(abi, str):
+                abi = json.loads(abi)
+            if not isinstance(abi, list):
+                raise ValueError(f"solc ABI is not a list for {key}")
+            return abi, f"solc:{key}"
+
+        raise FileNotFoundError(f"ABI for contract {contract_name} not found in solc output.")
+
+    def _find_contract_artifact(self, workdir: Path, context: dict[str, str]) -> Path | None:
+        contract_name = self.sample_metadata.get("contract_name")
+        if not contract_name:
+            return None
+
+        source_name = Path(context["source_relpath"]).name
+        direct = workdir / "out" / source_name / f"{contract_name}.json"
+        if direct.exists():
+            return direct
+
+        candidates = sorted((workdir / "out").glob(f"**/{contract_name}.json"))
+        for candidate in candidates:
+            if candidate.name == f"{contract_name}.json":
+                return candidate
+        return None
+
+    def _abi_signatures(self, abi: list[dict[str, Any]]) -> set[str]:
+        signatures: set[str] = set()
+        for item in abi:
+            item_type = item.get("type")
+            if item_type == "function":
+                name = item.get("name")
+                if not name:
+                    continue
+                signatures.add(f"{name}({self._abi_input_types(item)})")
+            elif item_type == "constructor":
+                signatures.add(f"constructor({self._abi_input_types(item)})")
+            elif item_type == "receive":
+                signatures.add("receive()")
+            elif item_type == "fallback":
+                signatures.add("fallback()")
+        return signatures
+
+    def _abi_input_types(self, abi_item: dict[str, Any]) -> str:
+        return ",".join(self._canonical_abi_type(input_item) for input_item in abi_item.get("inputs", []))
+
+    def _canonical_abi_type(self, input_item: dict[str, Any]) -> str:
+        abi_type = str(input_item.get("type", "")).strip()
+        if abi_type == "tuple":
+            components = ",".join(self._canonical_abi_type(component) for component in input_item.get("components", []))
+            return f"({components})"
+        if abi_type.startswith("tuple["):
+            suffix = abi_type[len("tuple") :]
+            components = ",".join(self._canonical_abi_type(component) for component in input_item.get("components", []))
+            return f"({components}){suffix}"
+        return self._normalize_signature_type(abi_type)
+
+    def _normalize_signature_list(self, signatures: Any) -> list[str]:
+        if signatures is None:
+            return []
+        if isinstance(signatures, str):
+            signatures = [signatures]
+        if not isinstance(signatures, list):
+            return []
+        normalized = []
+        for signature in signatures:
+            if not isinstance(signature, str):
+                continue
+            rendered = self._normalize_signature(signature)
+            if rendered:
+                normalized.append(rendered)
+        return normalized
+
+    def _normalize_signature(self, signature: str) -> str:
+        signature = "".join(signature.strip().split())
+        if not signature:
+            return ""
+        if "(" not in signature or not signature.endswith(")"):
+            return signature
+        name, raw_args = signature.split("(", 1)
+        raw_args = raw_args[:-1]
+        if not raw_args:
+            return f"{name}()"
+        args = ",".join(self._normalize_signature_type(arg) for arg in raw_args.split(","))
+        return f"{name}({args})"
+
+    def _normalize_signature_type(self, abi_type: str) -> str:
+        return abi_type.replace("addresspayable", "address")
+
     def _build_summary(
         self,
         compile_result: dict[str, Any],
+        abi_result: dict[str, Any] | None,
         test_result: dict[str, Any] | None,
         vulnerability_count: int | None,
         severity_counts: dict[str, int],
@@ -353,6 +521,21 @@ class SolidityExecutionBackend(BaseExecutionBackend):
         else:
             error_text = compile_result["stderr"].strip() or compile_result["stdout"].strip() or "Unknown compiler error."
             lines.append(f"Compilation: failed. {error_text}")
+
+        if abi_result is None or not abi_result.get("checked"):
+            lines.append("ABI: not checked.")
+        elif abi_result.get("success"):
+            lines.append("ABI: passed.")
+        else:
+            issues = []
+            if abi_result.get("missing"):
+                issues.append("missing=" + ",".join(abi_result["missing"]))
+            if abi_result.get("forbidden_present"):
+                issues.append("forbidden_present=" + ",".join(abi_result["forbidden_present"]))
+            if abi_result.get("error"):
+                issues.append(f"error={abi_result['error']}")
+            issue_text = "; ".join(issues) if issues else "unknown mismatch"
+            lines.append(f"ABI: failed ({issue_text}).")
 
         if test_result is None:
             lines.append("Tests: skipped (no Solidity test command available).")

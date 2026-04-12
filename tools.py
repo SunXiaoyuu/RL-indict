@@ -5,15 +5,9 @@ import re
 import subprocess
 import sys
 import tempfile
-import time
 from typing import Any
-# The DashScope Generation API is used to query Qwen for information about the code. If the API is not available, the code will still run but will not be able to query Qwen.
-try:
-    import dashscope
-    from dashscope import Generation
-except Exception:
-    dashscope = None
-    Generation = None
+
+from qwen_client import QwenClient
 
 # These are sequences that may appear in Qwen's response when it is refusing to answer the question.
 refusal_seqs = [
@@ -27,45 +21,12 @@ refusal_seqs = [
     "i refuse",
 ]
 
-if dashscope is not None:
-    dashscope_api_key = os.getenv("DASHSCOPE_API_KEY")
-    if not dashscope_api_key:
-        dashscope_api_key = "dummy-key"
-    dashscope.api_key = dashscope_api_key
-
 
 ENABLE_QWEN_TOOL = os.getenv("INDICT_ENABLE_QWEN_TOOL", "0").lower() in {"1", "true", "yes", "on"}
 QWEN_TOOL_MODEL = os.getenv("INDICT_QWEN_TOOL_MODEL", "qwen2.5-14b-instruct")
 
 
-class QWEN:
-    def __init__(self, model_name: str = QWEN_TOOL_MODEL) -> None:
-        self.model_name = model_name
-
-    def query_with_retries(self, query: str, max_tokens: int = 256, max_retries: int = 3) -> str:
-        if Generation is None:
-            raise RuntimeError("DashScope Generation API is unavailable.")
-
-        last_error = "unknown error"
-        for attempt in range(max_retries):
-            try:
-                response = Generation.call(
-                    model=self.model_name,
-                    messages=[{"role": "user", "content": query}],
-                    max_tokens=max_tokens,
-                    result_format="message",
-                )
-                if response.status_code == 200:
-                    return response.output.choices[0].message.content
-                last_error = str(response.message)
-            except Exception as exc:
-                last_error = str(exc)
-            if attempt < max_retries - 1:
-                time.sleep(2)
-        raise RuntimeError(last_error)
-
-
-qwen_api = QWEN(model_name=QWEN_TOOL_MODEL)
+qwen_api = QwenClient(model_name=QWEN_TOOL_MODEL)
 
 
 def run_code(code: str, timeout_seconds: int = 120) -> str:

@@ -447,6 +447,17 @@ class Agents:
         tests_result = metrics.get("tests")
         return isinstance(tests_result, dict) and tests_result.get("success") is True
 
+    @staticmethod
+    def _abi_success(metrics: dict[str, Any] | None) -> bool:
+        if not isinstance(metrics, dict):
+            return False
+        abi_result = metrics.get("abi")
+        return (
+            not isinstance(abi_result, dict)
+            or abi_result.get("checked") is not True
+            or abi_result.get("success") is True
+        )
+
     @classmethod
     def _is_better_outcome(cls, candidate_metrics: dict[str, Any] | None, baseline_metrics: dict[str, Any] | None) -> bool:
         candidate_compile = cls._compile_success(candidate_metrics)
@@ -459,7 +470,12 @@ class Agents:
 
         candidate_tests = cls._tests_success(candidate_metrics)
         baseline_tests = cls._tests_success(baseline_metrics)
-        return candidate_tests and not baseline_tests
+        if candidate_tests != baseline_tests:
+            return candidate_tests and not baseline_tests
+
+        candidate_abi = cls._abi_success(candidate_metrics)
+        baseline_abi = cls._abi_success(baseline_metrics)
+        return candidate_abi and not baseline_abi
 
     def prompt_agent(self, llm_module, prompt_template, max_tokens=1024, stop_seqs=None, num_outputs=1, main_action=True) -> str:
         stop_seqs = stop_seqs or []

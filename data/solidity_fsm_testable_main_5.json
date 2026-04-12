@@ -18,6 +18,17 @@
       "lib"
     ],
     "test_code": "// SPDX-License-Identifier: UNLICENSED\npragma solidity ^0.8.20;\n\nimport \"forge-std/Test.sol\";\nimport \"../src/Generated.sol\";\n\ncontract GeneratedTest is Test {\n    MembershipAirdrop c;\n    address user = address(0xBEEF);\n\n    receive() external payable {}\n\n    function setUp() public {\n        c = new MembershipAirdrop();\n        vm.deal(user, 2 ether);\n    }\n\n    function testOwnerCanSetTierAndUserClaimsOnce() public {\n        uint256 tier = 2;\n        c.setTier(user, tier);\n        assertEq(c.tierOf(user), tier);\n        vm.prank(user);\n        c.claimAirdrop();\n        assertEq(c.airdropCredits(user), 200);\n        assertTrue(c.claimed(user));\n        vm.prank(user);\n        vm.expectRevert();\n        c.claimAirdrop();\n    }\n\n    function testNonOwnerCannotSetTier() public {\n        vm.prank(user);\n        vm.expectRevert();\n        c.setTier(user, 1);\n    }\n\n    function testUntieredUserCannotClaim() public {\n        vm.prank(user);\n        vm.expectRevert();\n        c.claimAirdrop();\n    }\n\n    function testTieredUserCanPurchase() public {\n        uint256 tier = 1;\n        c.setTier(user, tier);\n        vm.prank(user);\n        c.purchaseTokens{value: 1 ether}();\n        assertEq(c.purchasedTokens(user), 1000);\n    }\n\n    function testUntieredUserCannotPurchase() public {\n        vm.prank(user);\n        vm.expectRevert();\n        c.purchaseTokens{value: 1 ether}();\n    }\n\n    function testZeroValuePurchaseReverts() public {\n        uint256 tier = 1;\n        c.setTier(user, tier);\n        vm.prank(user);\n        vm.expectRevert();\n        c.purchaseTokens{value: 0}();\n    }\n\n    function testNonOwnerCannotWithdrawAll() public {\n        vm.prank(user);\n        vm.expectRevert();\n        c.withdrawAll();\n    }\n\n    function testOwnerCanWithdrawAll() public {\n        uint256 tier = 1;\n        c.setTier(user, tier);\n        vm.prank(user);\n        c.purchaseTokens{value: 1 ether}();\n\n        uint256 ownerBalanceBefore = address(this).balance;\n        c.withdrawAll();\n        assertEq(address(c).balance, 0);\n        assertEq(address(this).balance, ownerBalanceBefore + 1 ether);\n    }\n}\n",
+    "required_abi_signatures": [
+      "setTier(address,uint256)",
+      "tierOf(address)",
+      "claimed(address)",
+      "airdropCredits(address)",
+      "purchasedTokens(address)",
+      "claimAirdrop()",
+      "purchaseTokens()",
+      "withdrawAll()"
+    ],
+    "forbidden_abi_signatures": [],
     "benchmark_partition": "main"
   },
   {
@@ -39,6 +50,14 @@
       "lib"
     ],
     "test_code": "// SPDX-License-Identifier: UNLICENSED\npragma solidity ^0.8.20;\n\nimport \"forge-std/Test.sol\";\nimport \"../src/Generated.sol\";\n\ncontract GeneratedTest is Test {\n    TeamVestingVault c;\n    address investor = address(0xBEEF);\n\n    function setUp() public {\n        c = new TeamVestingVault();\n    }\n\n    function testOwnerAddsInvestor() public {\n        c.addInvestor(investor, 100, block.timestamp + 1 days);\n        assertEq(c.allocation(investor), 100);\n    }\n\n    function testNonOwnerCannotAddInvestor() public {\n        vm.prank(investor);\n        vm.expectRevert();\n        c.addInvestor(investor, 100, block.timestamp + 1 days);\n    }\n\n    function testInvestorWithdrawsAfterUnlock() public {\n        c.addInvestor(investor, 100, block.timestamp + 1 days);\n        vm.prank(investor);\n        vm.expectRevert();\n        c.withdraw();\n        vm.warp(block.timestamp + 1 days + 1);\n        vm.prank(investor);\n        c.withdraw();\n        assertEq(c.allocation(investor), 0);\n        assertEq(c.withdrawn(investor), 100);\n    }\n}\n",
+    "required_abi_signatures": [
+      "allocation(address)",
+      "releaseTime(address)",
+      "withdrawn(address)",
+      "addInvestor(address,uint256,uint256)",
+      "withdraw()"
+    ],
+    "forbidden_abi_signatures": [],
     "benchmark_partition": "main"
   },
   {
@@ -60,6 +79,18 @@
       "lib"
     ],
     "test_code": "// SPDX-License-Identifier: UNLICENSED\npragma solidity ^0.8.20;\n\nimport \"forge-std/Test.sol\";\nimport \"../src/Generated.sol\";\n\ncontract GeneratedTest is Test {\n    CollectibleSale c;\n    address buyer = address(0xBEEF);\n\n    function setUp() public {\n        c = new CollectibleSale(5, 0.1 ether);\n        vm.deal(buyer, 1 ether);\n    }\n\n    function testBuyMintsCollectibles() public {\n        vm.prank(buyer);\n        c.buy{value: 0.2 ether}(2);\n        assertEq(c.balances(buyer), 2);\n        assertEq(c.totalMinted(), 2);\n    }\n\n    function testBuyRejectsWrongPayment() public {\n        vm.prank(buyer);\n        vm.expectRevert();\n        c.buy{value: 0.1 ether}(2);\n    }\n\n    function testSaleEndsAtMaxSupply() public {\n        vm.prank(buyer);\n        c.buy{value: 0.5 ether}(5);\n        assertTrue(c.saleEnded());\n        vm.prank(buyer);\n        vm.expectRevert();\n        c.buy{value: 0.1 ether}(1);\n    }\n}\n",
+    "required_abi_signatures": [
+      "constructor(uint256,uint256)",
+      "maxSupply()",
+      "price()",
+      "totalMinted()",
+      "saleEnded()",
+      "balances(address)",
+      "buy(uint256)",
+      "setPrice(uint256)",
+      "withdraw()"
+    ],
+    "forbidden_abi_signatures": [],
     "benchmark_partition": "main"
   },
   {
@@ -81,6 +112,22 @@
       "lib"
     ],
     "test_code": "// SPDX-License-Identifier: UNLICENSED\npragma solidity ^0.8.20;\n\nimport \"forge-std/Test.sol\";\nimport \"../src/Generated.sol\";\n\ncontract GeneratedTest is Test {\n    GrandGooseMansion c;\n    address user = address(0xBEEF);\n\n    function setUp() public {\n        c = new GrandGooseMansion();\n        c.setCost(0.1 ether);\n        vm.deal(user, 1 ether);\n    }\n\n    function testWhitelistedPresaleMint() public {\n        c.whitelistUser(user, true);\n        c.startPresale();\n        vm.prank(user);\n        c.mintTokenWhitelisted{value: 0.2 ether}(2);\n        assertEq(c.supply(), 2);\n        assertEq(c.preSaleWalletMinted(user), 2);\n    }\n\n    function testNonWhitelistedPresaleMintReverts() public {\n        c.startPresale();\n        vm.prank(user);\n        vm.expectRevert();\n        c.mintTokenWhitelisted{value: 0.1 ether}(1);\n    }\n\n    function testPublicMint() public {\n        c.startPublicSale();\n        vm.prank(user);\n        c.mintTokenPublic{value: 0.1 ether}(1);\n        assertEq(c.supply(), 1);\n    }\n}\n",
+    "required_abi_signatures": [
+      "supply()",
+      "cost()",
+      "maxSupply()",
+      "preSaleWalletLimit()",
+      "currentSaleStatus()",
+      "whitelistUser(address,bool)",
+      "startPresale()",
+      "startPublicSale()",
+      "setCost(uint256)",
+      "isWhitelisted(address)",
+      "mintTokenWhitelisted(uint256)",
+      "mintTokenPublic(uint256)",
+      "preSaleWalletMinted(address)"
+    ],
+    "forbidden_abi_signatures": [],
     "benchmark_partition": "main"
   },
   {
@@ -102,6 +149,19 @@
       "lib"
     ],
     "test_code": "// SPDX-License-Identifier: UNLICENSED\npragma solidity ^0.8.20;\n\nimport \"forge-std/Test.sol\";\nimport \"../src/Generated.sol\";\n\ncontract GeneratedTest is Test {\n    ClosedPresaleMint c;\n    address user = address(0xBEEF);\n\n    function setUp() public {\n        c = new ClosedPresaleMint(0.1 ether, 3);\n        vm.deal(user, 1 ether);\n    }\n\n    function testCannotMintWhileClosed() public {\n        vm.prank(user);\n        vm.expectRevert();\n        c.mintNFT{value: 0.1 ether}();\n    }\n\n    function testPresaleMintOnce() public {\n        c.startPresale();\n        vm.prank(user);\n        c.mintNFT{value: 0.1 ether}();\n        assertEq(c.totalSupply(), 1);\n        assertTrue(c.claimedWhitelistStatus(user));\n        vm.prank(user);\n        vm.expectRevert();\n        c.mintNFT{value: 0.1 ether}();\n    }\n\n    function testPublicMint() public {\n        c.startPublicSale();\n        vm.prank(user);\n        c.mintPublicNFT{value: 0.2 ether}(2);\n        assertEq(c.totalSupply(), 2);\n    }\n}\n",
+    "required_abi_signatures": [
+      "constructor(uint256,uint256)",
+      "currentState()",
+      "startPresale()",
+      "startPublicSale()",
+      "price()",
+      "totalSupply()",
+      "maxSupply()",
+      "claimedWhitelistStatus(address)",
+      "mintNFT()",
+      "mintPublicNFT(uint256)"
+    ],
+    "forbidden_abi_signatures": [],
     "benchmark_partition": "main"
   }
 ]

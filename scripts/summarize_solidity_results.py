@@ -188,6 +188,10 @@ def build_row(
             {
                 "result_file": None,
                 "compile_success": None,
+                "abi_checked": None,
+                "abi_success": None,
+                "abi_missing": "",
+                "abi_forbidden_present": "",
                 "test_success": None,
                 "vulnerability_count": None,
                 "critical_count": 0,
@@ -207,6 +211,9 @@ def build_row(
 
     metrics = result_record.get("execution_metrics") or {}
     compile_metrics = metrics.get("compile") or {}
+    abi_metrics = metrics.get("abi") or {}
+    abi_missing = abi_metrics.get("missing") or []
+    abi_forbidden_present = abi_metrics.get("forbidden_present") or []
     tests_metrics = metrics.get("tests")
     vulnerability_counts = metrics.get("vulnerability_severity_counts") or {}
     critical_count, high_count, medium_count, low_count = flatten_severity_counts(vulnerability_counts)
@@ -227,6 +234,10 @@ def build_row(
         {
             "result_file": f"{sample_idx}.json",
             "compile_success": compile_success,
+            "abi_checked": abi_metrics.get("checked") if isinstance(abi_metrics, dict) else None,
+            "abi_success": abi_metrics.get("success") if isinstance(abi_metrics, dict) else None,
+            "abi_missing": ",".join(abi_missing),
+            "abi_forbidden_present": ",".join(abi_forbidden_present),
             "test_success": test_success,
             "vulnerability_count": metrics.get("vulnerability_count"),
             "critical_count": critical_count,
@@ -253,6 +264,9 @@ def compute_aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
     tests_available = sum(1 for row in rows if row["test_success"] is not None)
     tests_passed = sum(1 for row in rows if row["test_success"] is True)
     tests_failed = sum(1 for row in rows if row["test_success"] is False)
+    abi_checked = sum(1 for row in rows if row["abi_checked"] is True)
+    abi_passed = sum(1 for row in rows if row["abi_success"] is True)
+    abi_failed = sum(1 for row in rows if row["abi_success"] is False)
     rollback_count = sum(1 for row in rows if row["degradation_guard"])
 
     return {
@@ -263,6 +277,9 @@ def compute_aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "tests_available": tests_available,
         "tests_passed": tests_passed,
         "tests_failed": tests_failed,
+        "abi_checked": abi_checked,
+        "abi_passed": abi_passed,
+        "abi_failed": abi_failed,
         "rollback_count": rollback_count,
     }
 
@@ -285,6 +302,10 @@ def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         "partition",
         "result_present",
         "compile_success",
+        "abi_checked",
+        "abi_success",
+        "abi_missing",
+        "abi_forbidden_present",
         "test_success",
         "vulnerability_count",
         "critical_count",
@@ -318,22 +339,26 @@ def write_markdown(path: Path, rows: list[dict[str, Any]], aggregate: dict[str, 
         f"- Results present: {aggregate['result_present']}",
         f"- Compile success: {aggregate['compile_success']}",
         f"- Compile failed: {aggregate['compile_failed']}",
+        f"- ABI checked: {aggregate['abi_checked']}",
+        f"- ABI passed: {aggregate['abi_passed']}",
+        f"- ABI failed: {aggregate['abi_failed']}",
         f"- Tests passed: {aggregate['tests_passed']}",
         f"- Tests failed: {aggregate['tests_failed']}",
         f"- Rollback triggered: {aggregate['rollback_count']}",
         "",
-        "| idx | dataset_id | contract | partition | compile | test | vulns | gas | guard | failure |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| idx | dataset_id | contract | partition | compile | ABI | test | vulns | gas | guard | failure |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for row in rows:
         lines.append(
             "| {sample_idx} | {dataset_id} | {contract_name} | {partition} | {compile_success} | "
-            "{test_success} | {vulnerability_count} | {max_gas_value} | {degradation_guard} | {failure_reason_short} |".format(
+            "{abi_success} | {test_success} | {vulnerability_count} | {max_gas_value} | {degradation_guard} | {failure_reason_short} |".format(
                 sample_idx=row.get("sample_idx", ""),
                 dataset_id=row.get("dataset_id", ""),
                 contract_name=row.get("contract_name", ""),
                 partition=row.get("partition", ""),
                 compile_success=row.get("compile_success", ""),
+                abi_success=row.get("abi_success", ""),
                 test_success=row.get("test_success", ""),
                 vulnerability_count=row.get("vulnerability_count", ""),
                 max_gas_value=row.get("max_gas_value", ""),
