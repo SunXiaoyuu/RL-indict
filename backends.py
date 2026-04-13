@@ -117,6 +117,7 @@ class SolidityExecutionBackend(BaseExecutionBackend):
                             "gas": None,
                             "vulnerability_count": None,
                             "vulnerability_severity_counts": {},
+                            "slither_findings": [],
                             "max_gas_value": None,
                             "skipped_after_compile_failure": True,
                         },
@@ -140,7 +141,7 @@ class SolidityExecutionBackend(BaseExecutionBackend):
                 if slither_command is not None:
                     slither_result = self._run_command(slither_command, workdir)
 
-                vulnerability_count, severity_counts = self._parse_slither_count(slither_json_path)
+                vulnerability_count, severity_counts, slither_findings = self._parse_slither_count(slither_json_path)
                 max_gas_value = None
                 if gas_result is not None and gas_result["success"]:
                     max_gas_value = self._parse_gas_output(f"{gas_result['stdout']}\n{gas_result['stderr']}")
@@ -161,6 +162,7 @@ class SolidityExecutionBackend(BaseExecutionBackend):
                     "gas": gas_result,
                     "vulnerability_count": vulnerability_count,
                     "vulnerability_severity_counts": severity_counts,
+                    "slither_findings": slither_findings,
                     "max_gas_value": max_gas_value,
                 }
                 return BackendObservation(summary=summary, details=details)
@@ -563,16 +565,31 @@ class SolidityExecutionBackend(BaseExecutionBackend):
 
         return " ".join(lines)
 
-    def _parse_slither_count(self, json_path: Path) -> tuple[int | None, dict[str, int]]:
+    def _parse_slither_count(self, json_path: Path) -> tuple[int | None, dict[str, int], list[dict[str, Any]]]:
         if not json_path.exists():
-            return None, {}
+            return None, {}, []
         data = json.loads(json_path.read_text(encoding="utf-8"))
         detectors = data.get("results", {}).get("detectors", [])
         severity_counts: dict[str, int] = {}
+        findings: list[dict[str, Any]] = []
         for detector in detectors:
             impact = str(detector.get("impact", "unknown")).lower()
             severity_counts[impact] = severity_counts.get(impact, 0) + 1
-        return len(detectors), severity_counts
+            findings.append(
+                {
+                    "check": detector.get("check"),
+                    "impact": impact,
+                    "confidence": detector.get("confidence"),
+                    "description": self._short_text(detector.get("description", ""), limit=320),
+                }
+            )
+        return len(detectors), severity_counts, findings
+
+    def _short_text(self, value: Any, limit: int = 320) -> str:
+        text = " ".join(str(value or "").split())
+        if len(text) > limit:
+            return text[: limit - 3].rstrip() + "..."
+        return text
 
     def _parse_gas_output(self, text: str) -> int | None:
         forge_report_value = self._parse_forge_gas_report(text)

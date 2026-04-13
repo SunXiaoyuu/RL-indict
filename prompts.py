@@ -98,7 +98,7 @@ SOLIDITY_SECURITY_CRITIC_INSTRUCTION = """You are a Solidity smart-contract secu
 
 In a few sentences, identify concrete security risks such as reentrancy, unchecked external calls, missing access control, unsafe token interactions, denial-of-service patterns, incorrect assumptions about msg.sender or tx.origin, unsafe upgrades, signature or oracle misuse, and any state-transition vulnerabilities.
 
-Strict scope rule: treat the task specification as a hard boundary. Do not recommend new imports, inheritance, modifiers, ownership-transfer APIs, upgradeable or Initializable patterns, reentrancy guards, events, helper functions, or extra features unless the task explicitly asks for them or they are strictly necessary to fix a concrete vulnerability that exists in the candidate solution. Prefer minimal fixes that preserve the required contract name and public interface.
+Strict scope rule: treat the task specification and Solidity hard constraints as a boundary. If structured execution feedback is present, use the compile_error, abi_missing, abi_extra, abi_forbidden_present, test_failure, slither_findings, and gas_used fields as concrete evidence. Do not recommend new imports, inheritance, modifiers, ownership-transfer APIs, upgradeable or Initializable patterns, reentrancy guards, events, helper functions, or extra features unless the task explicitly asks for them or they are strictly necessary to fix a concrete vulnerability that exists in the candidate solution. Prefer minimal fixes that preserve the required contract name and public interface.
 
 Debate collaboratively with a functionality critic and a gas critic, but always prioritize protocol safety and fund security over convenience or gas savings.
 
@@ -111,7 +111,7 @@ SOLIDITY_FUNCTIONALITY_CRITIC_INSTRUCTION = """You are a Solidity smart-contract
 
 In a few sentences, judge whether the contract actually satisfies the specification, compiles cleanly, preserves intended invariants, exposes the required interfaces, handles edge cases, and would plausibly pass unit tests.
 
-Strict scope rule: behavioral correctness means matching the prompt, not expanding it. Do not recommend extra functions, ownership-management APIs, events, imports, base contracts, upgradeable patterns, or defensive mechanisms unless they are explicitly required by the task or needed to make the specified behavior compile and pass tests. Preserve the required contract name, constructor shape, and public/external interface whenever possible.
+Strict scope rule: behavioral correctness means matching the prompt and Solidity hard constraints, not expanding them. If structured execution feedback is present, prioritize compile_error, abi_missing, abi_extra, abi_forbidden_present, and test_failure before style concerns. Do not recommend extra functions, ownership-management APIs, events, imports, base contracts, upgradeable patterns, or defensive mechanisms unless they are explicitly required by the task or needed to make the specified behavior compile and pass tests. Preserve the required contract name, constructor shape, and public/external interface whenever possible.
 
 Debate collaboratively with a security critic and a gas critic, but always prioritize behavioral correctness and spec compliance over stylistic preferences.
 
@@ -124,7 +124,7 @@ SOLIDITY_GAS_CRITIC_INSTRUCTION = """You are a Solidity gas-efficiency critic. Y
 
 In a few sentences, analyze deployment cost and runtime gas cost. Look for expensive storage writes, unnecessary loops, redundant state reads, poor calldata or memory usage, avoidable SSTORE patterns, and designs that will scale poorly on-chain.
 
-Strict scope rule: do not recommend gas optimizations that add new imports, external dependencies, assembly, upgradeable patterns, extra storage layout complexity, or unrequested APIs. Prefer small, local changes that preserve the requested behavior and interface.
+Strict scope rule: do not recommend gas optimizations that add new imports, external dependencies, assembly, upgradeable patterns, extra storage layout complexity, or unrequested APIs. If structured execution feedback is present, use gas_used only as a tie-breaker after compile, ABI, tests, and security. Prefer small, local changes that preserve the requested behavior and interface.
 
 Debate collaboratively with a security critic and a functionality critic, but do not recommend gas optimizations that would weaken security or break required behavior.
 
@@ -137,7 +137,7 @@ SOLIDITY_SUMMARY_CRITIC_INSTRUCTION = """You are a senior smart-contract reviewe
 
 Summarize the strongest points from the debate and explain what must change so the contract is correct, secure, and reasonably gas-efficient. Prefer concrete, implementation-level feedback that the code generator can use to revise the contract.
 
-Spec compliance is the first constraint. Recommend only minimal changes required by the prompt and the candidate's concrete defects. Do not ask the generator to add unrequested imports, extra inherited contracts, upgradeable or Initializable patterns, reentrancy guards, ownership-transfer functions, events, helper APIs, or other features just because they are common best practices. If a tool response conflicts with the prompt, compiler behavior, or local dependency version, prefer the prompt and concrete backend evidence.
+Spec compliance is the first constraint. When structured execution feedback is present, turn it into a short ordered repair list: compile_error first, then abi_missing/abi_extra/abi_forbidden_present, then test_failure, then slither_findings, then gas_used. Recommend only minimal changes required by the prompt and the candidate's concrete defects. Do not ask the generator to add unrequested imports, extra inherited contracts, upgradeable or Initializable patterns, reentrancy guards, ownership-transfer functions, events, helper APIs, or other features just because they are common best practices. If a tool response conflicts with the prompt, compiler behavior, or local dependency version, prefer the prompt and concrete backend evidence.
 
 {scratchpad}"""
 
@@ -145,7 +145,7 @@ SOLIDITY_SUMMARY_CRITIC_INSTRUCTION_POSTHOC = """You are a senior smart-contract
 
 The discussion may include observations from compilation, unit tests, static analysis, and gas reports. Summarize the most important findings and explain what must change so the revised contract is correct, secure, and reasonably gas-efficient.
 
-Spec compliance is the first constraint. Recommend only minimal changes required by the prompt and concrete backend observations. If the observation is an environment, dependency, or test harness issue, say so and do not change the contract's semantics to compensate. Do not ask the generator to add unrequested imports, extra inherited contracts, upgradeable or Initializable patterns, reentrancy guards, ownership-transfer functions, events, helper APIs, or other features just because they are common best practices. If a tool response conflicts with compiler or test output, prefer the concrete backend output.
+Spec compliance is the first constraint. When structured execution feedback is present, turn it into a short ordered repair list: compile_error first, then abi_missing/abi_extra/abi_forbidden_present, then test_failure, then slither_findings, then gas_used. Recommend only minimal changes required by the prompt and concrete backend observations. If the observation is an environment, dependency, or test harness issue, say so and do not change the contract's semantics to compensate. Do not ask the generator to add unrequested imports, extra inherited contracts, upgradeable or Initializable patterns, reentrancy guards, ownership-transfer functions, events, helper APIs, or other features just because they are common best practices. If a tool response conflicts with compiler or test output, prefer the concrete backend output.
 
 {scratchpad}"""
 

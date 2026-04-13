@@ -12,6 +12,7 @@ from typing import Any
 
 FAIL_PATTERN = re.compile(r"\[FAIL: ([^\]]+)\]")
 WHITESPACE_PATTERN = re.compile(r"\s+")
+ROUND_DIR_PATTERN = re.compile(r"^(?P<prefix>.*?round)(?P<num>\d+)(?P<suffix>.*)$")
 
 
 def parse_args() -> argparse.Namespace:
@@ -43,6 +44,16 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=160,
         help="Maximum length of the instruction summary column.",
+    )
+    parser.add_argument(
+        "--compare-results-dir",
+        action="append",
+        default=[],
+        help=(
+            "Additional result directory to include in a round comparison. "
+            "May be repeated. If omitted and --results-dir contains roundN, "
+            "sibling round directories are detected automatically."
+        ),
     )
     return parser.parse_args()
 
@@ -126,6 +137,25 @@ def flatten_severity_counts(counts: dict[str, Any] | None) -> tuple[int, int, in
     )
 
 
+def classify_final_status(row: dict[str, Any]) -> str:
+    if row.get("result_present") is not True:
+        return "missing_result"
+    if row.get("compile_success") is not True:
+        return "compile_failed"
+    if row.get("abi_success") is False:
+        return "abi_failed"
+    if row.get("test_success") is False:
+        return "test_failed"
+    if row.get("test_success") is None:
+        return "tests_unavailable"
+    vulnerability_count = row.get("vulnerability_count")
+    if isinstance(vulnerability_count, int) and vulnerability_count > 0:
+        return "passed_with_slither_findings"
+    if row.get("max_gas_value") is None:
+        return "passed_gas_unavailable"
+    return "passed_clean"
+
+
 def summarize_instruction(instruction: str, limit: int) -> str:
     first_line = instruction.splitlines()[0] if instruction else ""
     return normalize_text(first_line, limit=limit)
@@ -191,6 +221,7 @@ def build_row(
                 "abi_checked": None,
                 "abi_success": None,
                 "abi_missing": "",
+                "abi_extra": "",
                 "abi_forbidden_present": "",
                 "test_success": None,
                 "vulnerability_count": None,
@@ -204,6 +235,7 @@ def build_row(
                 "test_command": None,
                 "failure_stage": "missing_result",
                 "failure_reason_short": "Missing result file",
+                "final_status": "missing_result",
                 "execution_summary": None,
             }
         )
@@ -214,6 +246,17 @@ def build_row(
     abi_metrics = metrics.get("abi") or {}
     abi_missing = abi_metrics.get("missing") or []
     abi_forbidden_present = abi_metrics.get("forbidden_present") or []
+    abi_required = set(abi_metrics.get("required") or dataset_sample.get("required_abi_signatures") or [])
+    abi_forbidden = set(abi_metrics.get("forbidden") or dataset_sample.get("forbidden_abi_signatures") or [])
+    abi_available = abi_metrics.get("available") or []
+    has_required_constructor = any(str(signature).startswith("constructor(") for signature in abi_required)
+    abi_extra = [
+        signature
+        for signature in abi_available
+        if signature not in abi_required
+        and signature not in abi_forbidden
+        and not (str(signature).startswith("constructor(") and not has_required_constructor)
+    ]
     tests_metrics = metrics.get("tests")
     vulnerability_counts = metrics.get("vulnerability_severity_counts") or {}
     critical_count, high_count, medium_count, low_count = flatten_severity_counts(vulnerability_counts)
@@ -237,6 +280,7 @@ def build_row(
             "abi_checked": abi_metrics.get("checked") if isinstance(abi_metrics, dict) else None,
             "abi_success": abi_metrics.get("success") if isinstance(abi_metrics, dict) else None,
             "abi_missing": ",".join(abi_missing),
+            "abi_extra": ",".join(abi_extra),
             "abi_forbidden_present": ",".join(abi_forbidden_present),
             "test_success": test_success,
             "vulnerability_count": metrics.get("vulnerability_count"),
@@ -253,6 +297,7 @@ def build_row(
             "execution_summary": normalize_text(metrics.get("summary") or "", limit=280),
         }
     )
+    row["final_status"] = classify_final_status(row)
     return row
 
 
@@ -268,6 +313,10 @@ def compute_aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
     abi_passed = sum(1 for row in rows if row["abi_success"] is True)
     abi_failed = sum(1 for row in rows if row["abi_success"] is False)
     rollback_count = sum(1 for row in rows if row["degradation_guard"])
+    final_status_counts: dict[str, int] = {}
+    for row in rows:
+        status = row.get("final_status") or "unknown"
+        final_status_counts[status] = final_status_counts.get(status, 0) + 1
 
     return {
         "total_samples": total,
@@ -281,6 +330,7 @@ def compute_aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "abi_passed": abi_passed,
         "abi_failed": abi_failed,
         "rollback_count": rollback_count,
+        "final_status_counts": final_status_counts,
     }
 
 
@@ -305,6 +355,7 @@ def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         "abi_checked",
         "abi_success",
         "abi_missing",
+        "abi_extra",
         "abi_forbidden_present",
         "test_success",
         "vulnerability_count",
@@ -316,6 +367,7 @@ def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         "degradation_guard",
         "failure_stage",
         "failure_reason_short",
+        "final_status",
         "instruction_summary",
         "result_file",
         "compile_command",
@@ -329,8 +381,140 @@ def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
             writer.writerow({key: row.get(key) for key in fieldnames})
 
 
-def write_markdown(path: Path, rows: list[dict[str, Any]], aggregate: dict[str, Any]) -> None:
+def bool_token(value: Any) -> str:
+    if value is True:
+        return "T"
+    if value is False:
+        return "F"
+    return "-"
+
+
+def metric_token(value: Any) -> str:
+    if value is None:
+        return "-"
+    return str(value)
+
+
+def infer_round_label(path: Path) -> str:
+    match = ROUND_DIR_PATTERN.match(path.name)
+    if match:
+        return f"round{match.group('num')}"
+    return path.name
+
+
+def round_sort_key(path: Path) -> tuple[int, str]:
+    match = ROUND_DIR_PATTERN.match(path.name)
+    if match:
+        return (int(match.group("num")), path.name)
+    return (10**9, path.name)
+
+
+def discover_comparison_dirs(results_dir: Path, explicit_dirs: list[str]) -> list[Path]:
+    if explicit_dirs:
+        paths = [Path(value).resolve() for value in explicit_dirs]
+        paths.append(results_dir)
+    else:
+        match = ROUND_DIR_PATTERN.match(results_dir.name)
+        if not match:
+            return []
+        paths = []
+        for candidate in results_dir.parent.iterdir():
+            if not candidate.is_dir():
+                continue
+            candidate_match = ROUND_DIR_PATTERN.match(candidate.name)
+            if not candidate_match:
+                continue
+            if (
+                candidate_match.group("prefix") == match.group("prefix")
+                and candidate_match.group("suffix") == match.group("suffix")
+            ):
+                paths.append(candidate.resolve())
+
+    unique: dict[Path, Path] = {}
+    for path in paths:
+        if path.exists() and path.is_dir():
+            unique[path.resolve()] = path.resolve()
+    return sorted(unique.values(), key=round_sort_key)
+
+
+def build_round_comparison(
+    dataset_rows: list[dict[str, Any]],
+    result_dirs: list[Path],
+    instruction_chars: int,
+) -> dict[str, Any]:
+    round_entries = []
+    rows_by_round: dict[str, list[dict[str, Any]]] = {}
+    for result_dir in result_dirs:
+        label = infer_round_label(result_dir)
+        result_records = load_results(result_dir)
+        rows = [
+            build_row(sample, result_records.get(int(sample["sample_idx"])), instruction_chars)
+            for sample in dataset_rows
+        ]
+        round_entries.append({"label": label, "results_dir": str(result_dir)})
+        rows_by_round[label] = rows
+
+    comparison_rows: list[dict[str, Any]] = []
+    labels = [entry["label"] for entry in round_entries]
+    for sample in dataset_rows:
+        sample_idx = int(sample["sample_idx"])
+        per_round = [rows_by_round[label][sample_idx] for label in labels]
+        final_row = per_round[-1]
+        comparison_rows.append(
+            {
+                "sample_idx": sample_idx,
+                "dataset_id": sample.get("id"),
+                "contract_name": sample.get("contract_name"),
+                "partition": sample.get("benchmark_partition"),
+                "compile_transition": " -> ".join(bool_token(row.get("compile_success")) for row in per_round),
+                "abi_transition": " -> ".join(bool_token(row.get("abi_success")) for row in per_round),
+                "test_transition": " -> ".join(bool_token(row.get("test_success")) for row in per_round),
+                "slither_transition": " -> ".join(metric_token(row.get("vulnerability_count")) for row in per_round),
+                "gas_transition": " -> ".join(metric_token(row.get("max_gas_value")) for row in per_round),
+                "status_transition": " -> ".join(row.get("final_status", "unknown") for row in per_round),
+                "final_status": final_row.get("final_status", "unknown"),
+                "final_failure": final_row.get("failure_reason_short", ""),
+            }
+        )
+
+    return {
+        "rounds": round_entries,
+        "rows": comparison_rows,
+    }
+
+
+def write_comparison_csv(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    fieldnames = [
+        "sample_idx",
+        "dataset_id",
+        "contract_name",
+        "partition",
+        "compile_transition",
+        "abi_transition",
+        "test_transition",
+        "slither_transition",
+        "gas_transition",
+        "status_transition",
+        "final_status",
+        "final_failure",
+    ]
+    with path.open("w", encoding="utf-8-sig", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({key: row.get(key) for key in fieldnames})
+
+
+def write_markdown(
+    path: Path,
+    rows: list[dict[str, Any]],
+    aggregate: dict[str, Any],
+    round_comparison: dict[str, Any] | None = None,
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    final_status_counts = aggregate.get("final_status_counts", {})
+    final_status_text = ", ".join(f"{key}={value}" for key, value in sorted(final_status_counts.items()))
     lines = [
         "# Solidity Result Summary",
         "",
@@ -345,14 +529,15 @@ def write_markdown(path: Path, rows: list[dict[str, Any]], aggregate: dict[str, 
         f"- Tests passed: {aggregate['tests_passed']}",
         f"- Tests failed: {aggregate['tests_failed']}",
         f"- Rollback triggered: {aggregate['rollback_count']}",
+        f"- Final status: {final_status_text}",
         "",
-        "| idx | dataset_id | contract | partition | compile | ABI | test | vulns | gas | guard | failure |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| idx | dataset_id | contract | partition | compile | ABI | test | vulns | gas | status | guard | failure |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for row in rows:
         lines.append(
             "| {sample_idx} | {dataset_id} | {contract_name} | {partition} | {compile_success} | "
-            "{abi_success} | {test_success} | {vulnerability_count} | {max_gas_value} | {degradation_guard} | {failure_reason_short} |".format(
+            "{abi_success} | {test_success} | {vulnerability_count} | {max_gas_value} | {final_status} | {degradation_guard} | {failure_reason_short} |".format(
                 sample_idx=row.get("sample_idx", ""),
                 dataset_id=row.get("dataset_id", ""),
                 contract_name=row.get("contract_name", ""),
@@ -362,10 +547,40 @@ def write_markdown(path: Path, rows: list[dict[str, Any]], aggregate: dict[str, 
                 test_success=row.get("test_success", ""),
                 vulnerability_count=row.get("vulnerability_count", ""),
                 max_gas_value=row.get("max_gas_value", ""),
+                final_status=row.get("final_status", ""),
                 degradation_guard=row.get("degradation_guard", "") or "",
                 failure_reason_short=(row.get("failure_reason_short", "") or "").replace("|", "/"),
             )
         )
+
+    if round_comparison and round_comparison.get("rows"):
+        round_labels = " -> ".join(entry["label"] for entry in round_comparison.get("rounds", []))
+        lines.extend(
+            [
+                "",
+                "## Round Comparison",
+                "",
+                f"Rounds: {round_labels}",
+                "",
+                "| idx | contract | compile | ABI | test | slither | gas | final status | final failure |",
+                "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+            ]
+        )
+        for row in round_comparison["rows"]:
+            lines.append(
+                "| {sample_idx} | {contract_name} | {compile_transition} | {abi_transition} | {test_transition} | "
+                "{slither_transition} | {gas_transition} | {final_status} | {final_failure} |".format(
+                    sample_idx=row.get("sample_idx", ""),
+                    contract_name=row.get("contract_name", ""),
+                    compile_transition=row.get("compile_transition", ""),
+                    abi_transition=row.get("abi_transition", ""),
+                    test_transition=row.get("test_transition", ""),
+                    slither_transition=row.get("slither_transition", ""),
+                    gas_transition=row.get("gas_transition", ""),
+                    final_status=row.get("final_status", ""),
+                    final_failure=(row.get("final_failure", "") or "").replace("|", "/"),
+                )
+            )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -391,6 +606,10 @@ def main() -> None:
         for sample in dataset_rows
     ]
     aggregate = compute_aggregate(rows)
+    comparison_dirs = discover_comparison_dirs(results_dir, args.compare_results_dir)
+    round_comparison = None
+    if len(comparison_dirs) > 1:
+        round_comparison = build_round_comparison(dataset_rows, comparison_dirs, args.instruction_chars)
 
     payload = {
         "dataset": str(dataset_path),
@@ -399,14 +618,21 @@ def main() -> None:
         "aggregate": aggregate,
         "rows": rows,
     }
+    if round_comparison is not None:
+        payload["round_comparison"] = round_comparison
 
     write_json(output_prefix.with_suffix(".json"), payload)
     write_csv(output_prefix.with_suffix(".csv"), rows)
-    write_markdown(output_prefix.with_suffix(".md"), rows, aggregate)
+    write_markdown(output_prefix.with_suffix(".md"), rows, aggregate, round_comparison)
+    comparison_csv_path = output_prefix.with_name(output_prefix.name + "_round_comparison").with_suffix(".csv")
+    if round_comparison is not None:
+        write_comparison_csv(comparison_csv_path, round_comparison["rows"])
 
     print(f"Wrote {output_prefix.with_suffix('.json')}")
     print(f"Wrote {output_prefix.with_suffix('.csv')}")
     print(f"Wrote {output_prefix.with_suffix('.md')}")
+    if round_comparison is not None:
+        print(f"Wrote {comparison_csv_path}")
     print(json.dumps(aggregate, ensure_ascii=False))
 
 

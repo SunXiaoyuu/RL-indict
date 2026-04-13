@@ -1,0 +1,11 @@
+﻿sample_idx,dataset_id,contract_name,partition,compile_transition,abi_transition,test_transition,slither_transition,gas_transition,status_transition,final_status,final_failure
+0,0,MembershipAirdrop,main,T -> T -> T,T -> T -> T,T -> T -> T,2 -> 2 -> 1,1157673 -> 1157937 -> 837151,passed_with_slither_findings -> passed_with_slither_findings -> passed_with_slither_findings,passed_with_slither_findings,
+1,1,SimpleCrowdsale,diagnostic,F -> F -> F,- -> - -> -,- -> - -> -,- -> - -> -,- -> - -> -,compile_failed -> compile_failed -> compile_failed,compile_failed,Error (2333): Identifier already declared.
+2,2,TeamVestingVault,main,T -> T -> T,T -> T -> T,T -> T -> T,1 -> 1 -> 2,643440 -> 643428 -> 687716,passed_with_slither_findings -> passed_with_slither_findings -> passed_with_slither_findings,passed_with_slither_findings,
+3,3,TokenVoting,diagnostic,F -> T -> T,- -> F -> T,- -> F -> F,- -> 0 -> 0,- -> - -> -,compile_failed -> abi_failed -> test_failed,test_failed,assertion failed: 0 != 1
+4,4,PostingBoard,diagnostic,F -> F -> F,- -> - -> -,- -> - -> -,- -> - -> -,- -> - -> -,compile_failed -> compile_failed -> compile_failed,compile_failed,Error (2333): Identifier already declared.
+5,5,CollectibleSale,main,T -> T -> T,T -> T -> T,T -> T -> T,0 -> 0 -> 0,905116 -> 905116 -> 905116,passed_clean -> passed_clean -> passed_clean,passed_clean,
+6,6,FundPoolManager,diagnostic,T -> T -> T,T -> T -> T,T -> T -> T,4 -> 4 -> 4,1007319 -> 1076260 -> 1130113,passed_with_slither_findings -> passed_with_slither_findings -> passed_with_slither_findings,passed_with_slither_findings,
+7,7,PresaleMint,diagnostic,T -> T -> T,T -> T -> T,T -> T -> T,1 -> 1 -> 1,660958 -> 661414 -> 661414,passed_with_slither_findings -> passed_with_slither_findings -> passed_with_slither_findings,passed_with_slither_findings,
+8,8,GrandGooseMansion,main,F -> F -> F,- -> - -> -,- -> - -> -,- -> - -> -,- -> - -> -,compile_failed -> compile_failed -> compile_failed,compile_failed,Error (8936): Expected string end-quote.
+9,9,ClosedPresaleMint,main,F -> F -> F,- -> - -> -,- -> - -> -,- -> - -> -,- -> - -> -,compile_failed -> compile_failed -> compile_failed,compile_failed,Error (2271): Built-in binary operator + cannot be applied to types uint256 and int_const -1.

@@ -86,6 +86,7 @@ class Agents:
             sample_metadata=self.sample_metadata,
         )
         self.critic_specs = self._build_critic_specs()
+        self.previous_structured_feedback = self._structured_feedback_from_record(self.prev_trial)
         self.reset()
 
     def _build_critic_specs(self) -> list[dict[str, Any]]:
@@ -161,6 +162,8 @@ class Agents:
             "initial_action": self.initial_action,
             "critic_scratchpad": self.critic_scratchpad,
         }
+        if self.previous_structured_feedback:
+            output["previous_structured_feedback"] = self.previous_structured_feedback
 
         for spec in self.critic_specs:
             key = spec["key"]
@@ -170,12 +173,16 @@ class Agents:
         if self._has_posthoc():
             output["initial_action_execution_observation"] = getattr(self, "initial_action_execution", "")
             output["initial_action_execution_metrics"] = getattr(self, "initial_action_execution_metrics", {})
+            output["initial_structured_feedback"] = getattr(self, "initial_structured_feedback", {})
             output["execution_observation"] = getattr(self, "action_execution", "")
             output["execution_metrics"] = getattr(self, "action_execution_metrics", {})
+            output["structured_feedback"] = getattr(self, "action_structured_feedback", {})
             output["mid_action_execution_observation"] = getattr(self, "mid_action_execution", "")
             output["mid_action_execution_metrics"] = getattr(self, "mid_action_execution_metrics", {})
+            output["mid_structured_feedback"] = getattr(self, "mid_structured_feedback", {})
             output["final_action_execution_observation"] = getattr(self, "final_action_execution", "")
             output["final_action_execution_metrics"] = getattr(self, "final_action_execution_metrics", {})
+            output["final_structured_feedback"] = getattr(self, "final_structured_feedback", {})
             if hasattr(self, "degradation_guard"):
                 output["degradation_guard"] = self.degradation_guard
             if hasattr(self, "rejected_action"):
@@ -198,6 +205,152 @@ class Agents:
             return previous_value + [current_value]
         return [previous_value, current_value]
 
+    def _build_solidity_hard_constraints(self) -> str:
+        if self.task != "solidity":
+            return ""
+
+        contract_name = self.sample_metadata.get("contract_name")
+        required = self._normalize_signature_list(self.sample_metadata.get("required_abi_signatures", []))
+        forbidden = self._normalize_signature_list(self.sample_metadata.get("forbidden_abi_signatures", []))
+        replacement_mode = (
+            self.sample_metadata.get("replace_start_line") is not None
+            and self.sample_metadata.get("replace_end_line") is not None
+        )
+
+        lines = ["Solidity hard constraints:"]
+        if replacement_mode:
+            lines.extend(
+                [
+                    "- This is a replacement snippet for an existing Solidity file. Do not emit surrounding contracts, libraries, imports, or unrelated code.",
+                    "- Preserve the target signature, visibility, mutability, return types, and surrounding repository assumptions unless the task explicitly requires a correction.",
+                ]
+            )
+        elif contract_name:
+            lines.append(f"- The primary contract name must remain exactly `{contract_name}`.")
+
+        lines.extend(
+            [
+                "- Preserve every required ABI signature exactly. Do not rename, remove, or change argument types for required public/external functions, constructors, mappings, or getters.",
+                "- Do not duplicate a public state variable with an explicit function of the same name; Solidity already creates getters for public variables and mappings.",
+                "- Do not add external imports, inherited contracts, upgradeable patterns, or third-party dependencies unless the task explicitly provides and requires them.",
+                "- Do not add broad unrequested APIs such as ownership-transfer functions, extra mint/admin functions, helper endpoints, or unrelated events.",
+                "- Prefer minimal edits that fix concrete compiler, ABI, test, Slither, or gas feedback while preserving the specified behavior.",
+            ]
+        )
+        if required:
+            lines.append("- Required ABI signatures: " + ", ".join(required))
+        if forbidden:
+            lines.append("- Forbidden ABI signatures: " + ", ".join(forbidden))
+        return "\n".join(lines)
+
+    def _question_with_hard_constraints(self) -> str:
+        constraints = self._build_solidity_hard_constraints()
+        if not constraints:
+            return self.question
+        return f"{self.question}\n\n{constraints}"
+
+    def _format_feedback_block(self, title: str, feedback: dict[str, Any] | None) -> str:
+        if not feedback:
+            return ""
+        return "\n" + title + ":\n```json\n" + json.dumps(feedback, ensure_ascii=False, indent=2) + "\n```"
+
+    def _structured_feedback_from_record(self, record: dict[str, Any] | None) -> dict[str, Any]:
+        if not isinstance(record, dict):
+            return {}
+        if isinstance(record.get("structured_feedback"), dict):
+            return record["structured_feedback"]
+        metrics = record.get("execution_metrics")
+        return self._build_structured_feedback(metrics)
+
+    def _build_structured_feedback(self, metrics: dict[str, Any] | None) -> dict[str, Any]:
+        if not isinstance(metrics, dict):
+            return {}
+
+        compile_result = metrics.get("compile") or {}
+        abi_result = metrics.get("abi") or {}
+        tests_result = metrics.get("tests") or {}
+        slither_result = metrics.get("slither") or {}
+        gas_result = metrics.get("gas") or {}
+
+        required = self._normalize_signature_list(abi_result.get("required") or self.sample_metadata.get("required_abi_signatures", []))
+        forbidden = self._normalize_signature_list(
+            abi_result.get("forbidden") or self.sample_metadata.get("forbidden_abi_signatures", [])
+        )
+        available = self._normalize_signature_list(abi_result.get("available", []))
+        required_set = set(required)
+        forbidden_set = set(forbidden)
+        has_required_constructor = any(signature.startswith("constructor(") for signature in required)
+        abi_extra = [
+            signature
+            for signature in available
+            if signature not in required_set
+            and signature not in forbidden_set
+            and not (signature.startswith("constructor(") and not has_required_constructor)
+        ]
+
+        feedback: dict[str, Any] = {
+            "compile_success": compile_result.get("success") if isinstance(compile_result, dict) else None,
+            "compile_error": None,
+            "abi_checked": abi_result.get("checked") if isinstance(abi_result, dict) else None,
+            "abi_success": abi_result.get("success") if isinstance(abi_result, dict) else None,
+            "abi_required": required,
+            "abi_missing": abi_result.get("missing", []) if isinstance(abi_result, dict) else [],
+            "abi_extra": abi_extra,
+            "abi_forbidden_present": abi_result.get("forbidden_present", []) if isinstance(abi_result, dict) else [],
+            "test_success": tests_result.get("success") if isinstance(tests_result, dict) and tests_result else None,
+            "test_failure": None,
+            "slither_findings": {
+                "count": metrics.get("vulnerability_count"),
+                "severity_counts": metrics.get("vulnerability_severity_counts") or {},
+                "items": metrics.get("slither_findings") or [],
+            },
+            "gas_used": metrics.get("max_gas_value"),
+        }
+
+        if feedback["compile_success"] is False:
+            feedback["compile_error"] = self._short_command_failure(compile_result)
+        if feedback["test_success"] is False:
+            feedback["test_failure"] = self._short_command_failure(tests_result)
+        if isinstance(slither_result, dict) and slither_result:
+            feedback["slither_findings"]["command_success"] = slither_result.get("success")
+            if slither_result.get("success") is False:
+                feedback["slither_findings"]["error"] = self._short_command_failure(slither_result)
+        if isinstance(gas_result, dict) and gas_result:
+            feedback["gas_command_success"] = gas_result.get("success")
+
+        return feedback
+
+    @classmethod
+    def _short_command_failure(cls, command_result: dict[str, Any] | None, limit: int = 900) -> str:
+        if not isinstance(command_result, dict):
+            return ""
+        text = command_result.get("stderr") or command_result.get("stdout") or command_result.get("error") or ""
+        lines = []
+        for line in str(text).splitlines():
+            stripped = line.strip()
+            if stripped:
+                lines.append(stripped)
+        shortened = "\n".join(lines[:12])
+        if len(shortened) > limit:
+            return shortened[: limit - 3].rstrip() + "..."
+        return shortened
+
+    def _normalize_signature_list(self, signatures: Any) -> list[str]:
+        if signatures is None:
+            return []
+        if isinstance(signatures, str):
+            signatures = [signatures]
+        if not isinstance(signatures, list):
+            return []
+        normalized = []
+        for signature in signatures:
+            if not isinstance(signature, str):
+                continue
+            rendered = "".join(signature.strip().split())
+            if rendered:
+                normalized.append(rendered)
+        return normalized
+
     def step(self) -> None:
         self.scratchpad += self.action_prompt_header
 
@@ -212,6 +365,10 @@ class Agents:
 
         self.scratchpad = ""
         self.scratchpad += "\nInitial Solution: " + self.action
+        self.scratchpad += self._format_feedback_block(
+            "Previous Round Structured Execution Feedback",
+            self.previous_structured_feedback,
+        )
         self.scratchpad += "\nCritic: " + self.critic + "\nImproved Solution: " + self.action_prompt_header
         self.initial_action = self.action
         self.action = self.prompt_agent(self.action_llm, self.actor_prompt, stop_seqs=["\nCritic:"])
@@ -223,13 +380,19 @@ class Agents:
         initial_observation = self.execution_backend.evaluate(extract_code(self.initial_action), code_before=self.code_before)
         self.initial_action_execution = initial_observation.to_text()
         self.initial_action_execution_metrics = initial_observation.as_dict()
+        self.initial_structured_feedback = self._build_structured_feedback(self.initial_action_execution_metrics)
 
         observation = self.execution_backend.evaluate(extract_code(self.action), code_before=self.code_before)
         self.action_execution = observation.to_text()
         self.action_execution_metrics = observation.as_dict()
         self.mid_action_execution = self.action_execution
         self.mid_action_execution_metrics = self.action_execution_metrics
+        self.mid_structured_feedback = self._build_structured_feedback(self.mid_action_execution_metrics)
         self.scratchpad += "\nObservation: " + self.action_execution
+        self.scratchpad += self._format_feedback_block(
+            "Current Structured Execution Feedback",
+            self.mid_structured_feedback,
+        )
 
         self.critic_posthoc = self.perform_critic_debate(
             answer=self.action,
@@ -239,8 +402,16 @@ class Agents:
 
         self.scratchpad = ""
         self.scratchpad += "\nInitial Solution: " + self.initial_action
+        self.scratchpad += self._format_feedback_block(
+            "Initial Structured Execution Feedback",
+            self.initial_structured_feedback,
+        )
         self.scratchpad += "\nCritic: " + self.critic
         self.scratchpad += "\nFirst Improved Solution: " + self.action
+        self.scratchpad += self._format_feedback_block(
+            "First Improved Structured Execution Feedback",
+            self.mid_structured_feedback,
+        )
         self.scratchpad += "\nCritic: " + self.critic_posthoc
         self.scratchpad += "\nSecond Improved Solution: " + self.action_prompt_header
         self.mid_action = self.action
@@ -249,27 +420,31 @@ class Agents:
         final_observation = self.execution_backend.evaluate(extract_code(self.action), code_before=self.code_before)
         self.final_action_execution = final_observation.to_text()
         self.final_action_execution_metrics = final_observation.as_dict()
+        self.final_structured_feedback = self._build_structured_feedback(self.final_action_execution_metrics)
 
-        if self._compile_success(self.mid_action_execution_metrics) and not self._compile_success(self.final_action_execution_metrics):
+        if self._is_better_outcome(self.mid_action_execution_metrics, self.final_action_execution_metrics):
             self.rejected_action = self.action
             self.action = self.mid_action
             self.action_execution = self.mid_action_execution
             self.action_execution_metrics = self.mid_action_execution_metrics
-            self.degradation_guard = "reverted_to_mid_action_after_final_compile_failure"
+            self.action_structured_feedback = self.mid_structured_feedback
+            self.degradation_guard = "reverted_to_mid_action_after_final_regression"
             self.scratchpad += (
-                "\nDegradation Guard: final rewrite failed compilation; "
+                "\nDegradation Guard: final rewrite regressed on compile, test, ABI, security, or gas outcome; "
                 "reverted to the first improved solution."
             )
         else:
             self.action_execution = self.final_action_execution
             self.action_execution_metrics = self.final_action_execution_metrics
+            self.action_structured_feedback = self.final_structured_feedback
 
         if self._is_better_outcome(self.initial_action_execution_metrics, self.action_execution_metrics):
             self.rejected_action = self.action
             self.action = self.initial_action
             self.action_execution = self.initial_action_execution
             self.action_execution_metrics = self.initial_action_execution_metrics
-            initial_guard = "reverted_to_initial_action_after_better_compile_or_test_outcome"
+            self.action_structured_feedback = self.initial_structured_feedback
+            initial_guard = "reverted_to_initial_action_after_better_compile_test_abi_security_or_gas_outcome"
             if hasattr(self, "degradation_guard"):
                 self.degradation_guard = self.degradation_guard + ";" + initial_guard
             else:
@@ -292,6 +467,10 @@ class Agents:
                 "\nThe following critic(s) provide some analysis of previous solution(s). "
                 "Use them as reference only to improve and update your critic based on the latest solution."
             )
+            self.scratchpad += self._format_feedback_block(
+                "Previous Round Structured Execution Feedback",
+                self.previous_structured_feedback,
+            )
             prev_critics = self.prev_trial.get(f"{prefix}critic")
             if isinstance(prev_critics, list):
                 for value in prev_critics:
@@ -310,6 +489,10 @@ class Agents:
                 "If these observations are relevant, use them to improve and update your critic:"
             )
             self.scratchpad += "\nCurrent Solution Observation: " + self.action_execution
+            self.scratchpad += self._format_feedback_block(
+                "Current Structured Execution Feedback",
+                self._build_structured_feedback(getattr(self, "action_execution_metrics", {})),
+            )
 
         for step in range(max_steps):
             for index, spec in enumerate(self.critic_specs):
@@ -459,6 +642,50 @@ class Agents:
         )
 
     @classmethod
+    def _vulnerability_score(cls, metrics: dict[str, Any] | None) -> int | None:
+        if not isinstance(metrics, dict):
+            return None
+        count = metrics.get("vulnerability_count")
+        if count is None:
+            return None
+        severity_counts = metrics.get("vulnerability_severity_counts") or {}
+        weights = {
+            "critical": 1_000_000,
+            "high": 10_000,
+            "medium": 100,
+            "low": 10,
+            "informational": 1,
+            "optimization": 1,
+        }
+        score = 0
+        if isinstance(severity_counts, dict) and severity_counts:
+            for severity, severity_count in severity_counts.items():
+                score += weights.get(str(severity).lower(), 10) * int(severity_count or 0)
+            return score
+        return int(count) * 10
+
+    @staticmethod
+    def _gas_value(metrics: dict[str, Any] | None) -> int | None:
+        if not isinstance(metrics, dict):
+            return None
+        value = metrics.get("max_gas_value")
+        if value is None:
+            return None
+        return int(value)
+
+    @classmethod
+    def _lower_metric_is_better(cls, candidate_value: int | None, baseline_value: int | None) -> bool | None:
+        if candidate_value is None and baseline_value is None:
+            return None
+        if candidate_value is None:
+            return False
+        if baseline_value is None:
+            return True
+        if candidate_value == baseline_value:
+            return None
+        return candidate_value < baseline_value
+
+    @classmethod
     def _is_better_outcome(cls, candidate_metrics: dict[str, Any] | None, baseline_metrics: dict[str, Any] | None) -> bool:
         candidate_compile = cls._compile_success(candidate_metrics)
         baseline_compile = cls._compile_success(baseline_metrics)
@@ -475,7 +702,24 @@ class Agents:
 
         candidate_abi = cls._abi_success(candidate_metrics)
         baseline_abi = cls._abi_success(baseline_metrics)
-        return candidate_abi and not baseline_abi
+        if candidate_abi != baseline_abi:
+            return candidate_abi and not baseline_abi
+
+        vulnerability_decision = cls._lower_metric_is_better(
+            cls._vulnerability_score(candidate_metrics),
+            cls._vulnerability_score(baseline_metrics),
+        )
+        if vulnerability_decision is not None:
+            return vulnerability_decision
+
+        gas_decision = cls._lower_metric_is_better(
+            cls._gas_value(candidate_metrics),
+            cls._gas_value(baseline_metrics),
+        )
+        if gas_decision is not None:
+            return gas_decision
+
+        return False
 
     def prompt_agent(self, llm_module, prompt_template, max_tokens=1024, stop_seqs=None, num_outputs=1, main_action=True) -> str:
         stop_seqs = stop_seqs or []
@@ -502,6 +746,8 @@ class Agents:
             question = self.question_only
         else:
             question = self.question
+        if self.task == "solidity":
+            question = self._question_with_hard_constraints()
         if "question" in prompt_template.input_variables:
             return prompt_template.format(question=question, scratchpad=self.scratchpad)
         return prompt_template.format(scratchpad=self.scratchpad)
@@ -526,12 +772,12 @@ class Agents:
         if "query" in prompt_template.input_variables:
             return prompt_template.format(
                 query=query,
-                question=self.question,
+                question=self._question_with_hard_constraints() if self.task == "solidity" else self.question,
                 answer=answer,
                 scratchpad=self.scratchpad,
             )
         return prompt_template.format(
-            question=self.question,
+            question=self._question_with_hard_constraints() if self.task == "solidity" else self.question,
             answer=answer,
             scratchpad=self.scratchpad,
         )
