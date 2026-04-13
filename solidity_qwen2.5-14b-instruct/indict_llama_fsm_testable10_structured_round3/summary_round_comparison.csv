@@ -1,0 +1,11 @@
+﻿sample_idx,dataset_id,contract_name,partition,compile_transition,abi_transition,test_transition,slither_transition,gas_transition,status_transition,final_status,final_failure
+0,0,MembershipAirdrop,main,T -> T -> T,T -> T -> T,T -> T -> T,0 -> 0 -> 0,791401 -> 791401 -> 791401,passed_clean -> passed_clean -> passed_clean,passed_clean,
+1,1,SimpleCrowdsale,diagnostic,T -> T -> T,T -> T -> T,T -> T -> T,0 -> 0 -> 0,595671 -> 595671 -> 595671,passed_clean -> passed_clean -> passed_clean,passed_clean,
+2,2,TeamVestingVault,main,T -> T -> T,T -> T -> T,F -> F -> F,2 -> 2 -> 2,- -> - -> -,test_failed -> test_failed -> test_failed,test_failed,EvmError: Revert
+3,3,TokenVoting,diagnostic,T -> T -> T,T -> T -> T,F -> F -> F,0 -> 0 -> 0,- -> - -> -,test_failed -> test_failed -> test_failed,test_failed,assertion failed: Bob != Alice
+4,4,PostingBoard,diagnostic,T -> T -> T,T -> T -> T,T -> T -> T,1 -> 1 -> 1,1145944 -> 1145944 -> 1145944,passed_with_slither_findings -> passed_with_slither_findings -> passed_with_slither_findings,passed_with_slither_findings,
+5,5,CollectibleSale,main,T -> T -> T,T -> T -> T,T -> T -> T,0 -> 0 -> 0,783150 -> 791198 -> 791198,passed_clean -> passed_clean -> passed_clean,passed_clean,
+6,6,FundPoolManager,diagnostic,T -> T -> T,T -> T -> T,T -> T -> T,3 -> 3 -> 3,1073180 -> 1073180 -> 1073180,passed_with_slither_findings -> passed_with_slither_findings -> passed_with_slither_findings,passed_with_slither_findings,
+7,7,PresaleMint,diagnostic,T -> T -> T,T -> T -> T,T -> T -> T,1 -> 1 -> 1,632168 -> 632168 -> 689847,passed_with_slither_findings -> passed_with_slither_findings -> passed_with_slither_findings,passed_with_slither_findings,
+8,8,GrandGooseMansion,main,T -> T -> T,T -> T -> T,F -> F -> F,2 -> 2 -> 2,- -> - -> -,test_failed -> test_failed -> test_failed,test_failed,Already started
+9,9,ClosedPresaleMint,main,T -> T -> T,T -> T -> T,F -> F -> F,1 -> 1 -> 1,- -> - -> -,test_failed -> test_failed -> test_failed,test_failed,Public sale already started or presale not started
