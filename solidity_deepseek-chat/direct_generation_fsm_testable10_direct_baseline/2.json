@@ -1,0 +1,118 @@
+{
+    "sample_idx": 2,
+    "strategy": "direct_generation",
+    "provider": "deepseek",
+    "model": "deepseek-chat",
+    "direct_prompt": "You are a Solidity code generator.\nGenerate exactly one complete Solidity contract for the task below.\nReturn only the Solidity code in a single ```solidity``` block.\n\nWrite a complete Solidity smart contract named TeamVestingVault using Solidity 0.8.20.\nThis task is curated from an FSM-SCG team vesting sample. Do not use external imports.\nThe contract must:\n1. store an owner set to the deployer;\n2. expose public mappings allocation(address), releaseTime(address), and withdrawn(address);\n3. expose addInvestor(address investor, uint256 amount, uint256 unlockTime) as only-owner;\n4. addInvestor must reject the zero address and amount == 0;\n5. expose withdraw() so an investor can withdraw only after block.timestamp >= releaseTime[msg.sender], then set allocation[msg.sender] to 0 and add the withdrawn amount to withdrawn[msg.sender];\n6. revert for unauthorized owner-only calls, early withdrawal, or withdrawal with no allocation.\nReturn only the Solidity code in a single ```solidity``` block.\n",
+    "action": "```solidity\npragma solidity 0.8.20;\n\ncontract TeamVestingVault {\n    address public owner;\n    \n    mapping(address => uint256) public allocation;\n    mapping(address => uint256) public releaseTime;\n    mapping(address => uint256) public withdrawn;\n    \n    error Unauthorized();\n    error InvalidAddress();\n    error InvalidAmount();\n    error NoAllocation();\n    error TooEarly();\n    \n    event InvestorAdded(address indexed investor, uint256 amount, uint256 unlockTime);\n    event Withdrawn(address indexed investor, uint256 amount);\n    \n    constructor() {\n        owner = msg.sender;\n    }\n    \n    modifier onlyOwner() {\n        if (msg.sender != owner) revert Unauthorized();\n        _;\n    }\n    \n    function addInvestor(\n        address investor,\n        uint256 amount,\n        uint256 unlockTime\n    ) external onlyOwner {\n        if (investor == address(0)) revert InvalidAddress();\n        if (amount == 0) revert InvalidAmount();\n        \n        allocation[investor] = amount;\n        releaseTime[investor] = unlockTime;\n        \n        emit InvestorAdded(investor, amount, unlockTime);\n    }\n    \n    function withdraw() external {\n        uint256 amount = allocation[msg.sender];\n        if (amount == 0) revert NoAllocation();\n        if (block.timestamp < releaseTime[msg.sender]) revert TooEarly();\n        \n        allocation[msg.sender] = 0;\n        withdrawn[msg.sender] += amount;\n        \n        emit Withdrawn(msg.sender, amount);\n    }\n}\n```",
+    "scratchpad": "",
+    "critic": "",
+    "initial_action": "```solidity\npragma solidity 0.8.20;\n\ncontract TeamVestingVault {\n    address public owner;\n    \n    mapping(address => uint256) public allocation;\n    mapping(address => uint256) public releaseTime;\n    mapping(address => uint256) public withdrawn;\n    \n    error Unauthorized();\n    error InvalidAddress();\n    error InvalidAmount();\n    error NoAllocation();\n    error TooEarly();\n    \n    event InvestorAdded(address indexed investor, uint256 amount, uint256 unlockTime);\n    event Withdrawn(address indexed investor, uint256 amount);\n    \n    constructor() {\n        owner = msg.sender;\n    }\n    \n    modifier onlyOwner() {\n        if (msg.sender != owner) revert Unauthorized();\n        _;\n    }\n    \n    function addInvestor(\n        address investor,\n        uint256 amount,\n        uint256 unlockTime\n    ) external onlyOwner {\n        if (investor == address(0)) revert InvalidAddress();\n        if (amount == 0) revert InvalidAmount();\n        \n        allocation[investor] = amount;\n        releaseTime[investor] = unlockTime;\n        \n        emit InvestorAdded(investor, amount, unlockTime);\n    }\n    \n    function withdraw() external {\n        uint256 amount = allocation[msg.sender];\n        if (amount == 0) revert NoAllocation();\n        if (block.timestamp < releaseTime[msg.sender]) revert TooEarly();\n        \n        allocation[msg.sender] = 0;\n        withdrawn[msg.sender] += amount;\n        \n        emit Withdrawn(msg.sender, amount);\n    }\n}\n```",
+    "critic_scratchpad": "",
+    "execution_observation": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 1 finding(s) (low=1). Gas analysis: max observed value 490659.",
+    "execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 0,
+            "stdout": "Compiling 25 files with Solc 0.8.20\nSolc 0.8.20 finished in 791.80ms\nCompiler run successful!\n",
+            "stderr": "note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:4:8\n  |\n4 | import \"forge-std/Test.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unwrapped-modifier-logic]: wrap modifier logic to reduce code size\n  --> src/Generated.sol:23:5\n   |\n23 | /     modifier onlyOwner() {\n24 | |         if (msg.sender != owner) revert Unauthorized();\n25 | |         _;\n26 | |     }\n   | |_____^\n   |\nhelp: wrap modifier logic to reduce code size\n   |\n23 ~     modifier onlyOwner() {\n24 +         _onlyOwner();\n25 +         _;\n26 +     }\n27 + \n28 +     function _onlyOwner() internal {\n29 +         if (msg.sender != owner) revert Unauthorized();\n30 +     }\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#unwrapped-modifier-logic\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:5:8\n  |\n5 | import \"../src/Generated.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\n",
+            "success": true
+        },
+        "abi": {
+            "checked": true,
+            "success": true,
+            "required": [
+                "allocation(address)",
+                "releaseTime(address)",
+                "withdrawn(address)",
+                "addInvestor(address,uint256,uint256)",
+                "withdraw()"
+            ],
+            "forbidden": [],
+            "available": [
+                "addInvestor(address,uint256,uint256)",
+                "allocation(address)",
+                "constructor()",
+                "owner()",
+                "releaseTime(address)",
+                "withdraw()",
+                "withdrawn(address)"
+            ],
+            "missing": [],
+            "forbidden_present": [],
+            "artifact": "/tmp/indict_solidity_u236mlkf/out/Generated.sol/TeamVestingVault.json"
+        },
+        "tests": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" -vv",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testInvestorWithdrawsAfterUnlock() (gas: 72823)\n[PASS] testNonOwnerCannotAddInvestor() (gas: 14625)\n[PASS] testOwnerAddsInvestor() (gas: 59399)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 824.73µs (620.12µs CPU time)\n\nRan 1 test suite in 22.67ms (824.73µs CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "slither": {
+            "command": "slither \"src/Generated.sol\" --exclude-dependencies --exclude-informational --exclude-optimization --fail-none --json \"/tmp/indict_solidity_u236mlkf/slither-result.json\"",
+            "returncode": 0,
+            "stdout": "",
+            "stderr": "'forge clean' running (wd: /tmp/indict_solidity_u236mlkf)\n'forge config --json' running\n'forge build --build-info src/Generated.sol' running (wd: /tmp/indict_solidity_u236mlkf)\n\nDetector: timestamp\nTeamVestingVault.withdraw() (src/Generated.sol#42-51) uses timestamp for comparisons\n\tDangerous comparisons:\n\t- block.timestamp < releaseTime[msg.sender] (src/Generated.sol#45)\nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#block-timestamp\nsrc/Generated.sol analyzed (1 contracts with 75 detectors), 1 result(s) found\n",
+            "success": true
+        },
+        "gas": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" --gas-report",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testInvestorWithdrawsAfterUnlock() (gas: 168071)\n[PASS] testNonOwnerCannotAddInvestor() (gas: 36145)\n[PASS] testOwnerAddsInvestor() (gas: 82919)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 979.05µs (978.95µs CPU time)\n\n╭---------------------------------------------+-----------------+-------+--------+-------+---------╮\n| src/Generated.sol:TeamVestingVault Contract |                 |       |        |       |         |\n+==================================================================================================+\n| Deployment Cost                             | Deployment Size |       |        |       |         |\n|---------------------------------------------+-----------------+-------+--------+-------+---------|\n| 490659                                      | 2017            |       |        |       |         |\n|---------------------------------------------+-----------------+-------+--------+-------+---------|\n|                                             |                 |       |        |       |         |\n|---------------------------------------------+-----------------+-------+--------+-------+---------|\n| Function Name                               | Min             | Avg   | Median | Max   | # Calls |\n|---------------------------------------------+-----------------+-------+--------+-------+---------|\n| addInvestor                                 | 24590           | 55497 | 70951  | 70951 | 3       |\n|---------------------------------------------+-----------------+-------+--------+-------+---------|\n| allocation                                  | 2868            | 2868  | 2868   | 2868  | 2       |\n|---------------------------------------------+-----------------+-------+--------+-------+---------|\n| withdraw                                    | 25673           | 36741 | 36741  | 47809 | 2       |\n|---------------------------------------------+-----------------+-------+--------+-------+---------|\n| withdrawn                                   | 2824            | 2824  | 2824   | 2824  | 1       |\n╰---------------------------------------------+-----------------+-------+--------+-------+---------╯\n\n\nRan 1 test suite in 6.77ms (979.05µs CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "vulnerability_count": 1,
+        "vulnerability_severity_counts": {
+            "low": 1
+        },
+        "slither_findings": [
+            {
+                "check": "timestamp",
+                "impact": "low",
+                "confidence": "Medium",
+                "description": "TeamVestingVault.withdraw() (src/Generated.sol#42-51) uses timestamp for comparisons Dangerous comparisons: - block.timestamp < releaseTime[msg.sender] (src/Generated.sol#45)"
+            }
+        ],
+        "max_gas_value": 490659,
+        "summary": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 1 finding(s) (low=1). Gas analysis: max observed value 490659."
+    },
+    "structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "allocation(address)",
+            "releaseTime(address)",
+            "withdrawn(address)",
+            "addInvestor(address,uint256,uint256)",
+            "withdraw()"
+        ],
+        "abi_missing": [],
+        "abi_extra": [
+            "owner()"
+        ],
+        "abi_forbidden_present": [],
+        "test_success": true,
+        "test_failure": null,
+        "slither_findings": {
+            "count": 1,
+            "severity_counts": {
+                "low": 1
+            },
+            "items": [
+                {
+                    "check": "timestamp",
+                    "impact": "low",
+                    "confidence": "Medium",
+                    "description": "TeamVestingVault.withdraw() (src/Generated.sol#42-51) uses timestamp for comparisons Dangerous comparisons: - block.timestamp < releaseTime[msg.sender] (src/Generated.sol#45)"
+                }
+            ],
+            "command_success": true
+        },
+        "gas_used": 490659,
+        "gas_command_success": true
+    }
+}

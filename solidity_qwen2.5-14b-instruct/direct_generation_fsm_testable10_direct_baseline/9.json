@@ -1,0 +1,129 @@
+{
+    "sample_idx": 9,
+    "strategy": "direct_generation",
+    "provider": "qwen",
+    "model": "qwen2.5-14b-instruct",
+    "direct_prompt": "You are a Solidity code generator.\nGenerate exactly one complete Solidity contract for the task below.\nReturn only the Solidity code in a single ```solidity``` block.\n\nWrite a complete Solidity smart contract named ClosedPresaleMint using Solidity 0.8.20.\nThis task is curated from an FSM-SCG closed/presale/public minting sample. Do not use external imports.\nThe contract must:\n1. store an owner set to the deployer;\n2. define enum State { CLOSED, PRESALE, PUBLIC } and public currentState initially CLOSED;\n3. be constructed with uint256 price_ and uint256 maxSupply_;\n4. expose startPresale() and startPublicSale() as only-owner functions;\n5. expose public price, totalSupply, maxSupply, and claimedWhitelistStatus(address);\n6. expose mintNFT() payable, requiring PRESALE state, exact payment, caller not previously claimed, and available supply; it must mark claimedWhitelistStatus[msg.sender] true and increment totalSupply by 1;\n7. expose mintPublicNFT(uint256 amount) payable, requiring PUBLIC state, amount > 0, exact payment, and available supply; it must increment totalSupply by amount.\nReturn only the Solidity code in a single ```solidity``` block.\n",
+    "action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract ClosedPresaleMint {\n    address private immutable owner;\n    enum State { CLOSED, PRESALE, PUBLIC }\n    State public currentState = State.CLOSED;\n    uint256 public price;\n    uint256 public totalSupply;\n    uint256 public maxSupply;\n    mapping(address => bool) public claimedWhitelistStatus;\n\n    event PresaleStarted();\n    event PublicSaleStarted();\n    event Minted(address indexed minter, uint256 amount);\n    event PublicMinted(address indexed minter, uint256 amount);\n\n    constructor(uint256 price_, uint256 maxSupply_) {\n        owner = msg.sender;\n        price = price_;\n        maxSupply = maxSupply_;\n    }\n\n    modifier onlyOwner() {\n        require(msg.sender == owner, \"Not authorized\");\n        _;\n    }\n\n    function startPresale() public onlyOwner {\n        require(currentState == State.CLOSED, \"Presale already started or in progress\");\n        currentState = State.PRESALE;\n        emit PresaleStarted();\n    }\n\n    function startPublicSale() public onlyOwner {\n        require(currentState == State.PRESALE, \"Public sale cannot start yet\");\n        currentState = State.PUBLIC;\n        emit PublicSaleStarted();\n    }\n\n    function mintNFT() public payable {\n        require(currentState == State.PRESALE, \"Presale not active\");\n        require(!claimedWhitelistStatus[msg.sender], \"Already claimed\");\n        require(totalSupply + 1 <= maxSupply, \"Max supply reached\");\n\n        require(msg.value == price, \"Invalid payment amount\");\n\n        claimedWhitelistStatus[msg.sender] = true;\n        totalSupply += 1;\n        emit Minted(msg.sender, 1);\n    }\n\n    function mintPublicNFT(uint256 amount) public payable {\n        require(currentState == State.PUBLIC, \"Public sale not active\");\n        require(amount > 0, \"Amount must be greater than zero\");\n        require(totalSupply + amount <= maxSupply, \"Max supply reached\");\n\n        require(msg.value == price * amount, \"Invalid payment amount\");\n\n        totalSupply += amount;\n        emit PublicMinted(msg.sender, amount);\n    }\n}\n```",
+    "scratchpad": "",
+    "critic": "",
+    "initial_action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract ClosedPresaleMint {\n    address private immutable owner;\n    enum State { CLOSED, PRESALE, PUBLIC }\n    State public currentState = State.CLOSED;\n    uint256 public price;\n    uint256 public totalSupply;\n    uint256 public maxSupply;\n    mapping(address => bool) public claimedWhitelistStatus;\n\n    event PresaleStarted();\n    event PublicSaleStarted();\n    event Minted(address indexed minter, uint256 amount);\n    event PublicMinted(address indexed minter, uint256 amount);\n\n    constructor(uint256 price_, uint256 maxSupply_) {\n        owner = msg.sender;\n        price = price_;\n        maxSupply = maxSupply_;\n    }\n\n    modifier onlyOwner() {\n        require(msg.sender == owner, \"Not authorized\");\n        _;\n    }\n\n    function startPresale() public onlyOwner {\n        require(currentState == State.CLOSED, \"Presale already started or in progress\");\n        currentState = State.PRESALE;\n        emit PresaleStarted();\n    }\n\n    function startPublicSale() public onlyOwner {\n        require(currentState == State.PRESALE, \"Public sale cannot start yet\");\n        currentState = State.PUBLIC;\n        emit PublicSaleStarted();\n    }\n\n    function mintNFT() public payable {\n        require(currentState == State.PRESALE, \"Presale not active\");\n        require(!claimedWhitelistStatus[msg.sender], \"Already claimed\");\n        require(totalSupply + 1 <= maxSupply, \"Max supply reached\");\n\n        require(msg.value == price, \"Invalid payment amount\");\n\n        claimedWhitelistStatus[msg.sender] = true;\n        totalSupply += 1;\n        emit Minted(msg.sender, 1);\n    }\n\n    function mintPublicNFT(uint256 amount) public payable {\n        require(currentState == State.PUBLIC, \"Public sale not active\");\n        require(amount > 0, \"Amount must be greater than zero\");\n        require(totalSupply + amount <= maxSupply, \"Max supply reached\");\n\n        require(msg.value == price * amount, \"Invalid payment amount\");\n\n        totalSupply += amount;\n        emit PublicMinted(msg.sender, amount);\n    }\n}\n```",
+    "critic_scratchpad": "",
+    "execution_observation": "Compilation: success. ABI: passed. Tests: failed. No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testCannotMintWhileClosed() (gas: 20093)\n[PASS] testPresaleMintOnce() (gas: 104568)\n[FAIL: Public sale cannot start yet] testPublicMint() (gas: 7956)\nSuite result: FAILED. 2 passed; 1 failed; 0 skipped; finished in 943.51µs (616.91µs CPU time)\n\nRan 1 test suite in 22.48ms (943.51µs CPU time): 2 tests passed, 1 failed, 0 skipped (3 total tests)\n\nFailing tests:\nEncountered 1 failing test in test/Generated.t.sol:GeneratedTest\n[FAIL: Public sale cannot start yet] testPublicMint() (gas: 7956)\n\nEncountered a total of 1 failing tests, 2 tests succeeded\n\nTip: Run `forge test --rerun` to retry only the 1 failed test Static analysis: 1 finding(s) (medium=1). Gas analysis: unavailable.",
+    "execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 0,
+            "stdout": "Compiling 25 files with Solc 0.8.33\nSolc 0.8.33 finished in 744.58ms\nCompiler run successful!\n",
+            "stderr": "note[screaming-snake-case-immutable]: immutables should use SCREAMING_SNAKE_CASE\n --> src/Generated.sol:5:31\n  |\n5 |     address private immutable owner;\n  |                               ^^^^^ help: consider using: `OWNER`\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#screaming-snake-case-immutable\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:4:8\n  |\n4 | import \"forge-std/Test.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[mixed-case-function]: function names should use mixedCase\n  --> src/Generated.sol:41:14\n   |\n41 |     function mintNFT() public payable {\n   |              ^^^^^^^ help: consider using: `mintNft`\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#mixed-case-function\n\nnote[mixed-case-function]: function names should use mixedCase\n  --> src/Generated.sol:53:14\n   |\n53 |     function mintPublicNFT(uint256 amount) public payable {\n   |              ^^^^^^^^^^^^^ help: consider using: `mintPublicNft`\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#mixed-case-function\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:5:8\n  |\n5 | import \"../src/Generated.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unwrapped-modifier-logic]: wrap modifier logic to reduce code size\n  --> src/Generated.sol:24:5\n   |\n24 | /     modifier onlyOwner() {\n25 | |         require(msg.sender == owner, \"Not authorized\");\n26 | |         _;\n27 | |     }\n   | |_____^\n   |\nhelp: wrap modifier logic to reduce code size\n   |\n24 ~     modifier onlyOwner() {\n25 +         _onlyOwner();\n26 +         _;\n27 +     }\n28 + \n29 +     function _onlyOwner() internal {\n30 +         require(msg.sender == owner, \"Not authorized\");\n31 +     }\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#unwrapped-modifier-logic\n\n",
+            "success": true
+        },
+        "abi": {
+            "checked": true,
+            "success": true,
+            "required": [
+                "constructor(uint256,uint256)",
+                "currentState()",
+                "startPresale()",
+                "startPublicSale()",
+                "price()",
+                "totalSupply()",
+                "maxSupply()",
+                "claimedWhitelistStatus(address)",
+                "mintNFT()",
+                "mintPublicNFT(uint256)"
+            ],
+            "forbidden": [],
+            "available": [
+                "claimedWhitelistStatus(address)",
+                "constructor(uint256,uint256)",
+                "currentState()",
+                "maxSupply()",
+                "mintNFT()",
+                "mintPublicNFT(uint256)",
+                "price()",
+                "startPresale()",
+                "startPublicSale()",
+                "totalSupply()"
+            ],
+            "missing": [],
+            "forbidden_present": [],
+            "artifact": "/tmp/indict_solidity_q_qswpeb/out/Generated.sol/ClosedPresaleMint.json"
+        },
+        "tests": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" -vv",
+            "returncode": 1,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testCannotMintWhileClosed() (gas: 20093)\n[PASS] testPresaleMintOnce() (gas: 104568)\n[FAIL: Public sale cannot start yet] testPublicMint() (gas: 7956)\nSuite result: FAILED. 2 passed; 1 failed; 0 skipped; finished in 943.51µs (616.91µs CPU time)\n\nRan 1 test suite in 22.48ms (943.51µs CPU time): 2 tests passed, 1 failed, 0 skipped (3 total tests)\n\nFailing tests:\nEncountered 1 failing test in test/Generated.t.sol:GeneratedTest\n[FAIL: Public sale cannot start yet] testPublicMint() (gas: 7956)\n\nEncountered a total of 1 failing tests, 2 tests succeeded\n\nTip: Run `forge test --rerun` to retry only the 1 failed test\n",
+            "stderr": "",
+            "success": false
+        },
+        "slither": {
+            "command": "slither \"src/Generated.sol\" --exclude-dependencies --exclude-informational --exclude-optimization --fail-none --json \"/tmp/indict_solidity_q_qswpeb/slither-result.json\"",
+            "returncode": 0,
+            "stdout": "",
+            "stderr": "'forge clean' running (wd: /tmp/indict_solidity_q_qswpeb)\n'forge config --json' running\n'forge build --build-info src/Generated.sol' running (wd: /tmp/indict_solidity_q_qswpeb)\n\nDetector: locked-ether\nContract locking ether found:\n\tContract ClosedPresaleMint (src/Generated.sol#4-64) has payable functions:\n\t - ClosedPresaleMint.mintNFT() (src/Generated.sol#41-51)\n\t - ClosedPresaleMint.mintPublicNFT(uint256) (src/Generated.sol#53-62)\n\tBut does not have a function to withdraw the ether\nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#contracts-that-lock-ether\nsrc/Generated.sol analyzed (1 contracts with 75 detectors), 1 result(s) found\n",
+            "success": true
+        },
+        "gas": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" --gas-report",
+            "returncode": 1,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testCannotMintWhileClosed() (gas: 41157)\n[PASS] testPresaleMintOnce() (gas: 193260)\n[FAIL: Public sale cannot start yet] testPublicMint() (gas: 29020)\nSuite result: FAILED. 2 passed; 1 failed; 0 skipped; finished in 1.11ms (1.07ms CPU time)\n\n╭----------------------------------------------+-----------------+-------+--------+-------+---------╮\n| src/Generated.sol:ClosedPresaleMint Contract |                 |       |        |       |         |\n+===================================================================================================+\n| Deployment Cost                              | Deployment Size |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| 963636                                       | 4420            |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n|                                              |                 |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| Function Name                                | Min             | Avg   | Median | Max   | # Calls |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| claimedWhitelistStatus                       | 2855            | 2855  | 2855   | 2855  | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| mintNFT                                      | 23743           | 41407 | 25985  | 74495 | 3       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| startPresale                                 | 44412           | 44412 | 44412  | 44412 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| startPublicSale                              | 23757           | 23757 | 23757  | 23757 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| totalSupply                                  | 2425            | 2425  | 2425   | 2425  | 1       |\n╰----------------------------------------------+-----------------+-------+--------+-------+---------╯\n\n\nRan 1 test suite in 7.26ms (1.11ms CPU time): 2 tests passed, 1 failed, 0 skipped (3 total tests)\n\nFailing tests:\nEncountered 1 failing test in test/Generated.t.sol:GeneratedTest\n[FAIL: Public sale cannot start yet] testPublicMint() (gas: 29020)\n\nEncountered a total of 1 failing tests, 2 tests succeeded\n\nTip: Run `forge test --rerun` to retry only the 1 failed test\n",
+            "stderr": "",
+            "success": false
+        },
+        "vulnerability_count": 1,
+        "vulnerability_severity_counts": {
+            "medium": 1
+        },
+        "slither_findings": [
+            {
+                "check": "locked-ether",
+                "impact": "medium",
+                "confidence": "High",
+                "description": "Contract locking ether found: Contract ClosedPresaleMint (src/Generated.sol#4-64) has payable functions: - ClosedPresaleMint.mintNFT() (src/Generated.sol#41-51) - ClosedPresaleMint.mintPublicNFT(uint256) (src/Generated.sol#53-62) But does not have a function to withdraw the ether"
+            }
+        ],
+        "max_gas_value": null,
+        "summary": "Compilation: success. ABI: passed. Tests: failed. No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testCannotMintWhileClosed() (gas: 20093)\n[PASS] testPresaleMintOnce() (gas: 104568)\n[FAIL: Public sale cannot start yet] testPublicMint() (gas: 7956)\nSuite result: FAILED. 2 passed; 1 failed; 0 skipped; finished in 943.51µs (616.91µs CPU time)\n\nRan 1 test suite in 22.48ms (943.51µs CPU time): 2 tests passed, 1 failed, 0 skipped (3 total tests)\n\nFailing tests:\nEncountered 1 failing test in test/Generated.t.sol:GeneratedTest\n[FAIL: Public sale cannot start yet] testPublicMint() (gas: 7956)\n\nEncountered a total of 1 failing tests, 2 tests succeeded\n\nTip: Run `forge test --rerun` to retry only the 1 failed test Static analysis: 1 finding(s) (medium=1). Gas analysis: unavailable."
+    },
+    "structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "constructor(uint256,uint256)",
+            "currentState()",
+            "startPresale()",
+            "startPublicSale()",
+            "price()",
+            "totalSupply()",
+            "maxSupply()",
+            "claimedWhitelistStatus(address)",
+            "mintNFT()",
+            "mintPublicNFT(uint256)"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": false,
+        "test_failure": "No files changed, compilation skipped\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testCannotMintWhileClosed() (gas: 20093)\n[PASS] testPresaleMintOnce() (gas: 104568)\n[FAIL: Public sale cannot start yet] testPublicMint() (gas: 7956)\nSuite result: FAILED. 2 passed; 1 failed; 0 skipped; finished in 943.51µs (616.91µs CPU time)\nRan 1 test suite in 22.48ms (943.51µs CPU time): 2 tests passed, 1 failed, 0 skipped (3 total tests)\nFailing tests:\nEncountered 1 failing test in test/Generated.t.sol:GeneratedTest\n[FAIL: Public sale cannot start yet] testPublicMint() (gas: 7956)\nEncountered a total of 1 failing tests, 2 tests succeeded\nTip: Run `forge test --rerun` to retry only the 1 failed test",
+        "slither_findings": {
+            "count": 1,
+            "severity_counts": {
+                "medium": 1
+            },
+            "items": [
+                {
+                    "check": "locked-ether",
+                    "impact": "medium",
+                    "confidence": "High",
+                    "description": "Contract locking ether found: Contract ClosedPresaleMint (src/Generated.sol#4-64) has payable functions: - ClosedPresaleMint.mintNFT() (src/Generated.sol#41-51) - ClosedPresaleMint.mintPublicNFT(uint256) (src/Generated.sol#53-62) But does not have a function to withdraw the ether"
+                }
+            ],
+            "command_success": true
+        },
+        "gas_used": null,
+        "gas_command_success": false
+    }
+}

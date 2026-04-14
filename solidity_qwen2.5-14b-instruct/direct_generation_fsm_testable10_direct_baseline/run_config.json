@@ -1,0 +1,10 @@
+{
+  "strategy": "direct_generation",
+  "provider": "qwen",
+  "model": "qwen2.5-14b-instruct",
+  "data_path": "data/solidity_fsm_testable_10.json",
+  "include_hard_constraints": false,
+  "max_tokens": 4096,
+  "generated_at": "2026-04-14T14:56:25",
+  "output_dir": "solidity_qwen2.5-14b-instruct/direct_generation_fsm_testable10_direct_baseline"
+}

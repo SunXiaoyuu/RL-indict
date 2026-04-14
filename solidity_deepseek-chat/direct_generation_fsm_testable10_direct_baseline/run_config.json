@@ -1,0 +1,10 @@
+{
+  "strategy": "direct_generation",
+  "provider": "deepseek",
+  "model": "deepseek-chat",
+  "data_path": "data/solidity_fsm_testable_10.json",
+  "include_hard_constraints": false,
+  "max_tokens": 4096,
+  "generated_at": "2026-04-14T14:58:15",
+  "output_dir": "solidity_deepseek-chat/direct_generation_fsm_testable10_direct_baseline"
+}

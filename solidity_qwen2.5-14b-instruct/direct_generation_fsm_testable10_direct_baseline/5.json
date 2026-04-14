@@ -1,0 +1,111 @@
+{
+    "sample_idx": 5,
+    "strategy": "direct_generation",
+    "provider": "qwen",
+    "model": "qwen2.5-14b-instruct",
+    "direct_prompt": "You are a Solidity code generator.\nGenerate exactly one complete Solidity contract for the task below.\nReturn only the Solidity code in a single ```solidity``` block.\n\nWrite a complete Solidity smart contract named CollectibleSale using Solidity 0.8.20.\nThis task is curated from an FSM-SCG NFT collectible sale sample. Do not use external imports.\nThe contract must:\n1. store owner, maxSupply, price, totalMinted, saleEnded, and balances(address);\n2. be constructed with uint256 maxSupply_ and uint256 price_;\n3. expose buy(uint256 amount) payable, requiring sale is active, amount > 0, amount <= 10, totalMinted + amount <= maxSupply, and exact payment amount * price;\n4. buy must increase balances[msg.sender] and totalMinted, and set saleEnded true when maxSupply is reached;\n5. expose setPrice(uint256 newPrice) as only-owner;\n6. expose withdraw() as only-owner and transfer the full ETH balance to the owner.\nReturn only the Solidity code in a single ```solidity``` block.\n",
+    "action": "```solidity\npragma solidity ^0.8.20;\n\ncontract CollectibleSale {\n    address public owner;\n    uint256 public maxSupply;\n    uint256 public price;\n    uint256 public totalMinted;\n    bool public saleEnded;\n    mapping(address => uint256) public balances;\n\n    event Buy(address indexed buyer, uint256 amount);\n    event PriceChanged(uint256 newPrice);\n    event Withdrawal(address indexed receiver, uint256 amount);\n\n    modifier onlyOwner() {\n        require(msg.sender == owner, \"Not the owner\");\n        _;\n    }\n\n    constructor(uint256 maxSupply_, uint256 price_) {\n        owner = msg.sender;\n        maxSupply = maxSupply_;\n        price = price_;\n        saleEnded = false;\n    }\n\n    function buy(uint256 amount) external payable {\n        require(!saleEnded, \"Sale has ended\");\n        require(amount > 0, \"Amount must be greater than zero\");\n        require(amount <= 10, \"Amount must be less than or equal to 10\");\n        require(totalMinted + amount <= maxSupply, \"Exceeds max supply\");\n\n        uint256 totalPrice = amount * price;\n        require(msg.value == totalPrice, \"Incorrect payment amount\");\n\n        balances[msg.sender] += amount;\n        totalMinted += amount;\n\n        if (totalMinted >= maxSupply) {\n            saleEnded = true;\n        }\n\n        emit Buy(msg.sender, amount);\n    }\n\n    function setPrice(uint256 newPrice) external onlyOwner {\n        price = newPrice;\n        emit PriceChanged(newPrice);\n    }\n\n    function withdraw() external onlyOwner {\n        uint256 balance = address(this).balance;\n        payable(owner).transfer(balance);\n        emit Withdrawal(owner, balance);\n    }\n}\n```",
+    "scratchpad": "",
+    "critic": "",
+    "initial_action": "```solidity\npragma solidity ^0.8.20;\n\ncontract CollectibleSale {\n    address public owner;\n    uint256 public maxSupply;\n    uint256 public price;\n    uint256 public totalMinted;\n    bool public saleEnded;\n    mapping(address => uint256) public balances;\n\n    event Buy(address indexed buyer, uint256 amount);\n    event PriceChanged(uint256 newPrice);\n    event Withdrawal(address indexed receiver, uint256 amount);\n\n    modifier onlyOwner() {\n        require(msg.sender == owner, \"Not the owner\");\n        _;\n    }\n\n    constructor(uint256 maxSupply_, uint256 price_) {\n        owner = msg.sender;\n        maxSupply = maxSupply_;\n        price = price_;\n        saleEnded = false;\n    }\n\n    function buy(uint256 amount) external payable {\n        require(!saleEnded, \"Sale has ended\");\n        require(amount > 0, \"Amount must be greater than zero\");\n        require(amount <= 10, \"Amount must be less than or equal to 10\");\n        require(totalMinted + amount <= maxSupply, \"Exceeds max supply\");\n\n        uint256 totalPrice = amount * price;\n        require(msg.value == totalPrice, \"Incorrect payment amount\");\n\n        balances[msg.sender] += amount;\n        totalMinted += amount;\n\n        if (totalMinted >= maxSupply) {\n            saleEnded = true;\n        }\n\n        emit Buy(msg.sender, amount);\n    }\n\n    function setPrice(uint256 newPrice) external onlyOwner {\n        price = newPrice;\n        emit PriceChanged(newPrice);\n    }\n\n    function withdraw() external onlyOwner {\n        uint256 balance = address(this).balance;\n        payable(owner).transfer(balance);\n        emit Withdrawal(owner, balance);\n    }\n}\n```",
+    "critic_scratchpad": "",
+    "execution_observation": "Compilation: success. ABI: passed. Tests: passed. Static analysis: no Slither findings. Gas analysis: max observed value 775161.",
+    "execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 0,
+            "stdout": "Compiling 25 files with Solc 0.8.33\nSolc 0.8.33 finished in 756.14ms\nCompiler run successful with warnings:\nWarning (9207): 'transfer' is deprecated and scheduled for removal. Use 'call{value: <amount>}(\"\")' instead.\n  --> src/Generated.sol:53:9:\n   |\n53 |         payable(owner).transfer(balance);\n   |         ^^^^^^^^^^^^^^^^^^^^^^^\n\n",
+            "stderr": "note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:4:8\n  |\n4 | import \"forge-std/Test.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unwrapped-modifier-logic]: wrap modifier logic to reduce code size\n  --> src/Generated.sol:15:5\n   |\n15 | /     modifier onlyOwner() {\n16 | |         require(msg.sender == owner, \"Not the owner\");\n17 | |         _;\n18 | |     }\n   | |_____^\n   |\nhelp: wrap modifier logic to reduce code size\n   |\n15 ~     modifier onlyOwner() {\n16 +         _onlyOwner();\n17 +         _;\n18 +     }\n19 + \n20 +     function _onlyOwner() internal {\n21 +         require(msg.sender == owner, \"Not the owner\");\n22 +     }\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#unwrapped-modifier-logic\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:5:8\n  |\n5 | import \"../src/Generated.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\n",
+            "success": true
+        },
+        "abi": {
+            "checked": true,
+            "success": true,
+            "required": [
+                "constructor(uint256,uint256)",
+                "maxSupply()",
+                "price()",
+                "totalMinted()",
+                "saleEnded()",
+                "balances(address)",
+                "buy(uint256)",
+                "setPrice(uint256)",
+                "withdraw()"
+            ],
+            "forbidden": [],
+            "available": [
+                "balances(address)",
+                "buy(uint256)",
+                "constructor(uint256,uint256)",
+                "maxSupply()",
+                "owner()",
+                "price()",
+                "saleEnded()",
+                "setPrice(uint256)",
+                "totalMinted()",
+                "withdraw()"
+            ],
+            "missing": [],
+            "forbidden_present": [],
+            "artifact": "/tmp/indict_solidity_663a4f5l/out/Generated.sol/CollectibleSale.json"
+        },
+        "tests": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" -vv",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testBuyMintsCollectibles() (gas: 74386)\n[PASS] testBuyRejectsWrongPayment() (gas: 27474)\n[PASS] testSaleEndsAtMaxSupply() (gas: 102075)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.25ms (817.86µs CPU time)\n\nRan 1 test suite in 22.94ms (1.25ms CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "slither": {
+            "command": "slither \"src/Generated.sol\" --exclude-dependencies --exclude-informational --exclude-optimization --fail-none --json \"/tmp/indict_solidity_663a4f5l/slither-result.json\"",
+            "returncode": 0,
+            "stdout": "",
+            "stderr": "'forge clean' running (wd: /tmp/indict_solidity_663a4f5l)\n'forge config --json' running\n'forge build --build-info src/Generated.sol' running (wd: /tmp/indict_solidity_663a4f5l)\nsrc/Generated.sol analyzed (1 contracts with 75 detectors), 0 result(s) found\n",
+            "success": true
+        },
+        "gas": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" --gas-report",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testBuyMintsCollectibles() (gas: 104090)\n[PASS] testBuyRejectsWrongPayment() (gas: 48678)\n[PASS] testSaleEndsAtMaxSupply() (gas: 157483)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.18ms (1.24ms CPU time)\n\n╭--------------------------------------------+-----------------+-------+--------+-------+---------╮\n| src/Generated.sol:CollectibleSale Contract |                 |       |        |       |         |\n+=================================================================================================+\n| Deployment Cost                            | Deployment Size |       |        |       |         |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| 775161                                     | 3368            |       |        |       |         |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n|                                            |                 |       |        |       |         |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| Function Name                              | Min             | Avg   | Median | Max   | # Calls |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| balances                                   | 2803            | 2803  | 2803   | 2803  | 1       |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| buy                                        | 24106           | 56388 | 53056  | 95334 | 4       |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| saleEnded                                  | 2466            | 2466  | 2466   | 2466  | 1       |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| totalMinted                                | 2469            | 2469  | 2469   | 2469  | 1       |\n╰--------------------------------------------+-----------------+-------+--------+-------+---------╯\n\n\nRan 1 test suite in 4.75ms (1.18ms CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "vulnerability_count": 0,
+        "vulnerability_severity_counts": {},
+        "slither_findings": [],
+        "max_gas_value": 775161,
+        "summary": "Compilation: success. ABI: passed. Tests: passed. Static analysis: no Slither findings. Gas analysis: max observed value 775161."
+    },
+    "structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "constructor(uint256,uint256)",
+            "maxSupply()",
+            "price()",
+            "totalMinted()",
+            "saleEnded()",
+            "balances(address)",
+            "buy(uint256)",
+            "setPrice(uint256)",
+            "withdraw()"
+        ],
+        "abi_missing": [],
+        "abi_extra": [
+            "owner()"
+        ],
+        "abi_forbidden_present": [],
+        "test_success": true,
+        "test_failure": null,
+        "slither_findings": {
+            "count": 0,
+            "severity_counts": {},
+            "items": [],
+            "command_success": true
+        },
+        "gas_used": 775161,
+        "gas_command_success": true
+    }
+}

@@ -1,0 +1,110 @@
+{
+    "sample_idx": 3,
+    "strategy": "direct_generation",
+    "provider": "deepseek",
+    "model": "deepseek-chat",
+    "direct_prompt": "You are a Solidity code generator.\nGenerate exactly one complete Solidity contract for the task below.\nReturn only the Solidity code in a single ```solidity``` block.\n\nWrite a complete Solidity smart contract named TokenVoting using Solidity 0.8.20.\nThis task is curated from an FSM-SCG token/voting sample. Do not use external imports.\nThe contract must:\n1. store an owner set to the deployer;\n2. define candidates by id and name, and expose candidateCount(), candidateNames(uint256), and candidateVotes(uint256);\n3. expose addCandidate(string memory name) as only-owner;\n4. expose grantVotingRights(address voter) as only-owner and a public hasVotingRights(address) mapping or getter;\n5. expose vote(uint256 candidateId), allowing each granted voter to vote exactly once;\n6. reject invalid candidate ids, duplicate votes, and votes from addresses without voting rights.\nReturn only the Solidity code in a single ```solidity``` block.\n",
+    "action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract TokenVoting {\n    address public owner;\n    uint256 public candidateCount;\n    \n    struct Candidate {\n        uint256 id;\n        string name;\n        uint256 voteCount;\n    }\n    \n    mapping(uint256 => Candidate) public candidates;\n    mapping(address => bool) public hasVotingRights;\n    mapping(address => bool) public hasVoted;\n    \n    event CandidateAdded(uint256 indexed candidateId, string name);\n    event VotingRightsGranted(address indexed voter);\n    event VoteCast(address indexed voter, uint256 indexed candidateId);\n    \n    modifier onlyOwner() {\n        require(msg.sender == owner, \"Only owner can call this function\");\n        _;\n    }\n    \n    constructor() {\n        owner = msg.sender;\n        candidateCount = 0;\n    }\n    \n    function addCandidate(string memory name) external onlyOwner {\n        candidateCount++;\n        candidates[candidateCount] = Candidate({\n            id: candidateCount,\n            name: name,\n            voteCount: 0\n        });\n        emit CandidateAdded(candidateCount, name);\n    }\n    \n    function grantVotingRights(address voter) external onlyOwner {\n        require(voter != address(0), \"Invalid address\");\n        require(!hasVotingRights[voter], \"Already has voting rights\");\n        \n        hasVotingRights[voter] = true;\n        emit VotingRightsGranted(voter);\n    }\n    \n    function vote(uint256 candidateId) external {\n        require(hasVotingRights[msg.sender], \"No voting rights\");\n        require(!hasVoted[msg.sender], \"Already voted\");\n        require(candidateId > 0 && candidateId <= candidateCount, \"Invalid candidate ID\");\n        \n        hasVoted[msg.sender] = true;\n        candidates[candidateId].voteCount++;\n        \n        emit VoteCast(msg.sender, candidateId);\n    }\n    \n    function candidateNames(uint256 candidateId) external view returns (string memory) {\n        require(candidateId > 0 && candidateId <= candidateCount, \"Invalid candidate ID\");\n        return candidates[candidateId].name;\n    }\n    \n    function candidateVotes(uint256 candidateId) external view returns (uint256) {\n        require(candidateId > 0 && candidateId <= candidateCount, \"Invalid candidate ID\");\n        return candidates[candidateId].voteCount;\n    }\n}\n```",
+    "scratchpad": "",
+    "critic": "",
+    "initial_action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract TokenVoting {\n    address public owner;\n    uint256 public candidateCount;\n    \n    struct Candidate {\n        uint256 id;\n        string name;\n        uint256 voteCount;\n    }\n    \n    mapping(uint256 => Candidate) public candidates;\n    mapping(address => bool) public hasVotingRights;\n    mapping(address => bool) public hasVoted;\n    \n    event CandidateAdded(uint256 indexed candidateId, string name);\n    event VotingRightsGranted(address indexed voter);\n    event VoteCast(address indexed voter, uint256 indexed candidateId);\n    \n    modifier onlyOwner() {\n        require(msg.sender == owner, \"Only owner can call this function\");\n        _;\n    }\n    \n    constructor() {\n        owner = msg.sender;\n        candidateCount = 0;\n    }\n    \n    function addCandidate(string memory name) external onlyOwner {\n        candidateCount++;\n        candidates[candidateCount] = Candidate({\n            id: candidateCount,\n            name: name,\n            voteCount: 0\n        });\n        emit CandidateAdded(candidateCount, name);\n    }\n    \n    function grantVotingRights(address voter) external onlyOwner {\n        require(voter != address(0), \"Invalid address\");\n        require(!hasVotingRights[voter], \"Already has voting rights\");\n        \n        hasVotingRights[voter] = true;\n        emit VotingRightsGranted(voter);\n    }\n    \n    function vote(uint256 candidateId) external {\n        require(hasVotingRights[msg.sender], \"No voting rights\");\n        require(!hasVoted[msg.sender], \"Already voted\");\n        require(candidateId > 0 && candidateId <= candidateCount, \"Invalid candidate ID\");\n        \n        hasVoted[msg.sender] = true;\n        candidates[candidateId].voteCount++;\n        \n        emit VoteCast(msg.sender, candidateId);\n    }\n    \n    function candidateNames(uint256 candidateId) external view returns (string memory) {\n        require(candidateId > 0 && candidateId <= candidateCount, \"Invalid candidate ID\");\n        return candidates[candidateId].name;\n    }\n    \n    function candidateVotes(uint256 candidateId) external view returns (uint256) {\n        require(candidateId > 0 && candidateId <= candidateCount, \"Invalid candidate ID\");\n        return candidates[candidateId].voteCount;\n    }\n}\n```",
+    "critic_scratchpad": "",
+    "execution_observation": "Compilation: success. ABI: passed. Tests: passed. Static analysis: no Slither findings. Gas analysis: max observed value 1176703.",
+    "execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 0,
+            "stdout": "Compiling 25 files with Solc 0.8.20\nSolc 0.8.20 finished in 810.17ms\nCompiler run successful with warnings:\nWarning (2018): Function state mutability can be restricted to view\n  --> test/Generated.t.sol:17:5:\n   |\n17 |     function testOwnerAddsCandidates() public {\n   |     ^ (Relevant source part starts here and spans across multiple lines).\n\n",
+            "stderr": "note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:4:8\n  |\n4 | import \"forge-std/Test.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unwrapped-modifier-logic]: wrap modifier logic to reduce code size\n  --> src/Generated.sol:22:5\n   |\n22 | /     modifier onlyOwner() {\n23 | |         require(msg.sender == owner, \"Only owner can call this function\");\n24 | |         _;\n25 | |     }\n   | |_____^\n   |\nhelp: wrap modifier logic to reduce code size\n   |\n22 ~     modifier onlyOwner() {\n23 +         _onlyOwner();\n24 +         _;\n25 +     }\n26 + \n27 +     function _onlyOwner() internal {\n28 +         require(msg.sender == owner, \"Only owner can call this function\");\n29 +     }\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#unwrapped-modifier-logic\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:5:8\n  |\n5 | import \"../src/Generated.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\n",
+            "success": true
+        },
+        "abi": {
+            "checked": true,
+            "success": true,
+            "required": [
+                "candidateCount()",
+                "candidateNames(uint256)",
+                "candidateVotes(uint256)",
+                "addCandidate(string)",
+                "grantVotingRights(address)",
+                "hasVotingRights(address)",
+                "vote(uint256)"
+            ],
+            "forbidden": [],
+            "available": [
+                "addCandidate(string)",
+                "candidateCount()",
+                "candidateNames(uint256)",
+                "candidateVotes(uint256)",
+                "candidates(uint256)",
+                "constructor()",
+                "grantVotingRights(address)",
+                "hasVoted(address)",
+                "hasVotingRights(address)",
+                "owner()",
+                "vote(uint256)"
+            ],
+            "missing": [],
+            "forbidden_present": [],
+            "artifact": "/tmp/indict_solidity_2f604qfw/out/Generated.sol/TokenVoting.json"
+        },
+        "tests": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" -vv",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testGrantedVoterCanVoteOnce() (gas: 92019)\n[PASS] testOwnerAddsCandidates() (gas: 17281)\n[PASS] testUngrantVoterCannotVote() (gas: 13950)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 895.87µs (659.47µs CPU time)\n\nRan 1 test suite in 22.63ms (895.87µs CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "slither": {
+            "command": "slither \"src/Generated.sol\" --exclude-dependencies --exclude-informational --exclude-optimization --fail-none --json \"/tmp/indict_solidity_2f604qfw/slither-result.json\"",
+            "returncode": 0,
+            "stdout": "",
+            "stderr": "'forge clean' running (wd: /tmp/indict_solidity_2f604qfw)\n'forge config --json' running\n'forge build --build-info src/Generated.sol' running (wd: /tmp/indict_solidity_2f604qfw)\nsrc/Generated.sol analyzed (1 contracts with 75 detectors), 0 result(s) found\n",
+            "success": true
+        },
+        "gas": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" --gas-report",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testGrantedVoterCanVoteOnce() (gas: 174631)\n[PASS] testOwnerAddsCandidates() (gas: 23781)\n[PASS] testUngrantVoterCannotVote() (gas: 35154)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.26ms (1.01ms CPU time)\n\n╭----------------------------------------+-----------------+-------+--------+-------+---------╮\n| src/Generated.sol:TokenVoting Contract |                 |       |        |       |         |\n+=============================================================================================+\n| Deployment Cost                        | Deployment Size |       |        |       |         |\n|----------------------------------------+-----------------+-------+--------+-------+---------|\n| 1176703                                | 5201            |       |        |       |         |\n|----------------------------------------+-----------------+-------+--------+-------+---------|\n|                                        |                 |       |        |       |         |\n|----------------------------------------+-----------------+-------+--------+-------+---------|\n| Function Name                          | Min             | Avg   | Median | Max   | # Calls |\n|----------------------------------------+-----------------+-------+--------+-------+---------|\n| addCandidate                           | 79701           | 88263 | 88263  | 96825 | 6       |\n|----------------------------------------+-----------------+-------+--------+-------+---------|\n| candidateCount                         | 2491            | 2491  | 2491   | 2491  | 1       |\n|----------------------------------------+-----------------+-------+--------+-------+---------|\n| candidateNames                         | 5941            | 5941  | 5941   | 5941  | 1       |\n|----------------------------------------+-----------------+-------+--------+-------+---------|\n| candidateVotes                         | 5020            | 5020  | 5020   | 5020  | 1       |\n|----------------------------------------+-----------------+-------+--------+-------+---------|\n| grantVotingRights                      | 47512           | 47512 | 47512  | 47512 | 1       |\n|----------------------------------------+-----------------+-------+--------+-------+---------|\n| vote                                   | 24149           | 40977 | 26391  | 72392 | 3       |\n╰----------------------------------------+-----------------+-------+--------+-------+---------╯\n\n\nRan 1 test suite in 6.93ms (1.26ms CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "vulnerability_count": 0,
+        "vulnerability_severity_counts": {},
+        "slither_findings": [],
+        "max_gas_value": 1176703,
+        "summary": "Compilation: success. ABI: passed. Tests: passed. Static analysis: no Slither findings. Gas analysis: max observed value 1176703."
+    },
+    "structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "candidateCount()",
+            "candidateNames(uint256)",
+            "candidateVotes(uint256)",
+            "addCandidate(string)",
+            "grantVotingRights(address)",
+            "hasVotingRights(address)",
+            "vote(uint256)"
+        ],
+        "abi_missing": [],
+        "abi_extra": [
+            "candidates(uint256)",
+            "hasVoted(address)",
+            "owner()"
+        ],
+        "abi_forbidden_present": [],
+        "test_success": true,
+        "test_failure": null,
+        "slither_findings": {
+            "count": 0,
+            "severity_counts": {},
+            "items": [],
+            "command_success": true
+        },
+        "gas_used": 1176703,
+        "gas_command_success": true
+    }
+}

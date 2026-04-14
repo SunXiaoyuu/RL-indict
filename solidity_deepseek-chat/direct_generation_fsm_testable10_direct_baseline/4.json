@@ -1,0 +1,120 @@
+{
+    "sample_idx": 4,
+    "strategy": "direct_generation",
+    "provider": "deepseek",
+    "model": "deepseek-chat",
+    "direct_prompt": "You are a Solidity code generator.\nGenerate exactly one complete Solidity contract for the task below.\nReturn only the Solidity code in a single ```solidity``` block.\n\nWrite a complete Solidity smart contract named PostingBoard using Solidity 0.8.20.\nThis task is curated from an FSM-SCG uncensorable posting sample. Do not use external imports.\nThe contract must:\n1. define a public postCount;\n2. define a public posts(uint256) getter for a struct containing address author, string content, and uint256 totalPower;\n3. expose createPost(string calldata content) returning the new post id and rejecting empty content;\n4. expose boostPost(uint256 postId) payable, requiring an existing post and msg.value > 0, increasing that post's totalPower and adding the value to authorBalances(author);\n5. expose authorBalances(address);\n6. expose withdraw() so an author can withdraw their accumulated balance and the balance is set to zero before transferring ETH.\nReturn only the Solidity code in a single ```solidity``` block.\n",
+    "action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract PostingBoard {\n    // State variables\n    uint256 public postCount;\n    \n    // Struct definition for a post\n    struct Post {\n        address author;\n        string content;\n        uint256 totalPower;\n    }\n    \n    // Mappings\n    mapping(uint256 => Post) public posts;\n    mapping(address => uint256) public authorBalances;\n    \n    // Events\n    event PostCreated(uint256 indexed postId, address indexed author, string content);\n    event PostBoosted(uint256 indexed postId, address indexed booster, uint256 amount, uint256 newTotalPower);\n    event Withdrawal(address indexed author, uint256 amount);\n    \n    // Modifiers\n    modifier postExists(uint256 postId) {\n        require(postId > 0 && postId <= postCount, \"Post does not exist\");\n        _;\n    }\n    \n    // Create a new post\n    function createPost(string calldata content) external returns (uint256) {\n        require(bytes(content).length > 0, \"Content cannot be empty\");\n        \n        postCount++;\n        uint256 newPostId = postCount;\n        \n        posts[newPostId] = Post({\n            author: msg.sender,\n            content: content,\n            totalPower: 0\n        });\n        \n        emit PostCreated(newPostId, msg.sender, content);\n        return newPostId;\n    }\n    \n    // Boost a post with ETH\n    function boostPost(uint256 postId) external payable postExists(postId) {\n        require(msg.value > 0, \"Must send ETH to boost\");\n        \n        Post storage post = posts[postId];\n        post.totalPower += msg.value;\n        authorBalances[post.author] += msg.value;\n        \n        emit PostBoosted(postId, msg.sender, msg.value, post.totalPower);\n    }\n    \n    // Withdraw accumulated balance\n    function withdraw() external {\n        uint256 balance = authorBalances[msg.sender];\n        require(balance > 0, \"No balance to withdraw\");\n        \n        // Clear balance before transfer to prevent reentrancy\n        authorBalances[msg.sender] = 0;\n        \n        (bool success, ) = payable(msg.sender).call{value: balance}(\"\");\n        require(success, \"Transfer failed\");\n        \n        emit Withdrawal(msg.sender, balance);\n    }\n    \n    // Receive function to accept ETH (optional, for direct donations)\n    receive() external payable {}\n}\n```",
+    "scratchpad": "",
+    "critic": "",
+    "initial_action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract PostingBoard {\n    // State variables\n    uint256 public postCount;\n    \n    // Struct definition for a post\n    struct Post {\n        address author;\n        string content;\n        uint256 totalPower;\n    }\n    \n    // Mappings\n    mapping(uint256 => Post) public posts;\n    mapping(address => uint256) public authorBalances;\n    \n    // Events\n    event PostCreated(uint256 indexed postId, address indexed author, string content);\n    event PostBoosted(uint256 indexed postId, address indexed booster, uint256 amount, uint256 newTotalPower);\n    event Withdrawal(address indexed author, uint256 amount);\n    \n    // Modifiers\n    modifier postExists(uint256 postId) {\n        require(postId > 0 && postId <= postCount, \"Post does not exist\");\n        _;\n    }\n    \n    // Create a new post\n    function createPost(string calldata content) external returns (uint256) {\n        require(bytes(content).length > 0, \"Content cannot be empty\");\n        \n        postCount++;\n        uint256 newPostId = postCount;\n        \n        posts[newPostId] = Post({\n            author: msg.sender,\n            content: content,\n            totalPower: 0\n        });\n        \n        emit PostCreated(newPostId, msg.sender, content);\n        return newPostId;\n    }\n    \n    // Boost a post with ETH\n    function boostPost(uint256 postId) external payable postExists(postId) {\n        require(msg.value > 0, \"Must send ETH to boost\");\n        \n        Post storage post = posts[postId];\n        post.totalPower += msg.value;\n        authorBalances[post.author] += msg.value;\n        \n        emit PostBoosted(postId, msg.sender, msg.value, post.totalPower);\n    }\n    \n    // Withdraw accumulated balance\n    function withdraw() external {\n        uint256 balance = authorBalances[msg.sender];\n        require(balance > 0, \"No balance to withdraw\");\n        \n        // Clear balance before transfer to prevent reentrancy\n        authorBalances[msg.sender] = 0;\n        \n        (bool success, ) = payable(msg.sender).call{value: balance}(\"\");\n        require(success, \"Transfer failed\");\n        \n        emit Withdrawal(msg.sender, balance);\n    }\n    \n    // Receive function to accept ETH (optional, for direct donations)\n    receive() external payable {}\n}\n```",
+    "critic_scratchpad": "",
+    "execution_observation": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 1 finding(s) (low=1). Gas analysis: max observed value 963911.",
+    "execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 0,
+            "stdout": "Compiling 25 files with Solc 0.8.20\nSolc 0.8.20 finished in 805.04ms\nCompiler run successful!\n",
+            "stderr": "note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:4:8\n  |\n4 | import \"forge-std/Test.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unwrapped-modifier-logic]: wrap modifier logic to reduce code size\n  --> src/Generated.sol:25:5\n   |\n25 | /     modifier postExists(uint256 postId) {\n26 | |         require(postId > 0 && postId <= postCount, \"Post does not exist\");\n27 | |         _;\n28 | |     }\n   | |_____^\n   |\nhelp: wrap modifier logic to reduce code size\n   |\n25 ~     modifier postExists(uint256 postId) {\n26 +         _postExists(postId);\n27 +         _;\n28 +     }\n29 + \n30 +     function _postExists(uint256 postId) internal {\n31 +         require(postId > 0 && postId <= postCount, \"Post does not exist\");\n32 +     }\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#unwrapped-modifier-logic\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:5:8\n  |\n5 | import \"../src/Generated.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\n",
+            "success": true
+        },
+        "abi": {
+            "checked": true,
+            "success": true,
+            "required": [
+                "postCount()",
+                "posts(uint256)",
+                "createPost(string)",
+                "boostPost(uint256)",
+                "authorBalances(address)",
+                "withdraw()"
+            ],
+            "forbidden": [],
+            "available": [
+                "authorBalances(address)",
+                "boostPost(uint256)",
+                "createPost(string)",
+                "postCount()",
+                "posts(uint256)",
+                "receive()",
+                "withdraw()"
+            ],
+            "missing": [],
+            "forbidden_present": [],
+            "artifact": "/tmp/indict_solidity_9cvsdj01/out/Generated.sol/PostingBoard.json"
+        },
+        "tests": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" -vv",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testBoostCreditsAuthor() (gas: 141996)\n[PASS] testCreatePostStoresAuthorAndContent() (gas: 89855)\n[PASS] testInvalidBoostReverts() (gas: 20593)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.21ms (941.58µs CPU time)\n\nRan 1 test suite in 22.39ms (1.21ms CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "slither": {
+            "command": "slither \"src/Generated.sol\" --exclude-dependencies --exclude-informational --exclude-optimization --fail-none --json \"/tmp/indict_solidity_9cvsdj01/slither-result.json\"",
+            "returncode": 0,
+            "stdout": "",
+            "stderr": "'forge clean' running (wd: /tmp/indict_solidity_9cvsdj01)\n'forge config --json' running\n'forge build --build-info src/Generated.sol' running (wd: /tmp/indict_solidity_9cvsdj01)\n\nDetector: reentrancy-events\nReentrancy in PostingBoard.withdraw() (src/Generated.sol#59-70):\n\tExternal calls:\n\t- (success,None) = address(msg.sender).call{value: balance}() (src/Generated.sol#66)\n\tEvent emitted after the call(s):\n\t- Withdrawal(msg.sender,balance) (src/Generated.sol#69)\nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-4\nsrc/Generated.sol analyzed (1 contracts with 75 detectors), 1 result(s) found\n",
+            "success": true
+        },
+        "gas": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" --gas-report",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testBoostCreditsAuthor() (gas: 192732)\n[PASS] testCreatePostStoresAuthorAndContent() (gas: 121887)\n[PASS] testInvalidBoostReverts() (gas: 41809)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.22ms (1.37ms CPU time)\n\n╭-----------------------------------------+-----------------+-------+--------+-------+---------╮\n| src/Generated.sol:PostingBoard Contract |                 |       |        |       |         |\n+==============================================================================================+\n| Deployment Cost                         | Deployment Size |       |        |       |         |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n| 963911                                  | 4256            |       |        |       |         |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n|                                         |                 |       |        |       |         |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n| Function Name                           | Min             | Avg   | Median | Max   | # Calls |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n| authorBalances                          | 2846            | 2846  | 2846   | 2846  | 1       |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n| boostPost                               | 24099           | 48640 | 48640  | 73182 | 2       |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n| createPost                              | 94814           | 94814 | 94814  | 94814 | 2       |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n| posts                                   | 8237            | 8237  | 8237   | 8237  | 1       |\n╰-----------------------------------------+-----------------+-------+--------+-------+---------╯\n\n\nRan 1 test suite in 6.34ms (1.22ms CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "vulnerability_count": 1,
+        "vulnerability_severity_counts": {
+            "low": 1
+        },
+        "slither_findings": [
+            {
+                "check": "reentrancy-events",
+                "impact": "low",
+                "confidence": "Medium",
+                "description": "Reentrancy in PostingBoard.withdraw() (src/Generated.sol#59-70): External calls: - (success,None) = address(msg.sender).call{value: balance}() (src/Generated.sol#66) Event emitted after the call(s): - Withdrawal(msg.sender,balance) (src/Generated.sol#69)"
+            }
+        ],
+        "max_gas_value": 963911,
+        "summary": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 1 finding(s) (low=1). Gas analysis: max observed value 963911."
+    },
+    "structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "postCount()",
+            "posts(uint256)",
+            "createPost(string)",
+            "boostPost(uint256)",
+            "authorBalances(address)",
+            "withdraw()"
+        ],
+        "abi_missing": [],
+        "abi_extra": [
+            "receive()"
+        ],
+        "abi_forbidden_present": [],
+        "test_success": true,
+        "test_failure": null,
+        "slither_findings": {
+            "count": 1,
+            "severity_counts": {
+                "low": 1
+            },
+            "items": [
+                {
+                    "check": "reentrancy-events",
+                    "impact": "low",
+                    "confidence": "Medium",
+                    "description": "Reentrancy in PostingBoard.withdraw() (src/Generated.sol#59-70): External calls: - (success,None) = address(msg.sender).call{value: balance}() (src/Generated.sol#66) Event emitted after the call(s): - Withdrawal(msg.sender,balance) (src/Generated.sol#69)"
+                }
+            ],
+            "command_success": true
+        },
+        "gas_used": 963911,
+        "gas_command_success": true
+    }
+}

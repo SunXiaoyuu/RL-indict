@@ -1,0 +1,65 @@
+{
+    "sample_idx": 8,
+    "strategy": "direct_generation",
+    "provider": "qwen",
+    "model": "qwen2.5-14b-instruct",
+    "direct_prompt": "You are a Solidity code generator.\nGenerate exactly one complete Solidity contract for the task below.\nReturn only the Solidity code in a single ```solidity``` block.\n\nWrite a complete Solidity smart contract named GrandGooseMansion using Solidity 0.8.20.\nThis task is curated from an FSM-SCG NFT presale/public sale sample. Do not use external imports.\nThe contract must:\n1. store an owner set to the deployer;\n2. expose public supply, cost, maxSupply, preSaleWalletLimit, and enum SaleStatus { Paused, Presale, PublicSale } with public currentSaleStatus initially Paused;\n3. expose whitelistUser(address user, bool status), startPresale(), startPublicSale(), and setCost(uint256 newCost) as only-owner functions;\n4. expose isWhitelisted(address user) view returns (bool);\n5. expose mintTokenWhitelisted(uint256 amount) payable, requiring Presale, whitelist status, amount > 0, per-wallet presale limit, supply cap, and exact payment;\n6. expose mintTokenPublic(uint256 amount) payable, requiring PublicSale, amount > 0, supply cap, and exact payment;\n7. update supply and preSaleWalletMinted(address) on successful mint.\nReturn only the Solidity code in a single ```solidity``` block.\n",
+    "action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract GrandGooseMansion {\n    address private _owner;\n    uint256 public supply;\n    uint256 public cost;\n    uint256 public maxSupply = 10000;\n    uint256 public preSaleWalletLimit = 10;\n    uint256 public preSaleWalletMinted;\n    enum SaleStatus { Paused, Presale, PublicSale }\n    SaleStatus public currentSaleStatus = SaleStatus.Paused;\n    mapping(address => bool) public whitelist;\n\n    event Minted(address indexed user, uint256 amount);\n\n    modifier onlyOwner() {\n        require(msg.sender == _owner, \"Not owner\");\n        _;\n    }\n\n    constructor() {\n        _owner = msg.sender;\n        cost = 0.001 ether;\n    }\n\n    function isWhitelisted(address user) public view returns (bool) {\n        return whitelist[user];\n    }\n\n    function whitelistUser(address user, bool status) public onlyOwner {\n        whitelist[user] = status;\n    }\n\n    function startPresale() public onlyOwner {\n        require(currentSaleStatus == SaleStatus.Paused, \"Already started\");\n        currentSaleStatus = SaleStatus.Presale;\n    }\n\n    function startPublicSale() public onlyOwner {\n        require(currentSaleStatus == SaleStatus.Presale, \"Not in presale\");\n        currentSaleStatus = SaleStatus.PublicSale;\n    }\n\n    function setCost(uint256 newCost) public onlyOwner {\n        cost = newCost;\n    }\n\n    function mintTokenWhitelisted(uint256 amount) public payable {\n        require(currentSaleStatus == SaleStatus.Presale, \"Presale not active\");\n        require(whitelist[msg.sender], \"Not whitelisted\");\n        require(amount > 0, \"Amount must be greater than 0\");\n        require(supply + amount <= maxSupply, \"Exceeds max supply\");\n        require(preSaleWalletMinted + amount <= preSaleWalletLimit, \"Exceeds wallet limit\");\n\n        uint256 totalPrice = amount * cost;\n        require(msg.value == totalPrice, \"Exact payment required\");\n\n        supply += amount;\n        preSaleWalletMinted += amount;\n        emit Minted(msg.sender, amount);\n    }\n\n    function mintTokenPublic(uint256 amount) public payable {\n        require(currentSaleStatus == SaleStatus.PublicSale, \"Public sale not active\");\n        require(amount > 0, \"Amount must be greater than 0\");\n        require(supply + amount <= maxSupply, \"Exceeds max supply\");\n\n        uint256 totalPrice = amount * cost;\n        require(msg.value == totalPrice, \"Exact payment required\");\n\n        supply += amount;\n        emit Minted(msg.sender, amount);\n    }\n}\n```",
+    "scratchpad": "",
+    "critic": "",
+    "initial_action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract GrandGooseMansion {\n    address private _owner;\n    uint256 public supply;\n    uint256 public cost;\n    uint256 public maxSupply = 10000;\n    uint256 public preSaleWalletLimit = 10;\n    uint256 public preSaleWalletMinted;\n    enum SaleStatus { Paused, Presale, PublicSale }\n    SaleStatus public currentSaleStatus = SaleStatus.Paused;\n    mapping(address => bool) public whitelist;\n\n    event Minted(address indexed user, uint256 amount);\n\n    modifier onlyOwner() {\n        require(msg.sender == _owner, \"Not owner\");\n        _;\n    }\n\n    constructor() {\n        _owner = msg.sender;\n        cost = 0.001 ether;\n    }\n\n    function isWhitelisted(address user) public view returns (bool) {\n        return whitelist[user];\n    }\n\n    function whitelistUser(address user, bool status) public onlyOwner {\n        whitelist[user] = status;\n    }\n\n    function startPresale() public onlyOwner {\n        require(currentSaleStatus == SaleStatus.Paused, \"Already started\");\n        currentSaleStatus = SaleStatus.Presale;\n    }\n\n    function startPublicSale() public onlyOwner {\n        require(currentSaleStatus == SaleStatus.Presale, \"Not in presale\");\n        currentSaleStatus = SaleStatus.PublicSale;\n    }\n\n    function setCost(uint256 newCost) public onlyOwner {\n        cost = newCost;\n    }\n\n    function mintTokenWhitelisted(uint256 amount) public payable {\n        require(currentSaleStatus == SaleStatus.Presale, \"Presale not active\");\n        require(whitelist[msg.sender], \"Not whitelisted\");\n        require(amount > 0, \"Amount must be greater than 0\");\n        require(supply + amount <= maxSupply, \"Exceeds max supply\");\n        require(preSaleWalletMinted + amount <= preSaleWalletLimit, \"Exceeds wallet limit\");\n\n        uint256 totalPrice = amount * cost;\n        require(msg.value == totalPrice, \"Exact payment required\");\n\n        supply += amount;\n        preSaleWalletMinted += amount;\n        emit Minted(msg.sender, amount);\n    }\n\n    function mintTokenPublic(uint256 amount) public payable {\n        require(currentSaleStatus == SaleStatus.PublicSale, \"Public sale not active\");\n        require(amount > 0, \"Amount must be greater than 0\");\n        require(supply + amount <= maxSupply, \"Exceeds max supply\");\n\n        uint256 totalPrice = amount * cost;\n        require(msg.value == totalPrice, \"Exact payment required\");\n\n        supply += amount;\n        emit Minted(msg.sender, amount);\n    }\n}\n```",
+    "critic_scratchpad": "",
+    "execution_observation": "Compilation: failed. Error: Compiler run failed:\nError (6160): Wrong argument count for function call: 1 arguments given but expected 0.\n  --> test/Generated.t.sol:23:18:\n   |\n23 |         assertEq(c.preSaleWalletMinted(user), 2);\n   |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^ ABI: not checked. Tests: skipped (no Solidity test command available). Static analysis: skipped. Gas analysis: unavailable.",
+    "execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 1,
+            "stdout": "Compiling 25 files with Solc 0.8.33\nSolc 0.8.33 finished in 547.47ms\n",
+            "stderr": "Error: Compiler run failed:\nError (6160): Wrong argument count for function call: 1 arguments given but expected 0.\n  --> test/Generated.t.sol:23:18:\n   |\n23 |         assertEq(c.preSaleWalletMinted(user), 2);\n   |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n",
+            "success": false
+        },
+        "abi": null,
+        "tests": null,
+        "slither": null,
+        "gas": null,
+        "vulnerability_count": null,
+        "vulnerability_severity_counts": {},
+        "slither_findings": [],
+        "max_gas_value": null,
+        "skipped_after_compile_failure": true,
+        "summary": "Compilation: failed. Error: Compiler run failed:\nError (6160): Wrong argument count for function call: 1 arguments given but expected 0.\n  --> test/Generated.t.sol:23:18:\n   |\n23 |         assertEq(c.preSaleWalletMinted(user), 2);\n   |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^ ABI: not checked. Tests: skipped (no Solidity test command available). Static analysis: skipped. Gas analysis: unavailable."
+    },
+    "structured_feedback": {
+        "compile_success": false,
+        "compile_error": "Error: Compiler run failed:\nError (6160): Wrong argument count for function call: 1 arguments given but expected 0.\n--> test/Generated.t.sol:23:18:\n|\n23 |         assertEq(c.preSaleWalletMinted(user), 2);\n|                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+        "abi_checked": null,
+        "abi_success": null,
+        "abi_required": [
+            "supply()",
+            "cost()",
+            "maxSupply()",
+            "preSaleWalletLimit()",
+            "currentSaleStatus()",
+            "whitelistUser(address,bool)",
+            "startPresale()",
+            "startPublicSale()",
+            "setCost(uint256)",
+            "isWhitelisted(address)",
+            "mintTokenWhitelisted(uint256)",
+            "mintTokenPublic(uint256)",
+            "preSaleWalletMinted(address)"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": null,
+        "test_failure": null,
+        "slither_findings": {
+            "count": null,
+            "severity_counts": {},
+            "items": []
+        },
+        "gas_used": null,
+        "gas_command_success": null
+    }
+}

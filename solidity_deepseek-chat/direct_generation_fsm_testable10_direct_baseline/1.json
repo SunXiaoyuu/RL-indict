@@ -1,0 +1,99 @@
+{
+    "sample_idx": 1,
+    "strategy": "direct_generation",
+    "provider": "deepseek",
+    "model": "deepseek-chat",
+    "direct_prompt": "You are a Solidity code generator.\nGenerate exactly one complete Solidity contract for the task below.\nReturn only the Solidity code in a single ```solidity``` block.\n\nWrite a complete Solidity smart contract named SimpleCrowdsale using Solidity 0.8.20.\nThis task is curated from an FSM-SCG crowdsale sample. Do not use external imports.\nThe contract must:\n1. be constructed with address payable wallet and uint256 rate;\n2. reject a zero wallet or zero rate in the constructor;\n3. expose public wallet(), rate(), weiRaised(), and tokensPurchased(address) values;\n4. expose buyTokens(address beneficiary) payable;\n5. buyTokens must require a nonzero beneficiary and nonzero msg.value, add msg.value to weiRaised, add msg.value * rate to tokensPurchased[beneficiary], emit TokensPurchased(address purchaser, address beneficiary, uint256 value, uint256 amount), and forward the ETH to wallet.\nReturn only the Solidity code in a single ```solidity``` block.\n",
+    "action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract SimpleCrowdsale {\n    address payable public wallet;\n    uint256 public rate;\n    uint256 public weiRaised;\n    mapping(address => uint256) public tokensPurchased;\n\n    event TokensPurchased(\n        address indexed purchaser,\n        address indexed beneficiary,\n        uint256 value,\n        uint256 amount\n    );\n\n    constructor(address payable _wallet, uint256 _rate) {\n        require(_wallet != address(0), \"SimpleCrowdsale: wallet is the zero address\");\n        require(_rate > 0, \"SimpleCrowdsale: rate is 0\");\n        wallet = _wallet;\n        rate = _rate;\n    }\n\n    function buyTokens(address beneficiary) public payable {\n        require(beneficiary != address(0), \"SimpleCrowdsale: beneficiary is the zero address\");\n        require(msg.value > 0, \"SimpleCrowdsale: weiAmount is 0\");\n\n        uint256 weiAmount = msg.value;\n        uint256 tokenAmount = weiAmount * rate;\n\n        weiRaised += weiAmount;\n        tokensPurchased[beneficiary] += tokenAmount;\n\n        emit TokensPurchased(msg.sender, beneficiary, weiAmount, tokenAmount);\n\n        wallet.transfer(weiAmount);\n    }\n}\n```",
+    "scratchpad": "",
+    "critic": "",
+    "initial_action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract SimpleCrowdsale {\n    address payable public wallet;\n    uint256 public rate;\n    uint256 public weiRaised;\n    mapping(address => uint256) public tokensPurchased;\n\n    event TokensPurchased(\n        address indexed purchaser,\n        address indexed beneficiary,\n        uint256 value,\n        uint256 amount\n    );\n\n    constructor(address payable _wallet, uint256 _rate) {\n        require(_wallet != address(0), \"SimpleCrowdsale: wallet is the zero address\");\n        require(_rate > 0, \"SimpleCrowdsale: rate is 0\");\n        wallet = _wallet;\n        rate = _rate;\n    }\n\n    function buyTokens(address beneficiary) public payable {\n        require(beneficiary != address(0), \"SimpleCrowdsale: beneficiary is the zero address\");\n        require(msg.value > 0, \"SimpleCrowdsale: weiAmount is 0\");\n\n        uint256 weiAmount = msg.value;\n        uint256 tokenAmount = weiAmount * rate;\n\n        weiRaised += weiAmount;\n        tokensPurchased[beneficiary] += tokenAmount;\n\n        emit TokensPurchased(msg.sender, beneficiary, weiAmount, tokenAmount);\n\n        wallet.transfer(weiAmount);\n    }\n}\n```",
+    "critic_scratchpad": "",
+    "execution_observation": "Compilation: success. ABI: passed. Tests: passed. Static analysis: no Slither findings. Gas analysis: max observed value 460675.",
+    "execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 0,
+            "stdout": "Compiling 25 files with Solc 0.8.20\nSolc 0.8.20 finished in 797.07ms\nCompiler run successful!\n",
+            "stderr": "note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:4:8\n  |\n4 | import \"forge-std/Test.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:5:8\n  |\n5 | import \"../src/Generated.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\n",
+            "success": true
+        },
+        "abi": {
+            "checked": true,
+            "success": true,
+            "required": [
+                "constructor(address,uint256)",
+                "wallet()",
+                "rate()",
+                "weiRaised()",
+                "tokensPurchased(address)",
+                "buyTokens(address)"
+            ],
+            "forbidden": [],
+            "available": [
+                "buyTokens(address)",
+                "constructor(address,uint256)",
+                "rate()",
+                "tokensPurchased(address)",
+                "wallet()",
+                "weiRaised()"
+            ],
+            "missing": [],
+            "forbidden_present": [],
+            "artifact": "/tmp/indict_solidity_estt4n15/out/Generated.sol/SimpleCrowdsale.json"
+        },
+        "tests": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" -vv",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testBuyTokensForwardsFundsAndRecordsPurchase() (gas: 109211)\n[PASS] testRejectsZeroBeneficiary() (gas: 18435)\n[PASS] testRejectsZeroValue() (gas: 11894)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 955.60µs (708.31µs CPU time)\n\nRan 1 test suite in 23.68ms (955.60µs CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "slither": {
+            "command": "slither \"src/Generated.sol\" --exclude-dependencies --exclude-informational --exclude-optimization --fail-none --json \"/tmp/indict_solidity_estt4n15/slither-result.json\"",
+            "returncode": 0,
+            "stdout": "",
+            "stderr": "'forge clean' running (wd: /tmp/indict_solidity_estt4n15)\n'forge config --json' running\n'forge build --build-info src/Generated.sol' running (wd: /tmp/indict_solidity_estt4n15)\nsrc/Generated.sol analyzed (1 contracts with 75 detectors), 0 result(s) found\n",
+            "success": true
+        },
+        "gas": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" --gas-report",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testBuyTokensForwardsFundsAndRecordsPurchase() (gas: 143427)\n[PASS] testRejectsZeroBeneficiary() (gas: 39627)\n[PASS] testRejectsZeroValue() (gas: 33110)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.18ms (1.04ms CPU time)\n\n╭--------------------------------------------+-----------------+-------+--------+--------+---------╮\n| src/Generated.sol:SimpleCrowdsale Contract |                 |       |        |        |         |\n+==================================================================================================+\n| Deployment Cost                            | Deployment Size |       |        |        |         |\n|--------------------------------------------+-----------------+-------+--------+--------+---------|\n| 460675                                     | 2521            |       |        |        |         |\n|--------------------------------------------+-----------------+-------+--------+--------+---------|\n|                                            |                 |       |        |        |         |\n|--------------------------------------------+-----------------+-------+--------+--------+---------|\n| Function Name                              | Min             | Avg   | Median | Max    | # Calls |\n|--------------------------------------------+-----------------+-------+--------+--------+---------|\n| buyTokens                                  | 22017           | 50584 | 22044  | 107691 | 3       |\n|--------------------------------------------+-----------------+-------+--------+--------+---------|\n| tokensPurchased                            | 2780            | 2780  | 2780   | 2780   | 1       |\n|--------------------------------------------+-----------------+-------+--------+--------+---------|\n| weiRaised                                  | 2447            | 2447  | 2447   | 2447   | 1       |\n╰--------------------------------------------+-----------------+-------+--------+--------+---------╯\n\n\nRan 1 test suite in 6.54ms (1.18ms CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "vulnerability_count": 0,
+        "vulnerability_severity_counts": {},
+        "slither_findings": [],
+        "max_gas_value": 460675,
+        "summary": "Compilation: success. ABI: passed. Tests: passed. Static analysis: no Slither findings. Gas analysis: max observed value 460675."
+    },
+    "structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "constructor(address,uint256)",
+            "wallet()",
+            "rate()",
+            "weiRaised()",
+            "tokensPurchased(address)",
+            "buyTokens(address)"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": true,
+        "test_failure": null,
+        "slither_findings": {
+            "count": 0,
+            "severity_counts": {},
+            "items": [],
+            "command_success": true
+        },
+        "gas_used": 460675,
+        "gas_command_success": true
+    }
+}

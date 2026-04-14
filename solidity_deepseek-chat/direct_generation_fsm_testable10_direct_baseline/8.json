@@ -1,0 +1,65 @@
+{
+    "sample_idx": 8,
+    "strategy": "direct_generation",
+    "provider": "deepseek",
+    "model": "deepseek-chat",
+    "direct_prompt": "You are a Solidity code generator.\nGenerate exactly one complete Solidity contract for the task below.\nReturn only the Solidity code in a single ```solidity``` block.\n\nWrite a complete Solidity smart contract named GrandGooseMansion using Solidity 0.8.20.\nThis task is curated from an FSM-SCG NFT presale/public sale sample. Do not use external imports.\nThe contract must:\n1. store an owner set to the deployer;\n2. expose public supply, cost, maxSupply, preSaleWalletLimit, and enum SaleStatus { Paused, Presale, PublicSale } with public currentSaleStatus initially Paused;\n3. expose whitelistUser(address user, bool status), startPresale(), startPublicSale(), and setCost(uint256 newCost) as only-owner functions;\n4. expose isWhitelisted(address user) view returns (bool);\n5. expose mintTokenWhitelisted(uint256 amount) payable, requiring Presale, whitelist status, amount > 0, per-wallet presale limit, supply cap, and exact payment;\n6. expose mintTokenPublic(uint256 amount) payable, requiring PublicSale, amount > 0, supply cap, and exact payment;\n7. update supply and preSaleWalletMinted(address) on successful mint.\nReturn only the Solidity code in a single ```solidity``` block.\n",
+    "action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract GrandGooseMansion {\n    // State variables\n    address public owner;\n    uint256 public supply;\n    uint256 public cost;\n    uint256 public immutable maxSupply;\n    uint256 public immutable preSaleWalletLimit;\n    \n    // Sale status enum\n    enum SaleStatus { Paused, Presale, PublicSale }\n    SaleStatus public currentSaleStatus;\n    \n    // Mappings\n    mapping(address => bool) private whitelist;\n    mapping(address => uint256) public preSaleWalletMinted;\n    \n    // Events\n    event WhitelistUpdated(address indexed user, bool status);\n    event SaleStatusChanged(SaleStatus newStatus);\n    event CostUpdated(uint256 newCost);\n    event TokensMinted(address indexed to, uint256 amount, SaleStatus saleType);\n    \n    // Modifiers\n    modifier onlyOwner() {\n        require(msg.sender == owner, \"Not owner\");\n        _;\n    }\n    \n    modifier requireSaleStatus(SaleStatus status) {\n        require(currentSaleStatus == status, \"Invalid sale status\");\n        _;\n    }\n    \n    // Constructor\n    constructor(uint256 _maxSupply, uint256 _preSaleWalletLimit, uint256 _initialCost) {\n        owner = msg.sender;\n        maxSupply = _maxSupply;\n        preSaleWalletLimit = _preSaleWalletLimit;\n        cost = _initialCost;\n        currentSaleStatus = SaleStatus.Paused;\n    }\n    \n    // Owner functions\n    function whitelistUser(address user, bool status) external onlyOwner {\n        whitelist[user] = status;\n        emit WhitelistUpdated(user, status);\n    }\n    \n    function startPresale() external onlyOwner {\n        currentSaleStatus = SaleStatus.Presale;\n        emit SaleStatusChanged(SaleStatus.Presale);\n    }\n    \n    function startPublicSale() external onlyOwner {\n        currentSaleStatus = SaleStatus.PublicSale;\n        emit SaleStatusChanged(SaleStatus.PublicSale);\n    }\n    \n    function setCost(uint256 newCost) external onlyOwner {\n        require(newCost > 0, \"Cost must be > 0\");\n        cost = newCost;\n        emit CostUpdated(newCost);\n    }\n    \n    // View functions\n    function isWhitelisted(address user) external view returns (bool) {\n        return whitelist[user];\n    }\n    \n    // Mint functions\n    function mintTokenWhitelisted(uint256 amount) external payable \n        requireSaleStatus(SaleStatus.Presale) \n    {\n        require(whitelist[msg.sender], \"Not whitelisted\");\n        require(amount > 0, \"Amount must be > 0\");\n        require(preSaleWalletMinted[msg.sender] + amount <= preSaleWalletLimit, \"Exceeds wallet limit\");\n        _mint(amount, SaleStatus.Presale);\n        preSaleWalletMinted[msg.sender] += amount;\n    }\n    \n    function mintTokenPublic(uint256 amount) external payable \n        requireSaleStatus(SaleStatus.PublicSale) \n    {\n        require(amount > 0, \"Amount must be > 0\");\n        _mint(amount, SaleStatus.PublicSale);\n    }\n    \n    // Internal mint logic\n    function _mint(uint256 amount, SaleStatus saleType) internal {\n        require(supply + amount <= maxSupply, \"Exceeds max supply\");\n        require(msg.value == cost * amount, \"Incorrect payment\");\n        \n        supply += amount;\n        emit TokensMinted(msg.sender, amount, saleType);\n    }\n}\n```",
+    "scratchpad": "",
+    "critic": "",
+    "initial_action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract GrandGooseMansion {\n    // State variables\n    address public owner;\n    uint256 public supply;\n    uint256 public cost;\n    uint256 public immutable maxSupply;\n    uint256 public immutable preSaleWalletLimit;\n    \n    // Sale status enum\n    enum SaleStatus { Paused, Presale, PublicSale }\n    SaleStatus public currentSaleStatus;\n    \n    // Mappings\n    mapping(address => bool) private whitelist;\n    mapping(address => uint256) public preSaleWalletMinted;\n    \n    // Events\n    event WhitelistUpdated(address indexed user, bool status);\n    event SaleStatusChanged(SaleStatus newStatus);\n    event CostUpdated(uint256 newCost);\n    event TokensMinted(address indexed to, uint256 amount, SaleStatus saleType);\n    \n    // Modifiers\n    modifier onlyOwner() {\n        require(msg.sender == owner, \"Not owner\");\n        _;\n    }\n    \n    modifier requireSaleStatus(SaleStatus status) {\n        require(currentSaleStatus == status, \"Invalid sale status\");\n        _;\n    }\n    \n    // Constructor\n    constructor(uint256 _maxSupply, uint256 _preSaleWalletLimit, uint256 _initialCost) {\n        owner = msg.sender;\n        maxSupply = _maxSupply;\n        preSaleWalletLimit = _preSaleWalletLimit;\n        cost = _initialCost;\n        currentSaleStatus = SaleStatus.Paused;\n    }\n    \n    // Owner functions\n    function whitelistUser(address user, bool status) external onlyOwner {\n        whitelist[user] = status;\n        emit WhitelistUpdated(user, status);\n    }\n    \n    function startPresale() external onlyOwner {\n        currentSaleStatus = SaleStatus.Presale;\n        emit SaleStatusChanged(SaleStatus.Presale);\n    }\n    \n    function startPublicSale() external onlyOwner {\n        currentSaleStatus = SaleStatus.PublicSale;\n        emit SaleStatusChanged(SaleStatus.PublicSale);\n    }\n    \n    function setCost(uint256 newCost) external onlyOwner {\n        require(newCost > 0, \"Cost must be > 0\");\n        cost = newCost;\n        emit CostUpdated(newCost);\n    }\n    \n    // View functions\n    function isWhitelisted(address user) external view returns (bool) {\n        return whitelist[user];\n    }\n    \n    // Mint functions\n    function mintTokenWhitelisted(uint256 amount) external payable \n        requireSaleStatus(SaleStatus.Presale) \n    {\n        require(whitelist[msg.sender], \"Not whitelisted\");\n        require(amount > 0, \"Amount must be > 0\");\n        require(preSaleWalletMinted[msg.sender] + amount <= preSaleWalletLimit, \"Exceeds wallet limit\");\n        _mint(amount, SaleStatus.Presale);\n        preSaleWalletMinted[msg.sender] += amount;\n    }\n    \n    function mintTokenPublic(uint256 amount) external payable \n        requireSaleStatus(SaleStatus.PublicSale) \n    {\n        require(amount > 0, \"Amount must be > 0\");\n        _mint(amount, SaleStatus.PublicSale);\n    }\n    \n    // Internal mint logic\n    function _mint(uint256 amount, SaleStatus saleType) internal {\n        require(supply + amount <= maxSupply, \"Exceeds max supply\");\n        require(msg.value == cost * amount, \"Incorrect payment\");\n        \n        supply += amount;\n        emit TokensMinted(msg.sender, amount, saleType);\n    }\n}\n```",
+    "critic_scratchpad": "",
+    "execution_observation": "Compilation: failed. Error: Compiler run failed:\nError (6160): Wrong argument count for function call: 0 arguments given but expected 3.\n  --> test/Generated.t.sol:12:13:\n   |\n12 |         c = new GrandGooseMansion();\n   |             ^^^^^^^^^^^^^^^^^^^^^^^ ABI: not checked. Tests: skipped (no Solidity test command available). Static analysis: skipped. Gas analysis: unavailable.",
+    "execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 1,
+            "stdout": "Compiling 25 files with Solc 0.8.20\nSolc 0.8.20 finished in 535.74ms\n",
+            "stderr": "Error: Compiler run failed:\nError (6160): Wrong argument count for function call: 0 arguments given but expected 3.\n  --> test/Generated.t.sol:12:13:\n   |\n12 |         c = new GrandGooseMansion();\n   |             ^^^^^^^^^^^^^^^^^^^^^^^\n",
+            "success": false
+        },
+        "abi": null,
+        "tests": null,
+        "slither": null,
+        "gas": null,
+        "vulnerability_count": null,
+        "vulnerability_severity_counts": {},
+        "slither_findings": [],
+        "max_gas_value": null,
+        "skipped_after_compile_failure": true,
+        "summary": "Compilation: failed. Error: Compiler run failed:\nError (6160): Wrong argument count for function call: 0 arguments given but expected 3.\n  --> test/Generated.t.sol:12:13:\n   |\n12 |         c = new GrandGooseMansion();\n   |             ^^^^^^^^^^^^^^^^^^^^^^^ ABI: not checked. Tests: skipped (no Solidity test command available). Static analysis: skipped. Gas analysis: unavailable."
+    },
+    "structured_feedback": {
+        "compile_success": false,
+        "compile_error": "Error: Compiler run failed:\nError (6160): Wrong argument count for function call: 0 arguments given but expected 3.\n--> test/Generated.t.sol:12:13:\n|\n12 |         c = new GrandGooseMansion();\n|             ^^^^^^^^^^^^^^^^^^^^^^^",
+        "abi_checked": null,
+        "abi_success": null,
+        "abi_required": [
+            "supply()",
+            "cost()",
+            "maxSupply()",
+            "preSaleWalletLimit()",
+            "currentSaleStatus()",
+            "whitelistUser(address,bool)",
+            "startPresale()",
+            "startPublicSale()",
+            "setCost(uint256)",
+            "isWhitelisted(address)",
+            "mintTokenWhitelisted(uint256)",
+            "mintTokenPublic(uint256)",
+            "preSaleWalletMinted(address)"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": null,
+        "test_failure": null,
+        "slither_findings": {
+            "count": null,
+            "severity_counts": {},
+            "items": []
+        },
+        "gas_used": null,
+        "gas_command_success": null
+    }
+}

@@ -1,0 +1,109 @@
+{
+    "sample_idx": 0,
+    "strategy": "direct_generation",
+    "provider": "deepseek",
+    "model": "deepseek-chat",
+    "direct_prompt": "You are a Solidity code generator.\nGenerate exactly one complete Solidity contract for the task below.\nReturn only the Solidity code in a single ```solidity``` block.\n\nWrite a complete Solidity smart contract named MembershipAirdrop using Solidity 0.8.20.\nThis task is curated from an FSM-SCG membership/airdrop sample. Do not use external imports.\nPreserve the exact public interface specified below; do not narrow uint256 arguments to smaller integer types for gas optimization.\nThe contract must:\n1. store an owner set to the deployer;\n2. expose setTier(address user, uint256 tier) as an only-owner function;\n3. expose public mappings tierOf(address), claimed(address), airdropCredits(address), and purchasedTokens(address);\n4. expose claimAirdrop() so a user with tier > 0 can claim exactly once, adding tier * 100 credits;\n5. expose purchaseTokens() payable so a tiered user can purchase tokens, requiring msg.value > 0 and adding msg.value * 1000 / 1 ether tokens;\n6. expose withdrawAll() as only-owner and transfer the full ETH balance to the owner;\n7. revert for unauthorized owner-only calls, users without tier, duplicate airdrop claims, and zero-value purchases.\nReturn only the Solidity code in a single ```solidity``` block.\n",
+    "action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract MembershipAirdrop {\n    address public owner;\n    \n    mapping(address => uint256) public tierOf;\n    mapping(address => bool) public claimed;\n    mapping(address => uint256) public airdropCredits;\n    mapping(address => uint256) public purchasedTokens;\n    \n    event TierSet(address indexed user, uint256 tier);\n    event AirdropClaimed(address indexed user, uint256 credits);\n    event TokensPurchased(address indexed user, uint256 amount, uint256 value);\n    event Withdrawn(address indexed owner, uint256 amount);\n    \n    error Unauthorized();\n    error NoTier();\n    error AlreadyClaimed();\n    error ZeroValuePurchase();\n    \n    constructor() {\n        owner = msg.sender;\n    }\n    \n    modifier onlyOwner() {\n        if (msg.sender != owner) revert Unauthorized();\n        _;\n    }\n    \n    function setTier(address user, uint256 tier) external onlyOwner {\n        tierOf[user] = tier;\n        emit TierSet(user, tier);\n    }\n    \n    function claimAirdrop() external {\n        uint256 tier = tierOf[msg.sender];\n        if (tier == 0) revert NoTier();\n        if (claimed[msg.sender]) revert AlreadyClaimed();\n        \n        claimed[msg.sender] = true;\n        uint256 credits = tier * 100;\n        airdropCredits[msg.sender] += credits;\n        \n        emit AirdropClaimed(msg.sender, credits);\n    }\n    \n    function purchaseTokens() external payable {\n        if (tierOf[msg.sender] == 0) revert NoTier();\n        if (msg.value == 0) revert ZeroValuePurchase();\n        \n        uint256 tokens = msg.value * 1000 / 1 ether;\n        purchasedTokens[msg.sender] += tokens;\n        \n        emit TokensPurchased(msg.sender, tokens, msg.value);\n    }\n    \n    function withdrawAll() external onlyOwner {\n        uint256 balance = address(this).balance;\n        payable(owner).transfer(balance);\n        \n        emit Withdrawn(owner, balance);\n    }\n}\n```",
+    "scratchpad": "",
+    "critic": "",
+    "initial_action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract MembershipAirdrop {\n    address public owner;\n    \n    mapping(address => uint256) public tierOf;\n    mapping(address => bool) public claimed;\n    mapping(address => uint256) public airdropCredits;\n    mapping(address => uint256) public purchasedTokens;\n    \n    event TierSet(address indexed user, uint256 tier);\n    event AirdropClaimed(address indexed user, uint256 credits);\n    event TokensPurchased(address indexed user, uint256 amount, uint256 value);\n    event Withdrawn(address indexed owner, uint256 amount);\n    \n    error Unauthorized();\n    error NoTier();\n    error AlreadyClaimed();\n    error ZeroValuePurchase();\n    \n    constructor() {\n        owner = msg.sender;\n    }\n    \n    modifier onlyOwner() {\n        if (msg.sender != owner) revert Unauthorized();\n        _;\n    }\n    \n    function setTier(address user, uint256 tier) external onlyOwner {\n        tierOf[user] = tier;\n        emit TierSet(user, tier);\n    }\n    \n    function claimAirdrop() external {\n        uint256 tier = tierOf[msg.sender];\n        if (tier == 0) revert NoTier();\n        if (claimed[msg.sender]) revert AlreadyClaimed();\n        \n        claimed[msg.sender] = true;\n        uint256 credits = tier * 100;\n        airdropCredits[msg.sender] += credits;\n        \n        emit AirdropClaimed(msg.sender, credits);\n    }\n    \n    function purchaseTokens() external payable {\n        if (tierOf[msg.sender] == 0) revert NoTier();\n        if (msg.value == 0) revert ZeroValuePurchase();\n        \n        uint256 tokens = msg.value * 1000 / 1 ether;\n        purchasedTokens[msg.sender] += tokens;\n        \n        emit TokensPurchased(msg.sender, tokens, msg.value);\n    }\n    \n    function withdrawAll() external onlyOwner {\n        uint256 balance = address(this).balance;\n        payable(owner).transfer(balance);\n        \n        emit Withdrawn(owner, balance);\n    }\n}\n```",
+    "critic_scratchpad": "",
+    "execution_observation": "Compilation: success. ABI: passed. Tests: passed. Static analysis: no Slither findings. Gas analysis: max observed value 698316.",
+    "execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 0,
+            "stdout": "Compiling 25 files with Solc 0.8.20\nSolc 0.8.20 finished in 802.31ms\nCompiler run successful!\n",
+            "stderr": "note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:4:8\n  |\n4 | import \"forge-std/Test.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unwrapped-modifier-logic]: wrap modifier logic to reduce code size\n  --> src/Generated.sol:26:5\n   |\n26 | /     modifier onlyOwner() {\n27 | |         if (msg.sender != owner) revert Unauthorized();\n28 | |         _;\n29 | |     }\n   | |_____^\n   |\nhelp: wrap modifier logic to reduce code size\n   |\n26 ~     modifier onlyOwner() {\n27 +         _onlyOwner();\n28 +         _;\n29 +     }\n30 + \n31 +     function _onlyOwner() internal {\n32 +         if (msg.sender != owner) revert Unauthorized();\n33 +     }\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#unwrapped-modifier-logic\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:5:8\n  |\n5 | import \"../src/Generated.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\n",
+            "success": true
+        },
+        "abi": {
+            "checked": true,
+            "success": true,
+            "required": [
+                "setTier(address,uint256)",
+                "tierOf(address)",
+                "claimed(address)",
+                "airdropCredits(address)",
+                "purchasedTokens(address)",
+                "claimAirdrop()",
+                "purchaseTokens()",
+                "withdrawAll()"
+            ],
+            "forbidden": [],
+            "available": [
+                "airdropCredits(address)",
+                "claimAirdrop()",
+                "claimed(address)",
+                "constructor()",
+                "owner()",
+                "purchaseTokens()",
+                "purchasedTokens(address)",
+                "setTier(address,uint256)",
+                "tierOf(address)",
+                "withdrawAll()"
+            ],
+            "missing": [],
+            "forbidden_present": [],
+            "artifact": "/tmp/indict_solidity_ze4wcz2l/out/Generated.sol/MembershipAirdrop.json"
+        },
+        "tests": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" -vv",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 8 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testNonOwnerCannotSetTier() (gas: 14085)\n[PASS] testNonOwnerCannotWithdrawAll() (gas: 13164)\n[PASS] testOwnerCanSetTierAndUserClaimsOnce() (gas: 93093)\n[PASS] testOwnerCanWithdrawAll() (gas: 80092)\n[PASS] testTieredUserCanPurchase() (gas: 71627)\n[PASS] testUntieredUserCannotClaim() (gas: 13128)\n[PASS] testUntieredUserCannotPurchase() (gas: 19845)\n[PASS] testZeroValuePurchaseReverts() (gas: 38730)\nSuite result: ok. 8 passed; 0 failed; 0 skipped; finished in 987.40µs (1.92ms CPU time)\n\nRan 1 test suite in 24.85ms (987.40µs CPU time): 8 tests passed, 0 failed, 0 skipped (8 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "slither": {
+            "command": "slither \"src/Generated.sol\" --exclude-dependencies --exclude-informational --exclude-optimization --fail-none --json \"/tmp/indict_solidity_ze4wcz2l/slither-result.json\"",
+            "returncode": 0,
+            "stdout": "",
+            "stderr": "'forge clean' running (wd: /tmp/indict_solidity_ze4wcz2l)\n'forge config --json' running\n'forge build --build-info src/Generated.sol' running (wd: /tmp/indict_solidity_ze4wcz2l)\nsrc/Generated.sol analyzed (1 contracts with 75 detectors), 0 result(s) found\n",
+            "success": true
+        },
+        "gas": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" --gas-report",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 8 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testNonOwnerCannotSetTier() (gas: 35441)\n[PASS] testNonOwnerCannotWithdrawAll() (gas: 34228)\n[PASS] testOwnerCanSetTierAndUserClaimsOnce() (gas: 190577)\n[PASS] testOwnerCanWithdrawAll() (gas: 147576)\n[PASS] testTieredUserCanPurchase() (gas: 118047)\n[PASS] testUntieredUserCannotClaim() (gas: 34192)\n[PASS] testUntieredUserCannotPurchase() (gas: 40909)\n[PASS] testZeroValuePurchaseReverts() (gas: 83150)\nSuite result: ok. 8 passed; 0 failed; 0 skipped; finished in 1.34ms (2.90ms CPU time)\n\n╭----------------------------------------------+-----------------+-------+--------+-------+---------╮\n| src/Generated.sol:MembershipAirdrop Contract |                 |       |        |       |         |\n+===================================================================================================+\n| Deployment Cost                              | Deployment Size |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| 698316                                       | 2981            |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n|                                              |                 |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| Function Name                                | Min             | Avg   | Median | Max   | # Calls |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| airdropCredits                               | 2846            | 2846  | 2846   | 2846  | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| claimAirdrop                                 | 23506           | 39817 | 25748  | 70197 | 3       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| claimed                                      | 2899            | 2899  | 2899   | 2899  | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| purchaseTokens                               | 23428           | 35807 | 35813  | 48177 | 4       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| purchasedTokens                              | 2825            | 2825  | 2825   | 2825  | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| setTier                                      | 24195           | 43189 | 47938  | 47938 | 5       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| tierOf                                       | 2890            | 2890  | 2890   | 2890  | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| withdrawAll                                  | 23475           | 27861 | 27861  | 32248 | 2       |\n╰----------------------------------------------+-----------------+-------+--------+-------+---------╯\n\n\nRan 1 test suite in 7.26ms (1.34ms CPU time): 8 tests passed, 0 failed, 0 skipped (8 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "vulnerability_count": 0,
+        "vulnerability_severity_counts": {},
+        "slither_findings": [],
+        "max_gas_value": 698316,
+        "summary": "Compilation: success. ABI: passed. Tests: passed. Static analysis: no Slither findings. Gas analysis: max observed value 698316."
+    },
+    "structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "setTier(address,uint256)",
+            "tierOf(address)",
+            "claimed(address)",
+            "airdropCredits(address)",
+            "purchasedTokens(address)",
+            "claimAirdrop()",
+            "purchaseTokens()",
+            "withdrawAll()"
+        ],
+        "abi_missing": [],
+        "abi_extra": [
+            "owner()"
+        ],
+        "abi_forbidden_present": [],
+        "test_success": true,
+        "test_failure": null,
+        "slither_findings": {
+            "count": 0,
+            "severity_counts": {},
+            "items": [],
+            "command_success": true
+        },
+        "gas_used": 698316,
+        "gas_command_success": true
+    }
+}

@@ -1,0 +1,58 @@
+{
+    "sample_idx": 4,
+    "strategy": "direct_generation",
+    "provider": "qwen",
+    "model": "qwen2.5-14b-instruct",
+    "direct_prompt": "You are a Solidity code generator.\nGenerate exactly one complete Solidity contract for the task below.\nReturn only the Solidity code in a single ```solidity``` block.\n\nWrite a complete Solidity smart contract named PostingBoard using Solidity 0.8.20.\nThis task is curated from an FSM-SCG uncensorable posting sample. Do not use external imports.\nThe contract must:\n1. define a public postCount;\n2. define a public posts(uint256) getter for a struct containing address author, string content, and uint256 totalPower;\n3. expose createPost(string calldata content) returning the new post id and rejecting empty content;\n4. expose boostPost(uint256 postId) payable, requiring an existing post and msg.value > 0, increasing that post's totalPower and adding the value to authorBalances(author);\n5. expose authorBalances(address);\n6. expose withdraw() so an author can withdraw their accumulated balance and the balance is set to zero before transferring ETH.\nReturn only the Solidity code in a single ```solidity``` block.\n",
+    "action": "```solidity\npragma solidity ^0.8.20;\n\ncontract PostingBoard {\n    struct Post {\n        address author;\n        string content;\n        uint256 totalPower;\n    }\n\n    mapping(uint256 => Post) private posts;\n    mapping(address => uint256) private authorBalances;\n    uint256 public postCount;\n\n    event PostCreated(uint256 postId, address author, string content);\n    event PostBoosted(uint256 postId, uint256 amount);\n    event Withdrawn(address author, uint256 amount);\n\n    function createPost(string calldata content) external returns (uint256) {\n        require(bytes(content).length > 0, \"Content cannot be empty\");\n        postCount++;\n        posts[postCount] = Post({\n            author: msg.sender,\n            content: content,\n            totalPower: 0\n        });\n        emit PostCreated(postCount, msg.sender, content);\n        return postCount;\n    }\n\n    function boostPost(uint256 postId) external payable {\n        require(postId <= postCount, \"Post does not exist\");\n        require(msg.value > 0, \"Boost value must be greater than 0\");\n        Post storage post = posts[postId];\n        require(post.author != address(0), \"Invalid post ID\");\n\n        post.totalPower += msg.value;\n        authorBalances[post.author] += msg.value;\n\n        emit PostBoosted(postId, msg.value);\n    }\n\n    function authorBalances(address author) external view returns (uint256) {\n        return authorBalances[author];\n    }\n\n    function withdraw() external {\n        uint256 balance = authorBalances[msg.sender];\n        require(balance > 0, \"No balance to withdraw\");\n        authorBalances[msg.sender] = 0;\n        (bool sent, ) = msg.sender.call{value: balance}(\"\");\n        require(sent, \"Failed to send Ether\");\n        emit Withdrawn(msg.sender, balance);\n    }\n\n    function getPost(uint256 postId) external view returns (address, string memory, uint256) {\n        require(postId <= postCount, \"Post does not exist\");\n        Post memory post = posts[postId];\n        return (post.author, post.content, post.totalPower);\n    }\n}\n```",
+    "scratchpad": "",
+    "critic": "",
+    "initial_action": "```solidity\npragma solidity ^0.8.20;\n\ncontract PostingBoard {\n    struct Post {\n        address author;\n        string content;\n        uint256 totalPower;\n    }\n\n    mapping(uint256 => Post) private posts;\n    mapping(address => uint256) private authorBalances;\n    uint256 public postCount;\n\n    event PostCreated(uint256 postId, address author, string content);\n    event PostBoosted(uint256 postId, uint256 amount);\n    event Withdrawn(address author, uint256 amount);\n\n    function createPost(string calldata content) external returns (uint256) {\n        require(bytes(content).length > 0, \"Content cannot be empty\");\n        postCount++;\n        posts[postCount] = Post({\n            author: msg.sender,\n            content: content,\n            totalPower: 0\n        });\n        emit PostCreated(postCount, msg.sender, content);\n        return postCount;\n    }\n\n    function boostPost(uint256 postId) external payable {\n        require(postId <= postCount, \"Post does not exist\");\n        require(msg.value > 0, \"Boost value must be greater than 0\");\n        Post storage post = posts[postId];\n        require(post.author != address(0), \"Invalid post ID\");\n\n        post.totalPower += msg.value;\n        authorBalances[post.author] += msg.value;\n\n        emit PostBoosted(postId, msg.value);\n    }\n\n    function authorBalances(address author) external view returns (uint256) {\n        return authorBalances[author];\n    }\n\n    function withdraw() external {\n        uint256 balance = authorBalances[msg.sender];\n        require(balance > 0, \"No balance to withdraw\");\n        authorBalances[msg.sender] = 0;\n        (bool sent, ) = msg.sender.call{value: balance}(\"\");\n        require(sent, \"Failed to send Ether\");\n        emit Withdrawn(msg.sender, balance);\n    }\n\n    function getPost(uint256 postId) external view returns (address, string memory, uint256) {\n        require(postId <= postCount, \"Post does not exist\");\n        Post memory post = posts[postId];\n        return (post.author, post.content, post.totalPower);\n    }\n}\n```",
+    "critic_scratchpad": "",
+    "execution_observation": "Compilation: failed. Error: Compiler run failed:\nError (2333): Identifier already declared.\n  --> src/Generated.sol:42:5:\n   |\n42 |     function authorBalances(address author) external view returns (uint256) {\n   |     ^ (Relevant source part starts here and spans across multiple lines).\nNote: The previous declaration is here:\n  --> src/Generated.sol:11:5:\n   |\n11 |     mapping(address => uint256) private authorBalances;\n   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nError (9582): Member \"posts\" not found or not visible after argument-dependent lookup in contract PostingBoard.\n  --> test/Generated.t.sol:20:72:\n   |\n20 |         (address storedAuthor, string memory content, uint256 power) = c.posts(postId);\n   |                                                                        ^^^^^^^ ABI: not checked. Tests: skipped (no Solidity test command available). Static analysis: skipped. Gas analysis: unavailable.",
+    "execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 1,
+            "stdout": "Compiling 25 files with Solc 0.8.33\nSolc 0.8.33 finished in 536.16ms\n",
+            "stderr": "Error: Compiler run failed:\nError (2333): Identifier already declared.\n  --> src/Generated.sol:42:5:\n   |\n42 |     function authorBalances(address author) external view returns (uint256) {\n   |     ^ (Relevant source part starts here and spans across multiple lines).\nNote: The previous declaration is here:\n  --> src/Generated.sol:11:5:\n   |\n11 |     mapping(address => uint256) private authorBalances;\n   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nError (9582): Member \"posts\" not found or not visible after argument-dependent lookup in contract PostingBoard.\n  --> test/Generated.t.sol:20:72:\n   |\n20 |         (address storedAuthor, string memory content, uint256 power) = c.posts(postId);\n   |                                                                        ^^^^^^^\n",
+            "success": false
+        },
+        "abi": null,
+        "tests": null,
+        "slither": null,
+        "gas": null,
+        "vulnerability_count": null,
+        "vulnerability_severity_counts": {},
+        "slither_findings": [],
+        "max_gas_value": null,
+        "skipped_after_compile_failure": true,
+        "summary": "Compilation: failed. Error: Compiler run failed:\nError (2333): Identifier already declared.\n  --> src/Generated.sol:42:5:\n   |\n42 |     function authorBalances(address author) external view returns (uint256) {\n   |     ^ (Relevant source part starts here and spans across multiple lines).\nNote: The previous declaration is here:\n  --> src/Generated.sol:11:5:\n   |\n11 |     mapping(address => uint256) private authorBalances;\n   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nError (9582): Member \"posts\" not found or not visible after argument-dependent lookup in contract PostingBoard.\n  --> test/Generated.t.sol:20:72:\n   |\n20 |         (address storedAuthor, string memory content, uint256 power) = c.posts(postId);\n   |                                                                        ^^^^^^^ ABI: not checked. Tests: skipped (no Solidity test command available). Static analysis: skipped. Gas analysis: unavailable."
+    },
+    "structured_feedback": {
+        "compile_success": false,
+        "compile_error": "Error: Compiler run failed:\nError (2333): Identifier already declared.\n--> src/Generated.sol:42:5:\n|\n42 |     function authorBalances(address author) external view returns (uint256) {\n|     ^ (Relevant source part starts here and spans across multiple lines).\nNote: The previous declaration is here:\n--> src/Generated.sol:11:5:\n|\n11 |     mapping(address => uint256) private authorBalances;\n|     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError (9582): Member \"posts\" not found or not visible after argument-dependent lookup in contract PostingBoard.",
+        "abi_checked": null,
+        "abi_success": null,
+        "abi_required": [
+            "postCount()",
+            "posts(uint256)",
+            "createPost(string)",
+            "boostPost(uint256)",
+            "authorBalances(address)",
+            "withdraw()"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": null,
+        "test_failure": null,
+        "slither_findings": {
+            "count": null,
+            "severity_counts": {},
+            "items": []
+        },
+        "gas_used": null,
+        "gas_command_success": null
+    }
+}

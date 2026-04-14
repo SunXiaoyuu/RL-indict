@@ -1,0 +1,127 @@
+{
+    "sample_idx": 7,
+    "strategy": "direct_generation",
+    "provider": "deepseek",
+    "model": "deepseek-chat",
+    "direct_prompt": "You are a Solidity code generator.\nGenerate exactly one complete Solidity contract for the task below.\nReturn only the Solidity code in a single ```solidity``` block.\n\nWrite a complete Solidity smart contract named PresaleMint using Solidity 0.8.20.\nThis task is curated from an FSM-SCG presale/public sale minting sample. Do not use external imports.\nThe contract must:\n1. store an owner set to the deployer;\n2. define enum State { PresaleLive, SaleLive, SaleClosed } and public currentState initialized to PresaleLive;\n3. expose whitelist(address user, bool status) as only-owner and public presalerList(address);\n4. expose toggleSale() as only-owner, moving PresaleLive -> SaleLive and SaleLive -> SaleClosed;\n5. expose presaleBuy() payable, requiring PresaleLive and presalerList[msg.sender] true, incrementing presaleAmountMinted;\n6. expose buy() payable, requiring SaleLive and incrementing publicAmountMinted;\n7. reject non-owner whitelist/toggle calls and invalid state purchases.\nReturn only the Solidity code in a single ```solidity``` block.\n",
+    "action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract PresaleMint {\n    address public owner;\n    \n    enum State { PresaleLive, SaleLive, SaleClosed }\n    State public currentState;\n    \n    mapping(address => bool) public presalerList;\n    \n    uint256 public presaleAmountMinted;\n    uint256 public publicAmountMinted;\n    \n    event Whitelisted(address indexed user, bool status);\n    event SaleStateChanged(State newState);\n    event PresalePurchase(address indexed buyer, uint256 amount);\n    event PublicPurchase(address indexed buyer, uint256 amount);\n    \n    error NotOwner();\n    error InvalidState();\n    error NotWhitelisted();\n    \n    modifier onlyOwner() {\n        if (msg.sender != owner) revert NotOwner();\n        _;\n    }\n    \n    modifier onlyState(State requiredState) {\n        if (currentState != requiredState) revert InvalidState();\n        _;\n    }\n    \n    constructor() {\n        owner = msg.sender;\n        currentState = State.PresaleLive;\n    }\n    \n    function whitelist(address user, bool status) external onlyOwner {\n        presalerList[user] = status;\n        emit Whitelisted(user, status);\n    }\n    \n    function toggleSale() external onlyOwner {\n        if (currentState == State.PresaleLive) {\n            currentState = State.SaleLive;\n        } else if (currentState == State.SaleLive) {\n            currentState = State.SaleClosed;\n        } else {\n            revert InvalidState();\n        }\n        emit SaleStateChanged(currentState);\n    }\n    \n    function presaleBuy() external payable onlyState(State.PresaleLive) {\n        if (!presalerList[msg.sender]) revert NotWhitelisted();\n        presaleAmountMinted++;\n        emit PresalePurchase(msg.sender, msg.value);\n    }\n    \n    function buy() external payable onlyState(State.SaleLive) {\n        publicAmountMinted++;\n        emit PublicPurchase(msg.sender, msg.value);\n    }\n}\n```",
+    "scratchpad": "",
+    "critic": "",
+    "initial_action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract PresaleMint {\n    address public owner;\n    \n    enum State { PresaleLive, SaleLive, SaleClosed }\n    State public currentState;\n    \n    mapping(address => bool) public presalerList;\n    \n    uint256 public presaleAmountMinted;\n    uint256 public publicAmountMinted;\n    \n    event Whitelisted(address indexed user, bool status);\n    event SaleStateChanged(State newState);\n    event PresalePurchase(address indexed buyer, uint256 amount);\n    event PublicPurchase(address indexed buyer, uint256 amount);\n    \n    error NotOwner();\n    error InvalidState();\n    error NotWhitelisted();\n    \n    modifier onlyOwner() {\n        if (msg.sender != owner) revert NotOwner();\n        _;\n    }\n    \n    modifier onlyState(State requiredState) {\n        if (currentState != requiredState) revert InvalidState();\n        _;\n    }\n    \n    constructor() {\n        owner = msg.sender;\n        currentState = State.PresaleLive;\n    }\n    \n    function whitelist(address user, bool status) external onlyOwner {\n        presalerList[user] = status;\n        emit Whitelisted(user, status);\n    }\n    \n    function toggleSale() external onlyOwner {\n        if (currentState == State.PresaleLive) {\n            currentState = State.SaleLive;\n        } else if (currentState == State.SaleLive) {\n            currentState = State.SaleClosed;\n        } else {\n            revert InvalidState();\n        }\n        emit SaleStateChanged(currentState);\n    }\n    \n    function presaleBuy() external payable onlyState(State.PresaleLive) {\n        if (!presalerList[msg.sender]) revert NotWhitelisted();\n        presaleAmountMinted++;\n        emit PresalePurchase(msg.sender, msg.value);\n    }\n    \n    function buy() external payable onlyState(State.SaleLive) {\n        publicAmountMinted++;\n        emit PublicPurchase(msg.sender, msg.value);\n    }\n}\n```",
+    "critic_scratchpad": "",
+    "execution_observation": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 1 finding(s) (medium=1). Gas analysis: max observed value 625502.",
+    "execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 0,
+            "stdout": "Compiling 25 files with Solc 0.8.20\nSolc 0.8.20 finished in 797.41ms\nCompiler run successful!\n",
+            "stderr": "note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:4:8\n  |\n4 | import \"forge-std/Test.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unwrapped-modifier-logic]: wrap modifier logic to reduce code size\n  --> src/Generated.sol:24:5\n   |\n24 | /     modifier onlyOwner() {\n25 | |         if (msg.sender != owner) revert NotOwner();\n26 | |         _;\n27 | |     }\n   | |_____^\n   |\nhelp: wrap modifier logic to reduce code size\n   |\n24 ~     modifier onlyOwner() {\n25 +         _onlyOwner();\n26 +         _;\n27 +     }\n28 + \n29 +     function _onlyOwner() internal {\n30 +         if (msg.sender != owner) revert NotOwner();\n31 +     }\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#unwrapped-modifier-logic\n\nnote[unwrapped-modifier-logic]: wrap modifier logic to reduce code size\n  --> src/Generated.sol:29:5\n   |\n29 | /     modifier onlyState(State requiredState) {\n30 | |         if (currentState != requiredState) revert InvalidState();\n31 | |         _;\n32 | |     }\n   | |_____^\n   |\nhelp: wrap modifier logic to reduce code size\n   |\n29 ~     modifier onlyState(State requiredState) {\n30 +         _onlyState(requiredState);\n31 +         _;\n32 +     }\n33 + \n34 +     function _onlyState(State requiredState) internal {\n35 +         if (currentState != requiredState) revert InvalidState();\n36 +     }\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#unwrapped-modifier-logic\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:5:8\n  |\n5 | import \"../src/Generated.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\n",
+            "success": true
+        },
+        "abi": {
+            "checked": true,
+            "success": true,
+            "required": [
+                "currentState()",
+                "presalerList(address)",
+                "whitelist(address,bool)",
+                "toggleSale()",
+                "presaleBuy()",
+                "buy()",
+                "presaleAmountMinted()",
+                "publicAmountMinted()"
+            ],
+            "forbidden": [],
+            "available": [
+                "buy()",
+                "constructor()",
+                "currentState()",
+                "owner()",
+                "presaleAmountMinted()",
+                "presaleBuy()",
+                "presalerList(address)",
+                "publicAmountMinted()",
+                "toggleSale()",
+                "whitelist(address,bool)"
+            ],
+            "missing": [],
+            "forbidden_present": [],
+            "artifact": "/tmp/indict_solidity_mkb06zd_/out/Generated.sol/PresaleMint.json"
+        },
+        "tests": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" -vv",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testPublicBuyOnlyWhenSaleLive() (gas: 50323)\n[PASS] testUnwhitelistedUserCannotPresaleBuy() (gas: 22136)\n[PASS] testWhitelistedUserCanPresaleBuy() (gas: 70422)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.07ms (669.77µs CPU time)\n\nRan 1 test suite in 24.45ms (1.07ms CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "slither": {
+            "command": "slither \"src/Generated.sol\" --exclude-dependencies --exclude-informational --exclude-optimization --fail-none --json \"/tmp/indict_solidity_mkb06zd_/slither-result.json\"",
+            "returncode": 0,
+            "stdout": "",
+            "stderr": "'forge clean' running (wd: /tmp/indict_solidity_mkb06zd_)\n'forge config --json' running\n'forge build --build-info src/Generated.sol' running (wd: /tmp/indict_solidity_mkb06zd_)\n\nDetector: locked-ether\nContract locking ether found:\n\tContract PresaleMint (src/Generated.sol#4-66) has payable functions:\n\t - PresaleMint.presaleBuy() (src/Generated.sol#55-59)\n\t - PresaleMint.buy() (src/Generated.sol#61-64)\n\tBut does not have a function to withdraw the ether\nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#contracts-that-lock-ether\nsrc/Generated.sol analyzed (1 contracts with 75 detectors), 1 result(s) found\n",
+            "success": true
+        },
+        "gas": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" --gas-report",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testPublicBuyOnlyWhenSaleLive() (gas: 96451)\n[PASS] testUnwhitelistedUserCannotPresaleBuy() (gas: 43200)\n[PASS] testWhitelistedUserCanPresaleBuy() (gas: 118842)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.09ms (1.04ms CPU time)\n\n╭----------------------------------------+-----------------+-------+--------+-------+---------╮\n| src/Generated.sol:PresaleMint Contract |                 |       |        |       |         |\n+=============================================================================================+\n| Deployment Cost                        | Deployment Size |       |        |       |         |\n|----------------------------------------+-----------------+-------+--------+-------+---------|\n| 625502                                 | 2729            |       |        |       |         |\n|----------------------------------------+-----------------+-------+--------+-------+---------|\n|                                        |                 |       |        |       |         |\n|----------------------------------------+-----------------+-------+--------+-------+---------|\n| Function Name                          | Min             | Avg   | Median | Max   | # Calls |\n|----------------------------------------+-----------------+-------+--------+-------+---------|\n| buy                                    | 47338           | 47338 | 47338  | 47338 | 1       |\n|----------------------------------------+-----------------+-------+--------+-------+---------|\n| presaleAmountMinted                    | 2470            | 2470  | 2470   | 2470  | 1       |\n|----------------------------------------+-----------------+-------+--------+-------+---------|\n| presaleBuy                             | 25742           | 37637 | 37637  | 49533 | 2       |\n|----------------------------------------+-----------------+-------+--------+-------+---------|\n| publicAmountMinted                     | 2447            | 2447  | 2447   | 2447  | 1       |\n|----------------------------------------+-----------------+-------+--------+-------+---------|\n| toggleSale                             | 28313           | 28313 | 28313  | 28313 | 1       |\n|----------------------------------------+-----------------+-------+--------+-------+---------|\n| whitelist                              | 48068           | 48068 | 48068  | 48068 | 1       |\n╰----------------------------------------+-----------------+-------+--------+-------+---------╯\n\n\nRan 1 test suite in 4.02ms (1.09ms CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "vulnerability_count": 1,
+        "vulnerability_severity_counts": {
+            "medium": 1
+        },
+        "slither_findings": [
+            {
+                "check": "locked-ether",
+                "impact": "medium",
+                "confidence": "High",
+                "description": "Contract locking ether found: Contract PresaleMint (src/Generated.sol#4-66) has payable functions: - PresaleMint.presaleBuy() (src/Generated.sol#55-59) - PresaleMint.buy() (src/Generated.sol#61-64) But does not have a function to withdraw the ether"
+            }
+        ],
+        "max_gas_value": 625502,
+        "summary": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 1 finding(s) (medium=1). Gas analysis: max observed value 625502."
+    },
+    "structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "currentState()",
+            "presalerList(address)",
+            "whitelist(address,bool)",
+            "toggleSale()",
+            "presaleBuy()",
+            "buy()",
+            "presaleAmountMinted()",
+            "publicAmountMinted()"
+        ],
+        "abi_missing": [],
+        "abi_extra": [
+            "owner()"
+        ],
+        "abi_forbidden_present": [],
+        "test_success": true,
+        "test_failure": null,
+        "slither_findings": {
+            "count": 1,
+            "severity_counts": {
+                "medium": 1
+            },
+            "items": [
+                {
+                    "check": "locked-ether",
+                    "impact": "medium",
+                    "confidence": "High",
+                    "description": "Contract locking ether found: Contract PresaleMint (src/Generated.sol#4-66) has payable functions: - PresaleMint.presaleBuy() (src/Generated.sol#55-59) - PresaleMint.buy() (src/Generated.sol#61-64) But does not have a function to withdraw the ether"
+                }
+            ],
+            "command_success": true
+        },
+        "gas_used": 625502,
+        "gas_command_success": true
+    }
+}
