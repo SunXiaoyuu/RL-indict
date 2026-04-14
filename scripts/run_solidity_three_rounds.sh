@@ -10,7 +10,7 @@ Environment overrides:
   MODEL=qwen2.5-14b-instruct
   STRATEGY=indict_llama
   DATA_PATH=data/solidity_fsm_testable_10.json
-  EXPERIMENT=fsm_testable10_structured
+  EXPERIMENT=fsm_testable10_structured_retry
   PYTHON_BIN=python
   OVERRIDE=1
   DEBUG=1

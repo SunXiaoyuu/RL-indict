@@ -1,11 +1,11 @@
 ﻿sample_idx,dataset_id,contract_name,partition,compile_transition,abi_transition,test_transition,slither_transition,gas_transition,status_transition,final_status,final_failure
-0,0,MembershipAirdrop,main,T -> T -> T,T -> T -> T,T -> T -> T,0 -> 0 -> 0,791401 -> 791401 -> 791401,passed_clean -> passed_clean -> passed_clean,passed_clean,
-1,1,SimpleCrowdsale,diagnostic,T -> T -> T,T -> T -> T,T -> T -> T,0 -> 0 -> 0,595671 -> 595671 -> 595671,passed_clean -> passed_clean -> passed_clean,passed_clean,
-2,2,TeamVestingVault,main,T -> T -> T,T -> T -> T,F -> F -> F,2 -> 2 -> 2,- -> - -> -,test_failed -> test_failed -> test_failed,test_failed,EvmError: Revert
-3,3,TokenVoting,diagnostic,T -> T -> T,T -> T -> T,F -> F -> F,0 -> 0 -> 0,- -> - -> -,test_failed -> test_failed -> test_failed,test_failed,assertion failed: Bob != Alice
-4,4,PostingBoard,diagnostic,T -> T -> T,T -> T -> T,T -> T -> T,1 -> 1 -> 1,1145944 -> 1145944 -> 1145944,passed_with_slither_findings -> passed_with_slither_findings -> passed_with_slither_findings,passed_with_slither_findings,
-5,5,CollectibleSale,main,T -> T -> T,T -> T -> T,T -> T -> T,0 -> 0 -> 0,783150 -> 791198 -> 791198,passed_clean -> passed_clean -> passed_clean,passed_clean,
-6,6,FundPoolManager,diagnostic,T -> T -> T,T -> T -> T,T -> T -> T,3 -> 3 -> 3,1073180 -> 1073180 -> 1073180,passed_with_slither_findings -> passed_with_slither_findings -> passed_with_slither_findings,passed_with_slither_findings,
-7,7,PresaleMint,diagnostic,T -> T -> T,T -> T -> T,T -> T -> T,1 -> 1 -> 1,632168 -> 632168 -> 689847,passed_with_slither_findings -> passed_with_slither_findings -> passed_with_slither_findings,passed_with_slither_findings,
-8,8,GrandGooseMansion,main,T -> T -> T,T -> T -> T,F -> F -> F,2 -> 2 -> 2,- -> - -> -,test_failed -> test_failed -> test_failed,test_failed,Already started
-9,9,ClosedPresaleMint,main,T -> T -> T,T -> T -> T,F -> F -> F,1 -> 1 -> 1,- -> - -> -,test_failed -> test_failed -> test_failed,test_failed,Public sale already started or presale not started
+0,0,MembershipAirdrop,main,T -> T -> T,T -> T -> T,T -> T -> T,0 -> 0 -> 0,875071 -> 875071 -> 875071,passed_clean -> passed_clean -> passed_clean,passed_clean,
+1,1,SimpleCrowdsale,diagnostic,T -> T -> T,T -> T -> T,T -> T -> T,0 -> 0 -> 0,518049 -> 518037 -> 518037,passed_clean -> passed_clean -> passed_clean,passed_clean,
+2,2,TeamVestingVault,main,T -> T -> T,T -> T -> T,T -> T -> T,1 -> 1 -> 1,586841 -> 586841 -> 586841,passed_with_slither_findings -> passed_with_slither_findings -> passed_with_slither_findings,passed_with_slither_findings,
+3,3,TokenVoting,diagnostic,T -> T -> T,T -> T -> T,F -> F -> F,0 -> 0 -> 0,- -> - -> -,test_failed -> test_failed -> test_failed,test_failed,assertion failed: 0x28cac318a86c8a0a6a9156c2dba2c8c2363677ba0514ef616592d81557e679b6 != 0x416c696365000000000000000000000000000000000000000000000000000000
+4,4,PostingBoard,diagnostic,F -> F -> F,- -> - -> -,- -> - -> -,- -> - -> -,- -> - -> -,compile_failed -> compile_failed -> compile_failed,compile_failed,"Error (9582): Member ""authorBalances"" not found or not visible after argument-dependent lookup in contract PostingBoard."
+5,5,CollectibleSale,main,F -> F -> F,- -> - -> -,- -> - -> -,- -> - -> -,- -> - -> -,compile_failed -> compile_failed -> compile_failed,compile_failed,Error (2333): Identifier already declared.
+6,6,FundPoolManager,diagnostic,F -> F -> F,- -> - -> -,- -> - -> -,- -> - -> -,- -> - -> -,compile_failed -> compile_failed -> compile_failed,compile_failed,Error (2333): Identifier already declared.
+7,7,PresaleMint,diagnostic,T -> T -> T,T -> T -> T,T -> T -> T,1 -> 1 -> 0,1244136 -> 859585 -> 800649,passed_with_slither_findings -> passed_with_slither_findings -> passed_clean,passed_clean,
+8,8,GrandGooseMansion,main,F -> T -> T,- -> T -> T,- -> F -> F,- -> 0 -> 0,- -> - -> -,compile_failed -> test_failed -> test_failed,test_failed,Sale is not in presale
+9,9,ClosedPresaleMint,main,T -> T -> T,T -> T -> T,F -> F -> F,1 -> 0 -> 0,- -> - -> -,test_failed -> test_failed -> test_failed,test_failed,Only deployer can initialize
