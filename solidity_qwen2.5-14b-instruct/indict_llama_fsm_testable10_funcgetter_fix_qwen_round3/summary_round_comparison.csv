@@ -1,0 +1,11 @@
+﻿sample_idx,dataset_id,contract_name,partition,compile_transition,abi_transition,test_transition,slither_transition,gas_transition,status_transition,final_status,final_failure
+0,0,MembershipAirdrop,main,F -> F -> F,- -> - -> -,- -> - -> -,- -> - -> -,- -> - -> -,compile_failed -> compile_failed -> compile_failed,compile_failed,/bin/sh: 1: solc: not found
+1,1,SimpleCrowdsale,diagnostic,F -> F -> F,- -> - -> -,- -> - -> -,- -> - -> -,- -> - -> -,compile_failed -> compile_failed -> compile_failed,compile_failed,/bin/sh: 1: solc: not found
+2,2,TeamVestingVault,main,F -> F -> F,- -> - -> -,- -> - -> -,- -> - -> -,- -> - -> -,compile_failed -> compile_failed -> compile_failed,compile_failed,/bin/sh: 1: solc: not found
+3,3,TokenVoting,diagnostic,F -> F -> F,- -> - -> -,- -> - -> -,- -> - -> -,- -> - -> -,compile_failed -> compile_failed -> compile_failed,compile_failed,/bin/sh: 1: solc: not found
+4,4,PostingBoard,diagnostic,F -> F -> F,- -> - -> -,- -> - -> -,- -> - -> -,- -> - -> -,compile_failed -> compile_failed -> compile_failed,compile_failed,/bin/sh: 1: solc: not found
+5,5,CollectibleSale,main,F -> F -> F,- -> - -> -,- -> - -> -,- -> - -> -,- -> - -> -,compile_failed -> compile_failed -> compile_failed,compile_failed,/bin/sh: 1: solc: not found
+6,6,FundPoolManager,diagnostic,F -> F -> F,- -> - -> -,- -> - -> -,- -> - -> -,- -> - -> -,compile_failed -> compile_failed -> compile_failed,compile_failed,/bin/sh: 1: solc: not found
+7,7,PresaleMint,diagnostic,F -> F -> F,- -> - -> -,- -> - -> -,- -> - -> -,- -> - -> -,compile_failed -> compile_failed -> compile_failed,compile_failed,/bin/sh: 1: solc: not found
+8,8,GrandGooseMansion,main,F -> F -> F,- -> - -> -,- -> - -> -,- -> - -> -,- -> - -> -,compile_failed -> compile_failed -> compile_failed,compile_failed,/bin/sh: 1: solc: not found
+9,9,ClosedPresaleMint,main,F -> F -> F,- -> - -> -,- -> - -> -,- -> - -> -,- -> - -> -,compile_failed -> compile_failed -> compile_failed,compile_failed,/bin/sh: 1: solc: not found

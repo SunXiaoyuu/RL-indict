@@ -1,0 +1,722 @@
+{
+    "sample_idx": 8,
+    "action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract GrandGooseMansion {\n    address private _owner;\n    \n    uint256 public supply;\n    uint256 public cost;\n    uint256 public maxSupply;\n    uint256 public preSaleWalletLimit;\n    \n    enum SaleStatus { Paused, Presale, PublicSale }\n    SaleStatus public currentSaleStatus;\n    \n    mapping(address => bool) private _whitelisted;\n    mapping(address => uint256) public preSaleWalletMinted;\n    \n    error InvalidAmount();\n    error ExceedsMaxSupply();\n    error WrongEtherAmount();\n    error SaleNotActive();\n    error NotWhitelisted();\n    error ExceedsWalletLimit();\n    error OnlyOwner();\n    \n    constructor() {\n        _owner = msg.sender;\n        maxSupply = 10000;\n        cost = 0.1 ether;\n        preSaleWalletLimit = 5;\n        currentSaleStatus = SaleStatus.Paused;\n    }\n    \n    modifier onlyOwner() {\n        if (msg.sender != _owner) revert OnlyOwner();\n        _;\n    }\n    \n    function whitelistUser(address user, bool status) external onlyOwner {\n        _whitelisted[user] = status;\n        if (!status) {\n            preSaleWalletMinted[user] = 0;\n        }\n    }\n    \n    function startPresale() external onlyOwner {\n        currentSaleStatus = SaleStatus.Presale;\n    }\n    \n    function startPublicSale() external onlyOwner {\n        currentSaleStatus = SaleStatus.PublicSale;\n    }\n    \n    function setCost(uint256 newCost) external onlyOwner {\n        cost = newCost;\n    }\n    \n    function isWhitelisted(address user) external view returns (bool) {\n        return _whitelisted[user];\n    }\n    \n    function mintTokenWhitelisted(uint256 amount) external payable {\n        if (currentSaleStatus != SaleStatus.Presale) revert SaleNotActive();\n        if (!_whitelisted[msg.sender]) revert NotWhitelisted();\n        if (amount == 0) revert InvalidAmount();\n        \n        uint256 walletMinted = preSaleWalletMinted[msg.sender];\n        if (walletMinted + amount > preSaleWalletLimit) revert ExceedsWalletLimit();\n        \n        _mint(amount);\n        preSaleWalletMinted[msg.sender] = walletMinted + amount;\n    }\n    \n    function mintTokenPublic(uint256 amount) external payable {\n        if (currentSaleStatus != SaleStatus.PublicSale) revert SaleNotActive();\n        if (amount == 0) revert InvalidAmount();\n        \n        _mint(amount);\n    }\n    \n    function _mint(uint256 amount) private {\n        if (supply + amount > maxSupply) revert ExceedsMaxSupply();\n        if (msg.value != cost * amount) revert WrongEtherAmount();\n        \n        supply += amount;\n    }\n}\n```",
+    "scratchpad": "\nInitial Solution: ```solidity\n// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract GrandGooseMansion {\n    address private _owner;\n    \n    uint256 public supply;\n    uint256 public cost;\n    uint256 public maxSupply;\n    uint256 public preSaleWalletLimit;\n    \n    enum SaleStatus { Paused, Presale, PublicSale }\n    SaleStatus public currentSaleStatus;\n    \n    mapping(address => bool) private _whitelisted;\n    mapping(address => uint256) public preSaleWalletMinted;\n    \n    error InvalidAmount();\n    error ExceedsMaxSupply();\n    error WrongEtherAmount();\n    error SaleNotActive();\n    error NotWhitelisted();\n    error ExceedsWalletLimit();\n    error OnlyOwner();\n    \n    constructor() {\n        _owner = msg.sender;\n        maxSupply = 10000;\n        cost = 0.1 ether;\n        preSaleWalletLimit = 5;\n        currentSaleStatus = SaleStatus.Paused;\n    }\n    \n    modifier onlyOwner() {\n        if (msg.sender != _owner) revert OnlyOwner();\n        _;\n    }\n    \n    function whitelistUser(address user, bool status) external onlyOwner {\n        if (_whitelisted[user] != status) {\n            _whitelisted[user] = status;\n            if (!status) {\n                preSaleWalletMinted[user] = 0;\n            }\n        }\n    }\n    \n    function startPresale() external onlyOwner {\n        currentSaleStatus = SaleStatus.Presale;\n    }\n    \n    function startPublicSale() external onlyOwner {\n        currentSaleStatus = SaleStatus.PublicSale;\n    }\n    \n    function setCost(uint256 newCost) external onlyOwner {\n        cost = newCost;\n    }\n    \n    function isWhitelisted(address user) external view returns (bool) {\n        return _whitelisted[user];\n    }\n    \n    function mintTokenWhitelisted(uint256 amount) external payable {\n        if (currentSaleStatus != SaleStatus.Presale) revert SaleNotActive();\n        if (!_whitelisted[msg.sender]) revert NotWhitelisted();\n        if (amount == 0) revert InvalidAmount();\n        \n        uint256 walletMinted = preSaleWalletMinted[msg.sender];\n        if (walletMinted + amount > preSaleWalletLimit) revert ExceedsWalletLimit();\n        \n        _mint(amount);\n        preSaleWalletMinted[msg.sender] = walletMinted + amount;\n    }\n    \n    function mintTokenPublic(uint256 amount) external payable {\n        if (currentSaleStatus != SaleStatus.PublicSale) revert SaleNotActive();\n        if (amount == 0) revert InvalidAmount();\n        \n        _mint(amount);\n    }\n    \n    function _mint(uint256 amount) private {\n        if (supply + amount > maxSupply) revert ExceedsMaxSupply();\n        if (msg.value != cost * amount) revert WrongEtherAmount();\n        \n        supply += amount;\n    }\n}\n```\nInitial Structured Execution Feedback:\n```json\n{\n  \"compile_success\": true,\n  \"compile_error\": null,\n  \"abi_checked\": true,\n  \"abi_success\": true,\n  \"abi_required\": [\n    \"supply()\",\n    \"cost()\",\n    \"maxSupply()\",\n    \"preSaleWalletLimit()\",\n    \"currentSaleStatus()\",\n    \"whitelistUser(address,bool)\",\n    \"startPresale()\",\n    \"startPublicSale()\",\n    \"setCost(uint256)\",\n    \"isWhitelisted(address)\",\n    \"mintTokenWhitelisted(uint256)\",\n    \"mintTokenPublic(uint256)\",\n    \"preSaleWalletMinted(address)\"\n  ],\n  \"abi_missing\": [],\n  \"abi_extra\": [],\n  \"abi_forbidden_present\": [],\n  \"test_success\": true,\n  \"test_failure\": null,\n  \"slither_findings\": {\n    \"count\": 2,\n    \"severity_counts\": {\n      \"medium\": 1,\n      \"low\": 1\n    },\n    \"items\": [\n      {\n        \"check\": \"locked-ether\",\n        \"impact\": \"medium\",\n        \"confidence\": \"High\",\n        \"description\": \"Contract locking ether found: Contract GrandGooseMansion (src/Generated.sol#4-90) has payable functions: - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#64-74) - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#76-81) But does not have a function to withdraw the ether\"\n      },\n      {\n        \"check\": \"events-maths\",\n        \"impact\": \"low\",\n        \"confidence\": \"Medium\",\n        \"description\": \"GrandGooseMansion.setCost(uint256) (src/Generated.sol#56-58) should emit an event for: - cost = newCost (src/Generated.sol#57)\"\n      }\n    ],\n    \"command_success\": true\n  },\n  \"gas_used\": 870298,\n  \"gas_command_success\": true\n}\n```\nCritic: **Summary of Strongest Points from the Debate**\n\n1. **Critical Security/Functionality Flaw (Locked Ether)**: The contract accepts ETH payments but has no withdrawal mechanism, permanently trapping funds. This violates the fundamental requirement that contracts receiving ETH must allow the owner to withdraw it.\n2. **Critical Behavioral Flaw (Whitelist Counter Management)**: The `whitelistUser` function only resets `preSaleWalletMinted` when removing a user (`status: true \u2192 false`), but not when adding/re-adding a user (`status: false \u2192 true`). This allows a previously removed user who reached their limit to be re-whitelisted and mint again, bypassing the intended per-wallet lifetime limit.\n3. **Minor Gas Optimization Already Applied**: The caching of `preSaleWalletMinted[msg.sender]` in `mintTokenWhitelisted` is correctly implemented in the current solution.\n4. **ABI Compliance**: The contract correctly exposes all required functions with no extra public APIs (the `owner` getter issue from previous rounds has been resolved).\n\n**Ordered Repair List**\n\n1. **Test Failure / Critical Functionality (Locked Ether)**: Add an `onlyOwner` withdrawal function to transfer the contract's entire ETH balance to the owner. This is required for the contract to be usable.\n2. **Test Failure / Behavioral Flaw (Whitelist Counter Reset)**: Modify `whitelistUser` to reset `preSaleWalletMinted[user] = 0` whenever the whitelist status changes in **either direction** (both `false \u2192 true` and `true \u2192 false`). This ensures proper enforcement of per-wallet limits regardless of whitelist status changes.\n\n**Implementation-Level Changes**\n\nApply these minimal changes to fix the critical issues:\n\n1. **Add Withdrawal Function**:\n```solidity\nfunction withdraw() external onlyOwner {\n    (bool success, ) = owner.call{value: address(this).balance}(\"\");\n    require(success, \"Withdrawal failed\");\n}\n```\n\n2. **Fix Whitelist Counter Reset Logic**:\n```solidity\nfunction whitelistUser(address user, bool status) external onlyOwner {\n    whitelisted[user] = status;\n    // Reset counter whenever whitelist status changes\n    preSaleWalletMinted[user] = 0;\n}\n```\n\n**Note on Slither Findings**: \n- The `locked-ether` finding will be resolved by adding the withdrawal function.\n- The `events-maths` finding about `setCost` not emitting an event is a **low-impact** recommendation that **should not be implemented** unless explicitly required by the specification, as per the instruction to avoid adding unrequested features.\n\nThese changes ensure the contract is secure, functionally correct, and maintains reasonable gas efficiency while strictly adhering to the specification.\nFirst Improved Solution: ```solidity\n// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract GrandGooseMansion {\n    address private _owner;\n    \n    uint256 public supply;\n    uint256 public cost;\n    uint256 public maxSupply;\n    uint256 public preSaleWalletLimit;\n    \n    enum SaleStatus { Paused, Presale, PublicSale }\n    SaleStatus public currentSaleStatus;\n    \n    mapping(address => bool) private _whitelisted;\n    mapping(address => uint256) public preSaleWalletMinted;\n    \n    error InvalidAmount();\n    error ExceedsMaxSupply();\n    error WrongEtherAmount();\n    error SaleNotActive();\n    error NotWhitelisted();\n    error ExceedsWalletLimit();\n    error OnlyOwner();\n    \n    constructor() {\n        _owner = msg.sender;\n        maxSupply = 10000;\n        cost = 0.1 ether;\n        preSaleWalletLimit = 5;\n        currentSaleStatus = SaleStatus.Paused;\n    }\n    \n    modifier onlyOwner() {\n        if (msg.sender != _owner) revert OnlyOwner();\n        _;\n    }\n    \n    function whitelistUser(address user, bool status) external onlyOwner {\n        _whitelisted[user] = status;\n        preSaleWalletMinted[user] = 0;\n    }\n    \n    function startPresale() external onlyOwner {\n        currentSaleStatus = SaleStatus.Presale;\n    }\n    \n    function startPublicSale() external onlyOwner {\n        currentSaleStatus = SaleStatus.PublicSale;\n    }\n    \n    function setCost(uint256 newCost) external onlyOwner {\n        cost = newCost;\n    }\n    \n    function isWhitelisted(address user) external view returns (bool) {\n        return _whitelisted[user];\n    }\n    \n    function mintTokenWhitelisted(uint256 amount) external payable {\n        if (currentSaleStatus != SaleStatus.Presale) revert SaleNotActive();\n        if (!_whitelisted[msg.sender]) revert NotWhitelisted();\n        if (amount == 0) revert InvalidAmount();\n        \n        uint256 walletMinted = preSaleWalletMinted[msg.sender];\n        if (walletMinted + amount > preSaleWalletLimit) revert ExceedsWalletLimit();\n        \n        _mint(amount);\n        preSaleWalletMinted[msg.sender] = walletMinted + amount;\n    }\n    \n    function mintTokenPublic(uint256 amount) external payable {\n        if (currentSaleStatus != SaleStatus.PublicSale) revert SaleNotActive();\n        if (amount == 0) revert InvalidAmount();\n        \n        _mint(amount);\n    }\n    \n    function withdraw() external onlyOwner {\n        (bool success, ) = _owner.call{value: address(this).balance}(\"\");\n        require(success, \"Withdrawal failed\");\n    }\n    \n    function _mint(uint256 amount) private {\n        if (supply + amount > maxSupply) revert ExceedsMaxSupply();\n        if (msg.value != cost * amount) revert WrongEtherAmount();\n        \n        supply += amount;\n    }\n}\n```\nFirst Improved Structured Execution Feedback:\n```json\n{\n  \"compile_success\": true,\n  \"compile_error\": null,\n  \"abi_checked\": true,\n  \"abi_success\": true,\n  \"abi_required\": [\n    \"supply()\",\n    \"cost()\",\n    \"maxSupply()\",\n    \"preSaleWalletLimit()\",\n    \"currentSaleStatus()\",\n    \"whitelistUser(address,bool)\",\n    \"startPresale()\",\n    \"startPublicSale()\",\n    \"setCost(uint256)\",\n    \"isWhitelisted(address)\",\n    \"mintTokenWhitelisted(uint256)\",\n    \"mintTokenPublic(uint256)\",\n    \"preSaleWalletMinted(address)\"\n  ],\n  \"abi_missing\": [],\n  \"abi_extra\": [\n    \"withdraw()\"\n  ],\n  \"abi_forbidden_present\": [],\n  \"test_success\": true,\n  \"test_failure\": null,\n  \"slither_findings\": {\n    \"count\": 1,\n    \"severity_counts\": {\n      \"low\": 1\n    },\n    \"items\": [\n      {\n        \"check\": \"events-maths\",\n        \"impact\": \"low\",\n        \"confidence\": \"Medium\",\n        \"description\": \"GrandGooseMansion.setCost(uint256) (src/Generated.sol#52-54) should emit an event for: - cost = newCost (src/Generated.sol#53)\"\n      }\n    ],\n    \"command_success\": true\n  },\n  \"gas_used\": 972845,\n  \"gas_command_success\": true\n}\n```\nCritic: **Summary of Critical Findings**\n\nThe current solution has one **critical spec compliance issue** and one **functional vulnerability**:\n\n1. **ABI Violation (Critical)**: The contract exposes an extra public function `withdraw()` that was not requested in the specification. This must be removed to achieve spec compliance.\n\n2. **Whitelist Counter Logic Flaw**: The `whitelistUser` function resets `preSaleWalletMinted[user] = 0` on **every** status change. This allows users who have reached their per-wallet limit to be re-whitelisted and mint again, bypassing the intended lifetime limit. The counter should only reset when removing a user (`status: false`).\n\n3. **Gas Inefficiency**: The current implementation performs unnecessary storage writes in `whitelistUser()` and misses optimization opportunities.\n\n**Ordered Repair List**\n\n1. **ABI Extra (`withdraw()` function)**: Remove the `withdraw()` function entirely. The contract should not expose any public/external APIs beyond those explicitly listed in the specification.\n\n2. **Test Failure / Behavioral Flaw (Whitelist Counter Reset)**: Modify `whitelistUser` to reset `preSaleWalletMinted[user] = 0` only when removing a user from the whitelist (`status: false`), not when adding or re-adding.\n\n3. **Gas Optimization**: \n   - Only reset the counter when necessary (as above)\n   - Consider caching `supply` in `mintTokenPublic()` to avoid duplicate storage reads\n\n**Implementation-Level Changes**\n\n```solidity\n// 1. Remove the entire withdraw() function\n\n// 2. Fix whitelistUser function\nfunction whitelistUser(address user, bool status) external onlyOwner {\n    whitelisted[user] = status;\n    if (!status) {\n        preSaleWalletMinted[user] = 0; // Reset only on removal\n    }\n}\n\n// 3. Optional gas optimization in mintTokenPublic\nfunction mintTokenPublic(uint256 amount) external payable {\n    if (currentSaleStatus != SaleStatus.PUBLIC_SALE) revert NotPublicSale();\n    \n    // Cache supply to avoid duplicate read in _mint\n    uint256 currentSupply = supply;\n    if (currentSupply + amount > maxSupply) revert ExceedsMaxSupply();\n    \n    if (msg.value != cost * amount) revert IncorrectPayment();\n    \n    supply = currentSupply + amount;\n}\n```\n\n**Note on Locked Ether**: While removing `withdraw()` leaves ETH permanently locked in the contract, this is spec-compliant as the specification does not require a withdrawal mechanism. The `locked-ether` finding from static analysis is acceptable given the spec constraints.\n\n**Note on Events**: The `events-maths` finding about `setCost()` not emitting an event is a low-impact recommendation that should not be implemented unless explicitly required by the specification.\nSecond Improved Solution: Based on the above analysis, here's the updated version of the Solidity code in a single code block (wrap in ```solidity):\n```solidity\n// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract GrandGooseMansion {\n    address private _owner;\n    \n    uint256 public supply;\n    uint256 public cost;\n    uint256 public maxSupply;\n    uint256 public preSaleWalletLimit;\n    \n    enum SaleStatus { Paused, Presale, PublicSale }\n    SaleStatus public currentSaleStatus;\n    \n    mapping(address => bool) private _whitelisted;\n    mapping(address => uint256) public preSaleWalletMinted;\n    \n    error InvalidAmount();\n    error ExceedsMaxSupply();\n    error WrongEtherAmount();\n    error SaleNotActive();\n    error NotWhitelisted();\n    error ExceedsWalletLimit();\n    error OnlyOwner();\n    \n    constructor() {\n        _owner = msg.sender;\n        maxSupply = 10000;\n        cost = 0.1 ether;\n        preSaleWalletLimit = 5;\n        currentSaleStatus = SaleStatus.Paused;\n    }\n    \n    modifier onlyOwner() {\n        if (msg.sender != _owner) revert OnlyOwner();\n        _;\n    }\n    \n    function whitelistUser(address user, bool status) external onlyOwner {\n        _whitelisted[user] = status;\n        if (!status) {\n            preSaleWalletMinted[user] = 0;\n        }\n    }\n    \n    function startPresale() external onlyOwner {\n        currentSaleStatus = SaleStatus.Presale;\n    }\n    \n    function startPublicSale() external onlyOwner {\n        currentSaleStatus = SaleStatus.PublicSale;\n    }\n    \n    function setCost(uint256 newCost) external onlyOwner {\n        cost = newCost;\n    }\n    \n    function isWhitelisted(address user) external view returns (bool) {\n        return _whitelisted[user];\n    }\n    \n    function mintTokenWhitelisted(uint256 amount) external payable {\n        if (currentSaleStatus != SaleStatus.Presale) revert SaleNotActive();\n        if (!_whitelisted[msg.sender]) revert NotWhitelisted();\n        if (amount == 0) revert InvalidAmount();\n        \n        uint256 walletMinted = preSaleWalletMinted[msg.sender];\n        if (walletMinted + amount > preSaleWalletLimit) revert ExceedsWalletLimit();\n        \n        _mint(amount);\n        preSaleWalletMinted[msg.sender] = walletMinted + amount;\n    }\n    \n    function mintTokenPublic(uint256 amount) external payable {\n        if (currentSaleStatus != SaleStatus.PublicSale) revert SaleNotActive();\n        if (amount == 0) revert InvalidAmount();\n        \n        _mint(amount);\n    }\n    \n    function _mint(uint256 amount) private {\n        if (supply + amount > maxSupply) revert ExceedsMaxSupply();\n        if (msg.value != cost * amount) revert WrongEtherAmount();\n        \n        supply += amount;\n    }\n}\n```",
+    "critic": [
+        "**Summary of strongest points from the debate**\n\n1.  **ABI Non-Compliance (Extra):** The contract exposes a public `owner` state variable, creating an `owner()` getter function that was not requested in the specification. This must be removed.\n2.  **Logical Security Flaw:** The `preSaleWalletMinted` counter for a user is never reset when they are removed from the whitelist (`whitelistUser(user, false)`). If a user is removed and later re-added, they can mint again, potentially exceeding the intended lifetime per-wallet limit. This violates the intended functionality of the whitelist limit.\n3.  **Gas Inefficiency:** In `mintTokenWhitelisted`, the `preSaleWalletMinted[msg.sender]` storage value is read twice. This can be optimized by caching it in a local variable.\n\n**Ordered Repair List**\n\n1.  **ABI Extra (`owner` getter):** Make the `owner` variable `private` or `internal` to remove the public getter function from the ABI. The `onlyOwner` modifier can still access it.\n2.  **Test Failure / Behavioral Flaw (Whitelist Counter Reset):** When a user is removed from the whitelist via `whitelistUser(user, false)`, their `preSaleWalletMinted` count must be reset to 0. This ensures the per-wallet limit is enforced correctly across changes to whitelist status.\n3.  **Gas Optimization:** In `mintTokenWhitelisted`, cache `preSaleWalletMinted[msg.sender]` in a local `uint256` variable (e.g., `walletMinted`) to avoid a second storage read.\n\n**Implementation-Level Changes**\n\nApply the following minimal changes to the contract:\n\n1.  Change the declaration of `owner` to `private` or `internal`:\n    ```solidity\n    address private owner;\n    ```\n2.  Modify the `whitelistUser` function to reset the mint counter when `status` is `false`:\n    ```solidity\n    function whitelistUser(address user, bool status) external onlyOwner {\n        whitelisted[user] = status;\n        if (!status) {\n            preSaleWalletMinted[user] = 0; // Reset counter on removal\n        }\n    }\n    ```\n3.  Optimize `mintTokenWhitelisted`:\n    ```solidity\n    function mintTokenWhitelisted(uint256 amount) external payable {\n        if (currentSaleStatus != SaleStatus.PRE_SALE) revert NotPreSale();\n        if (!whitelisted[msg.sender]) revert NotWhitelisted();\n\n        uint256 walletMinted = preSaleWalletMinted[msg.sender]; // Cache\n        if (walletMinted + amount > preSaleWalletLimit) revert ExceedsWalletLimit();\n\n        _mint(amount);\n        preSaleWalletMinted[msg.sender] = walletMinted + amount; // Use cached value\n    }\n    ```\n\nThese changes ensure ABI compliance, fix the critical logical flaw in whitelist management, and improve gas efficiency with no impact on the required specification.",
+        "**Summary of Strongest Points from the Debate**\n\n1. **Critical Security/Functionality Flaw (Locked Ether)**: The contract accepts ETH payments but has no withdrawal mechanism, permanently trapping funds. This violates the fundamental requirement that contracts receiving ETH must allow the owner to withdraw it.\n2. **Critical Behavioral Flaw (Whitelist Counter Management)**: The `whitelistUser` function only resets `preSaleWalletMinted` when removing a user (`status: true \u2192 false`), but not when adding/re-adding a user (`status: false \u2192 true`). This allows a previously removed user who reached their limit to be re-whitelisted and mint again, bypassing the intended per-wallet lifetime limit.\n3. **Minor Gas Optimization Already Applied**: The caching of `preSaleWalletMinted[msg.sender]` in `mintTokenWhitelisted` is correctly implemented in the current solution.\n4. **ABI Compliance**: The contract correctly exposes all required functions with no extra public APIs (the `owner` getter issue from previous rounds has been resolved).\n\n**Ordered Repair List**\n\n1. **Test Failure / Critical Functionality (Locked Ether)**: Add an `onlyOwner` withdrawal function to transfer the contract's entire ETH balance to the owner. This is required for the contract to be usable.\n2. **Test Failure / Behavioral Flaw (Whitelist Counter Reset)**: Modify `whitelistUser` to reset `preSaleWalletMinted[user] = 0` whenever the whitelist status changes in **either direction** (both `false \u2192 true` and `true \u2192 false`). This ensures proper enforcement of per-wallet limits regardless of whitelist status changes.\n\n**Implementation-Level Changes**\n\nApply these minimal changes to fix the critical issues:\n\n1. **Add Withdrawal Function**:\n```solidity\nfunction withdraw() external onlyOwner {\n    (bool success, ) = owner.call{value: address(this).balance}(\"\");\n    require(success, \"Withdrawal failed\");\n}\n```\n\n2. **Fix Whitelist Counter Reset Logic**:\n```solidity\nfunction whitelistUser(address user, bool status) external onlyOwner {\n    whitelisted[user] = status;\n    // Reset counter whenever whitelist status changes\n    preSaleWalletMinted[user] = 0;\n}\n```\n\n**Note on Slither Findings**: \n- The `locked-ether` finding will be resolved by adding the withdrawal function.\n- The `events-maths` finding about `setCost` not emitting an event is a **low-impact** recommendation that **should not be implemented** unless explicitly required by the specification, as per the instruction to avoid adding unrequested features.\n\nThese changes ensure the contract is secure, functionally correct, and maintains reasonable gas efficiency while strictly adhering to the specification."
+    ],
+    "initial_action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract GrandGooseMansion {\n    address private _owner;\n    \n    uint256 public supply;\n    uint256 public cost;\n    uint256 public maxSupply;\n    uint256 public preSaleWalletLimit;\n    \n    enum SaleStatus { Paused, Presale, PublicSale }\n    SaleStatus public currentSaleStatus;\n    \n    mapping(address => bool) private _whitelisted;\n    mapping(address => uint256) public preSaleWalletMinted;\n    \n    error InvalidAmount();\n    error ExceedsMaxSupply();\n    error WrongEtherAmount();\n    error SaleNotActive();\n    error NotWhitelisted();\n    error ExceedsWalletLimit();\n    error OnlyOwner();\n    \n    constructor() {\n        _owner = msg.sender;\n        maxSupply = 10000;\n        cost = 0.1 ether;\n        preSaleWalletLimit = 5;\n        currentSaleStatus = SaleStatus.Paused;\n    }\n    \n    modifier onlyOwner() {\n        if (msg.sender != _owner) revert OnlyOwner();\n        _;\n    }\n    \n    function whitelistUser(address user, bool status) external onlyOwner {\n        if (_whitelisted[user] != status) {\n            _whitelisted[user] = status;\n            if (!status) {\n                preSaleWalletMinted[user] = 0;\n            }\n        }\n    }\n    \n    function startPresale() external onlyOwner {\n        currentSaleStatus = SaleStatus.Presale;\n    }\n    \n    function startPublicSale() external onlyOwner {\n        currentSaleStatus = SaleStatus.PublicSale;\n    }\n    \n    function setCost(uint256 newCost) external onlyOwner {\n        cost = newCost;\n    }\n    \n    function isWhitelisted(address user) external view returns (bool) {\n        return _whitelisted[user];\n    }\n    \n    function mintTokenWhitelisted(uint256 amount) external payable {\n        if (currentSaleStatus != SaleStatus.Presale) revert SaleNotActive();\n        if (!_whitelisted[msg.sender]) revert NotWhitelisted();\n        if (amount == 0) revert InvalidAmount();\n        \n        uint256 walletMinted = preSaleWalletMinted[msg.sender];\n        if (walletMinted + amount > preSaleWalletLimit) revert ExceedsWalletLimit();\n        \n        _mint(amount);\n        preSaleWalletMinted[msg.sender] = walletMinted + amount;\n    }\n    \n    function mintTokenPublic(uint256 amount) external payable {\n        if (currentSaleStatus != SaleStatus.PublicSale) revert SaleNotActive();\n        if (amount == 0) revert InvalidAmount();\n        \n        _mint(amount);\n    }\n    \n    function _mint(uint256 amount) private {\n        if (supply + amount > maxSupply) revert ExceedsMaxSupply();\n        if (msg.value != cost * amount) revert WrongEtherAmount();\n        \n        supply += amount;\n    }\n}\n```",
+    "critic_scratchpad": "\nThe following critic(s) provide some analysis of previous solution(s). Use them as reference only to improve and update your critic based on the latest solution.\nPrevious Round Structured Execution Feedback:\n```json\n{\n  \"compile_success\": true,\n  \"compile_error\": null,\n  \"abi_checked\": true,\n  \"abi_success\": true,\n  \"abi_required\": [\n    \"supply()\",\n    \"cost()\",\n    \"maxSupply()\",\n    \"preSaleWalletLimit()\",\n    \"currentSaleStatus()\",\n    \"whitelistUser(address,bool)\",\n    \"startPresale()\",\n    \"startPublicSale()\",\n    \"setCost(uint256)\",\n    \"isWhitelisted(address)\",\n    \"mintTokenWhitelisted(uint256)\",\n    \"mintTokenPublic(uint256)\",\n    \"preSaleWalletMinted(address)\"\n  ],\n  \"abi_missing\": [],\n  \"abi_extra\": [],\n  \"abi_forbidden_present\": [],\n  \"test_success\": true,\n  \"test_failure\": null,\n  \"slither_findings\": {\n    \"count\": 2,\n    \"severity_counts\": {\n      \"medium\": 1,\n      \"low\": 1\n    },\n    \"items\": [\n      {\n        \"check\": \"locked-ether\",\n        \"impact\": \"medium\",\n        \"confidence\": \"High\",\n        \"description\": \"Contract locking ether found: Contract GrandGooseMansion (src/Generated.sol#4-90) has payable functions: - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#64-74) - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#76-81) But does not have a function to withdraw the ether\"\n      },\n      {\n        \"check\": \"events-maths\",\n        \"impact\": \"low\",\n        \"confidence\": \"Medium\",\n        \"description\": \"GrandGooseMansion.setCost(uint256) (src/Generated.sol#56-58) should emit an event for: - cost = newCost (src/Generated.sol#57)\"\n      }\n    ],\n    \"command_success\": true\n  },\n  \"gas_used\": 870298,\n  \"gas_command_success\": true\n}\n```\nPast Critic: **Summary of strongest points from the debate**\n\n1.  **ABI Non-Compliance (Extra):** The contract exposes a public `owner` state variable, creating an `owner()` getter function that was not requested in the specification. This must be removed.\n2.  **Logical Security Flaw:** The `preSaleWalletMinted` counter for a user is never reset when they are removed from the whitelist (`whitelistUser(user, false)`). If a user is removed and later re-added, they can mint again, potentially exceeding the intended lifetime per-wallet limit. This violates the intended functionality of the whitelist limit.\n3.  **Gas Inefficiency:** In `mintTokenWhitelisted`, the `preSaleWalletMinted[msg.sender]` storage value is read twice. This can be optimized by caching it in a local variable.\n\n**Ordered Repair List**\n\n1.  **ABI Extra (`owner` getter):** Make the `owner` variable `private` or `internal` to remove the public getter function from the ABI. The `onlyOwner` modifier can still access it.\n2.  **Test Failure / Behavioral Flaw (Whitelist Counter Reset):** When a user is removed from the whitelist via `whitelistUser(user, false)`, their `preSaleWalletMinted` count must be reset to 0. This ensures the per-wallet limit is enforced correctly across changes to whitelist status.\n3.  **Gas Optimization:** In `mintTokenWhitelisted`, cache `preSaleWalletMinted[msg.sender]` in a local `uint256` variable (e.g., `walletMinted`) to avoid a second storage read.\n\n**Implementation-Level Changes**\n\nApply the following minimal changes to the contract:\n\n1.  Change the declaration of `owner` to `private` or `internal`:\n    ```solidity\n    address private owner;\n    ```\n2.  Modify the `whitelistUser` function to reset the mint counter when `status` is `false`:\n    ```solidity\n    function whitelistUser(address user, bool status) external onlyOwner {\n        whitelisted[user] = status;\n        if (!status) {\n            preSaleWalletMinted[user] = 0; // Reset counter on removal\n        }\n    }\n    ```\n3.  Optimize `mintTokenWhitelisted`:\n    ```solidity\n    function mintTokenWhitelisted(uint256 amount) external payable {\n        if (currentSaleStatus != SaleStatus.PRE_SALE) revert NotPreSale();\n        if (!whitelisted[msg.sender]) revert NotWhitelisted();\n\n        uint256 walletMinted = preSaleWalletMinted[msg.sender]; // Cache\n        if (walletMinted + amount > preSaleWalletLimit) revert ExceedsWalletLimit();\n\n        _mint(amount);\n        preSaleWalletMinted[msg.sender] = walletMinted + amount; // Use cached value\n    }\n    ```\n\nThese changes ensure ABI compliance, fix the critical logical flaw in whitelist management, and improve gas efficiency with no impact on the required specification.\nSecurity Critic: based on the above discussion, here is my updated analysis of solution security: **Security Analysis of the Candidate Contract**\n\nThe contract has several critical security risks that must be addressed:\n\n1. **Locked Ether Vulnerability (Medium)**: The contract accepts ETH payments but has no withdrawal mechanism. All collected funds will be permanently trapped. This violates the fundamental principle that contracts receiving ETH must provide a way to withdraw it.\n\n2. **Incorrect Whitelist Counter Reset**: The current implementation only resets `preSaleWalletMinted` when changing from `true` to `false`, but not when changing from `false` to `true`. This creates a race condition where:\n   - User is whitelisted (status: false \u2192 true) - counter NOT reset\n   - User mints up to limit\n   - User is removed (status: true \u2192 false) - counter IS reset\n   - User is re-whitelisted (status: false \u2192 true) - counter NOT reset\n   - User can mint again, bypassing the intended per-wallet limit\n\n3. **Missing Overflow Protection**: While Solidity 0.8.x has built-in overflow checks, the multiplication `cost * amount` could still overflow if `amount` is extremely large. This is unlikely but should be considered.\n\n4. **No Event Emissions for\nFunctionality Critic: \nFunctionality Critic: based on the above discussion, here is my updated analysis of solution functionality and correctness: The contract **does not fully satisfy the specification** due to two critical behavioral flaws:\n\n1. **Missing Withdrawal Functionality**: The contract accepts ETH payments but has no mechanism to withdraw funds. This violates the implicit requirement that collected ETH should be accessible to the owner, as indicated by the Slither finding about locked ether. While not explicitly stated in the task, the inability to withdraw funds makes the contract practically unusable.\n\n2. **Incorrect Whitelist Counter Management**: The `whitelistUser` function only resets `preSaleWalletMinted` when status changes from true to false, but not when changing from false to true. This allows a previously removed user who minted their limit to be re-whitelisted and mint again, bypassing the intended per-wallet lifetime limit.\n\n**Required Fixes**:\n1. Add an `onlyOwner` withdrawal function to transfer contract balance to the owner.\n2. Reset `preSaleWalletMinted[user] = 0` in `whitelistUser` whenever status changes in either direction to enforce proper per-wallet limits.\n\nThe contract compiles cleanly, exposes all required ABI signatures correctly, and handles most edge cases properly. However, the two issues above would cause test failures in any comprehensive test suite evaluating withdrawal capability and proper whitelist limit enforcement.\nGas Critic: \nGas Critic: based on the above discussion, here is my updated analysis of solution gas usage and on-chain efficiency: **Gas Efficiency Analysis**\n\n**Deployment Cost:** Moderate (~870k gas). The contract uses standard storage patterns with no unnecessary complexity. Could be slightly reduced by packing smaller state variables (e.g., `SaleStatus` could be combined with other small values in a single slot), but this would add complexity without significant savings.\n\n**Runtime Gas Issues:**\n\n1. **Redundant Storage Reads:** In `mintTokenWhitelisted`, `preSaleWalletMinted[msg.sender]` is read twice (once for the limit check, once in the update). The current solution already caches this in `walletMinted`, which is optimal.\n\n2. **Inefficient Whitelist Management:** The `whitelistUser` function writes to storage even when status hasn't changed (`if (_whitelisted[user] != status)`). This is actually **gas-optimal** for the common case where status changes, but wastes gas when called with the same status. However, this is a minor issue since owner functions are infrequent.\n\n3. **Missing Withdrawal Function:** While a security/functionality issue, adding a withdrawal function would actually **improve** gas efficiency for the owner to recover funds, avoiding the need for complex rescue patterns later",
+    "previous_structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "supply()",
+            "cost()",
+            "maxSupply()",
+            "preSaleWalletLimit()",
+            "currentSaleStatus()",
+            "whitelistUser(address,bool)",
+            "startPresale()",
+            "startPublicSale()",
+            "setCost(uint256)",
+            "isWhitelisted(address)",
+            "mintTokenWhitelisted(uint256)",
+            "mintTokenPublic(uint256)",
+            "preSaleWalletMinted(address)"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": true,
+        "test_failure": null,
+        "slither_findings": {
+            "count": 2,
+            "severity_counts": {
+                "medium": 1,
+                "low": 1
+            },
+            "items": [
+                {
+                    "check": "locked-ether",
+                    "impact": "medium",
+                    "confidence": "High",
+                    "description": "Contract locking ether found: Contract GrandGooseMansion (src/Generated.sol#4-90) has payable functions: - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#64-74) - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#76-81) But does not have a function to withdraw the ether"
+                },
+                {
+                    "check": "events-maths",
+                    "impact": "low",
+                    "confidence": "Medium",
+                    "description": "GrandGooseMansion.setCost(uint256) (src/Generated.sol#56-58) should emit an event for: - cost = newCost (src/Generated.sol#57)"
+                }
+            ],
+            "command_success": true
+        },
+        "gas_used": 870298,
+        "gas_command_success": true
+    },
+    "safety_critics": [
+        "**Security Analysis of the Candidate Contract**\n\nThe contract has several critical security risks that must be addressed:\n\n1. **Locked Ether Vulnerability (Medium)**: The contract accepts ETH payments but has no withdrawal mechanism. All collected funds will be permanently trapped. This violates the fundamental principle that contracts receiving ETH must provide a way to withdraw it.\n\n2. **Incorrect Whitelist Counter Reset**: The current implementation only resets `preSaleWalletMinted` when changing from `true` to `false`, but not when changing from `false` to `true`. This creates a race condition where:\n   - User is whitelisted (status: false \u2192 true) - counter NOT reset\n   - User mints up to limit\n   - User is removed (status: true \u2192 false) - counter IS reset\n   - User is re-whitelisted (status: false \u2192 true) - counter NOT reset\n   - User can mint again, bypassing the intended per-wallet limit\n\n3. **Missing Overflow Protection**: While Solidity 0.8.x has built-in overflow checks, the multiplication `cost * amount` could still overflow if `amount` is extremely large. This is unlikely but should be considered.\n\n4. **No Event Emissions for"
+    ],
+    "safety_tool_output": [
+        {
+            "tool": [
+                {
+                    "tool_name": "code_search",
+                    "parameters": {
+                        "query": "Solidity smart contract ether withdrawal best practices",
+                        "snippet": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract WithdrawalExample {\n    address public owner;\n    \n    constructor() {\n        owner = msg.sender;\n    }\n    \n    modifier onlyOwner() {\n        require(msg.sender == owner, \"Not owner\");\n        _;\n    }\n    \n    // Standard withdrawal pattern\n    function withdraw() external onlyOwner {\n        uint256 balance = address(this).balance;\n        require(balance > 0, \"No ether to withdraw\");\n        \n        (bool success, ) = payable(owner).call{value:"
+                    }
+                }
+            ],
+            "output": []
+        }
+    ],
+    "helpful_critics": [
+        "The contract **does not fully satisfy the specification** due to two critical behavioral flaws:\n\n1. **Missing Withdrawal Functionality**: The contract accepts ETH payments but has no mechanism to withdraw funds. This violates the implicit requirement that collected ETH should be accessible to the owner, as indicated by the Slither finding about locked ether. While not explicitly stated in the task, the inability to withdraw funds makes the contract practically unusable.\n\n2. **Incorrect Whitelist Counter Management**: The `whitelistUser` function only resets `preSaleWalletMinted` when status changes from true to false, but not when changing from false to true. This allows a previously removed user who minted their limit to be re-whitelisted and mint again, bypassing the intended per-wallet lifetime limit.\n\n**Required Fixes**:\n1. Add an `onlyOwner` withdrawal function to transfer contract balance to the owner.\n2. Reset `preSaleWalletMinted[user] = 0` in `whitelistUser` whenever status changes in either direction to enforce proper per-wallet limits.\n\nThe contract compiles cleanly, exposes all required ABI signatures correctly, and handles most edge cases properly. However, the two issues above would cause test failures in any comprehensive test suite evaluating withdrawal capability and proper whitelist limit enforcement."
+    ],
+    "helpful_tool_output": [
+        {
+            "tool": [
+                {
+                    "tool_name": "code_search",
+                    "parameters": {
+                        "query": "Solidity smart contract withdrawal function best practices",
+                        "snippet": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract WithdrawalExample {\n    address private _owner;\n    \n    constructor() {\n        _owner = msg.sender;\n    }\n    \n    modifier onlyOwner() {\n        require(msg.sender == _owner, \"Not owner\");\n        _;\n    }\n    \n    function withdraw() external onlyOwner {\n        (bool success, ) = payable(_owner).call{value: address(this).balance}(\"\");\n        require(success, \"Transfer failed\");\n    }\n    \n    // Optional: Allow withdrawal to specific address"
+                    }
+                }
+            ],
+            "output": []
+        }
+    ],
+    "gas_critics": [
+        "**Gas Efficiency Analysis**\n\n**Deployment Cost:** Moderate (~870k gas). The contract uses standard storage patterns with no unnecessary complexity. Could be slightly reduced by packing smaller state variables (e.g., `SaleStatus` could be combined with other small values in a single slot), but this would add complexity without significant savings.\n\n**Runtime Gas Issues:**\n\n1. **Redundant Storage Reads:** In `mintTokenWhitelisted`, `preSaleWalletMinted[msg.sender]` is read twice (once for the limit check, once in the update). The current solution already caches this in `walletMinted`, which is optimal.\n\n2. **Inefficient Whitelist Management:** The `whitelistUser` function writes to storage even when status hasn't changed (`if (_whitelisted[user] != status)`). This is actually **gas-optimal** for the common case where status changes, but wastes gas when called with the same status. However, this is a minor issue since owner functions are infrequent.\n\n3. **Missing Withdrawal Function:** While a security/functionality issue, adding a withdrawal function would actually **improve** gas efficiency for the owner to recover funds, avoiding the need for complex rescue patterns later"
+    ],
+    "gas_tool_output": [
+        {
+            "tool": [
+                {
+                    "tool_name": "code_search",
+                    "parameters": {
+                        "query": "Solidity 0.8.20 gas optimization storage packing enum uint256",
+                        "snippet": "// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract StoragePackingExample {\n    // Pack small state variables together\n    uint256 public maxSupply;      // Slot 0\n    uint256 public cost;           // Slot 1\n    uint256 public supply;         // Slot 2\n    \n    // Pack these into Slot 3:\n    uint64 public preSaleWalletLimit;  // 8 bytes\n    uint64 public someOtherValue;      // 8 bytes\n    uint8 public currentSaleStatus;    // 1 byte ("
+                    }
+                }
+            ],
+            "output": []
+        }
+    ],
+    "initial_action_execution_observation": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 2 finding(s) (low=1, medium=1). Gas analysis: max observed value 870298.",
+    "initial_action_execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 0,
+            "stdout": "Compiling 25 files with Solc 0.8.20\nSolc 0.8.20 finished in 809.68ms\nCompiler run successful!\n",
+            "stderr": "note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:4:8\n  |\n4 | import \"forge-std/Test.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unwrapped-modifier-logic]: wrap modifier logic to reduce code size\n  --> src/Generated.sol:34:5\n   |\n34 | /     modifier onlyOwner() {\n35 | |         if (msg.sender != _owner) revert OnlyOwner();\n36 | |         _;\n37 | |     }\n   | |_____^\n   |\nhelp: wrap modifier logic to reduce code size\n   |\n34 ~     modifier onlyOwner() {\n35 +         _onlyOwner();\n36 +         _;\n37 +     }\n38 + \n39 +     function _onlyOwner() internal {\n40 +         if (msg.sender != _owner) revert OnlyOwner();\n41 +     }\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#unwrapped-modifier-logic\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:5:8\n  |\n5 | import \"../src/Generated.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\n",
+            "success": true
+        },
+        "abi": {
+            "checked": true,
+            "success": true,
+            "required": [
+                "supply()",
+                "cost()",
+                "maxSupply()",
+                "preSaleWalletLimit()",
+                "currentSaleStatus()",
+                "whitelistUser(address,bool)",
+                "startPresale()",
+                "startPublicSale()",
+                "setCost(uint256)",
+                "isWhitelisted(address)",
+                "mintTokenWhitelisted(uint256)",
+                "mintTokenPublic(uint256)",
+                "preSaleWalletMinted(address)"
+            ],
+            "forbidden": [],
+            "available": [
+                "constructor()",
+                "cost()",
+                "currentSaleStatus()",
+                "isWhitelisted(address)",
+                "maxSupply()",
+                "mintTokenPublic(uint256)",
+                "mintTokenWhitelisted(uint256)",
+                "preSaleWalletLimit()",
+                "preSaleWalletMinted(address)",
+                "setCost(uint256)",
+                "startPresale()",
+                "startPublicSale()",
+                "supply()",
+                "whitelistUser(address,bool)"
+            ],
+            "missing": [],
+            "forbidden_present": [],
+            "artifact": "/tmp/indict_solidity_awppgxye/out/Generated.sol/GrandGooseMansion.json"
+        },
+        "tests": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" -vv",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testNonWhitelistedPresaleMintReverts() (gas: 45651)\n[PASS] testPublicMint() (gas: 71301)\n[PASS] testWhitelistedPresaleMint() (gas: 122721)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 963.42\u00b5s (683.42\u00b5s CPU time)\n\nRan 1 test suite in 22.46ms (963.42\u00b5s CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "slither": {
+            "command": "slither \"src/Generated.sol\" --exclude-dependencies --exclude-informational --exclude-optimization --fail-none --json \"/tmp/indict_solidity_awppgxye/slither-result.json\"",
+            "returncode": 0,
+            "stdout": "",
+            "stderr": "'forge clean' running (wd: /tmp/indict_solidity_awppgxye)\n'forge config --json' running\n'forge build --build-info src/Generated.sol' running (wd: /tmp/indict_solidity_awppgxye)\n\nDetector: locked-ether\nContract locking ether found:\n\tContract GrandGooseMansion (src/Generated.sol#4-90) has payable functions:\n\t - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#64-74)\n\t - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#76-81)\n\tBut does not have a function to withdraw the ether\nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#contracts-that-lock-ether\n\nDetector: events-maths\nGrandGooseMansion.setCost(uint256) (src/Generated.sol#56-58) should emit an event for: \n\t- cost = newCost (src/Generated.sol#57) \nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#missing-events-arithmetic\nsrc/Generated.sol analyzed (1 contracts with 75 detectors), 2 result(s) found\n",
+            "success": true
+        },
+        "gas": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" --gas-report",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testNonWhitelistedPresaleMintReverts() (gas: 89919)\n[PASS] testPublicMint() (gas: 117569)\n[PASS] testWhitelistedPresaleMint() (gas: 202845)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.18ms (963.26\u00b5s CPU time)\n\n\u256d----------------------------------------------+-----------------+-------+--------+-------+---------\u256e\n| src/Generated.sol:GrandGooseMansion Contract |                 |       |        |       |         |\n+===================================================================================================+\n| Deployment Cost                              | Deployment Size |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| 870298                                       | 3584            |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n|                                              |                 |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| Function Name                                | Min             | Avg   | Median | Max   | # Calls |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| mintTokenPublic                              | 50956           | 50956 | 50956  | 50956 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| mintTokenWhitelisted                         | 26152           | 52105 | 52105  | 78058 | 2       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| preSaleWalletMinted                          | 2890            | 2890  | 2890   | 2890  | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| setCost                                      | 26068           | 26068 | 26068  | 26068 | 3       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| startPresale                                 | 45582           | 45582 | 45582  | 45582 | 2       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| startPublicSale                              | 45604           | 45604 | 45604  | 45604 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| supply                                       | 2426            | 2426  | 2426   | 2426  | 2       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| whitelistUser                                | 46721           | 46721 | 46721  | 46721 | 1       |\n\u2570----------------------------------------------+-----------------+-------+--------+-------+---------\u256f\n\n\nRan 1 test suite in 6.29ms (1.18ms CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "vulnerability_count": 2,
+        "vulnerability_severity_counts": {
+            "medium": 1,
+            "low": 1
+        },
+        "slither_findings": [
+            {
+                "check": "locked-ether",
+                "impact": "medium",
+                "confidence": "High",
+                "description": "Contract locking ether found: Contract GrandGooseMansion (src/Generated.sol#4-90) has payable functions: - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#64-74) - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#76-81) But does not have a function to withdraw the ether"
+            },
+            {
+                "check": "events-maths",
+                "impact": "low",
+                "confidence": "Medium",
+                "description": "GrandGooseMansion.setCost(uint256) (src/Generated.sol#56-58) should emit an event for: - cost = newCost (src/Generated.sol#57)"
+            }
+        ],
+        "max_gas_value": 870298,
+        "summary": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 2 finding(s) (low=1, medium=1). Gas analysis: max observed value 870298."
+    },
+    "initial_structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "supply()",
+            "cost()",
+            "maxSupply()",
+            "preSaleWalletLimit()",
+            "currentSaleStatus()",
+            "whitelistUser(address,bool)",
+            "startPresale()",
+            "startPublicSale()",
+            "setCost(uint256)",
+            "isWhitelisted(address)",
+            "mintTokenWhitelisted(uint256)",
+            "mintTokenPublic(uint256)",
+            "preSaleWalletMinted(address)"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": true,
+        "test_failure": null,
+        "slither_findings": {
+            "count": 2,
+            "severity_counts": {
+                "medium": 1,
+                "low": 1
+            },
+            "items": [
+                {
+                    "check": "locked-ether",
+                    "impact": "medium",
+                    "confidence": "High",
+                    "description": "Contract locking ether found: Contract GrandGooseMansion (src/Generated.sol#4-90) has payable functions: - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#64-74) - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#76-81) But does not have a function to withdraw the ether"
+                },
+                {
+                    "check": "events-maths",
+                    "impact": "low",
+                    "confidence": "Medium",
+                    "description": "GrandGooseMansion.setCost(uint256) (src/Generated.sol#56-58) should emit an event for: - cost = newCost (src/Generated.sol#57)"
+                }
+            ],
+            "command_success": true
+        },
+        "gas_used": 870298,
+        "gas_command_success": true
+    },
+    "execution_observation": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 2 finding(s) (low=1, medium=1). Gas analysis: max observed value 851963.",
+    "execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 0,
+            "stdout": "Compiling 25 files with Solc 0.8.20\nSolc 0.8.20 finished in 810.17ms\nCompiler run successful!\n",
+            "stderr": "note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:4:8\n  |\n4 | import \"forge-std/Test.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unwrapped-modifier-logic]: wrap modifier logic to reduce code size\n  --> src/Generated.sol:34:5\n   |\n34 | /     modifier onlyOwner() {\n35 | |         if (msg.sender != _owner) revert OnlyOwner();\n36 | |         _;\n37 | |     }\n   | |_____^\n   |\nhelp: wrap modifier logic to reduce code size\n   |\n34 ~     modifier onlyOwner() {\n35 +         _onlyOwner();\n36 +         _;\n37 +     }\n38 + \n39 +     function _onlyOwner() internal {\n40 +         if (msg.sender != _owner) revert OnlyOwner();\n41 +     }\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#unwrapped-modifier-logic\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:5:8\n  |\n5 | import \"../src/Generated.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\n",
+            "success": true
+        },
+        "abi": {
+            "checked": true,
+            "success": true,
+            "required": [
+                "supply()",
+                "cost()",
+                "maxSupply()",
+                "preSaleWalletLimit()",
+                "currentSaleStatus()",
+                "whitelistUser(address,bool)",
+                "startPresale()",
+                "startPublicSale()",
+                "setCost(uint256)",
+                "isWhitelisted(address)",
+                "mintTokenWhitelisted(uint256)",
+                "mintTokenPublic(uint256)",
+                "preSaleWalletMinted(address)"
+            ],
+            "forbidden": [],
+            "available": [
+                "constructor()",
+                "cost()",
+                "currentSaleStatus()",
+                "isWhitelisted(address)",
+                "maxSupply()",
+                "mintTokenPublic(uint256)",
+                "mintTokenWhitelisted(uint256)",
+                "preSaleWalletLimit()",
+                "preSaleWalletMinted(address)",
+                "setCost(uint256)",
+                "startPresale()",
+                "startPublicSale()",
+                "supply()",
+                "whitelistUser(address,bool)"
+            ],
+            "missing": [],
+            "forbidden_present": [],
+            "artifact": "/tmp/indict_solidity__q7zp2w3/out/Generated.sol/GrandGooseMansion.json"
+        },
+        "tests": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" -vv",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testNonWhitelistedPresaleMintReverts() (gas: 45651)\n[PASS] testPublicMint() (gas: 71301)\n[PASS] testWhitelistedPresaleMint() (gas: 122463)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 991.57\u00b5s (706.24\u00b5s CPU time)\n\nRan 1 test suite in 11.13ms (991.57\u00b5s CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "slither": {
+            "command": "slither \"src/Generated.sol\" --exclude-dependencies --exclude-informational --exclude-optimization --fail-none --json \"/tmp/indict_solidity__q7zp2w3/slither-result.json\"",
+            "returncode": 0,
+            "stdout": "",
+            "stderr": "'forge clean' running (wd: /tmp/indict_solidity__q7zp2w3)\n'forge config --json' running\n'forge build --build-info src/Generated.sol' running (wd: /tmp/indict_solidity__q7zp2w3)\n\nDetector: locked-ether\nContract locking ether found:\n\tContract GrandGooseMansion (src/Generated.sol#4-88) has payable functions:\n\t - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#62-72)\n\t - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#74-79)\n\tBut does not have a function to withdraw the ether\nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#contracts-that-lock-ether\n\nDetector: events-maths\nGrandGooseMansion.setCost(uint256) (src/Generated.sol#54-56) should emit an event for: \n\t- cost = newCost (src/Generated.sol#55) \nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#missing-events-arithmetic\nsrc/Generated.sol analyzed (1 contracts with 75 detectors), 2 result(s) found\n",
+            "success": true
+        },
+        "gas": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" --gas-report",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testNonWhitelistedPresaleMintReverts() (gas: 89919)\n[PASS] testPublicMint() (gas: 117569)\n[PASS] testWhitelistedPresaleMint() (gas: 202587)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.16ms (986.32\u00b5s CPU time)\n\n\u256d----------------------------------------------+-----------------+-------+--------+-------+---------\u256e\n| src/Generated.sol:GrandGooseMansion Contract |                 |       |        |       |         |\n+===================================================================================================+\n| Deployment Cost                              | Deployment Size |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| 851963                                       | 3499            |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n|                                              |                 |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| Function Name                                | Min             | Avg   | Median | Max   | # Calls |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| mintTokenPublic                              | 50956           | 50956 | 50956  | 50956 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| mintTokenWhitelisted                         | 26152           | 52105 | 52105  | 78058 | 2       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| preSaleWalletMinted                          | 2890            | 2890  | 2890   | 2890  | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| setCost                                      | 26068           | 26068 | 26068  | 26068 | 3       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| startPresale                                 | 45582           | 45582 | 45582  | 45582 | 2       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| startPublicSale                              | 45604           | 45604 | 45604  | 45604 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| supply                                       | 2426            | 2426  | 2426   | 2426  | 2       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| whitelistUser                                | 46463           | 46463 | 46463  | 46463 | 1       |\n\u2570----------------------------------------------+-----------------+-------+--------+-------+---------\u256f\n\n\nRan 1 test suite in 6.69ms (1.16ms CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "vulnerability_count": 2,
+        "vulnerability_severity_counts": {
+            "medium": 1,
+            "low": 1
+        },
+        "slither_findings": [
+            {
+                "check": "locked-ether",
+                "impact": "medium",
+                "confidence": "High",
+                "description": "Contract locking ether found: Contract GrandGooseMansion (src/Generated.sol#4-88) has payable functions: - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#62-72) - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#74-79) But does not have a function to withdraw the ether"
+            },
+            {
+                "check": "events-maths",
+                "impact": "low",
+                "confidence": "Medium",
+                "description": "GrandGooseMansion.setCost(uint256) (src/Generated.sol#54-56) should emit an event for: - cost = newCost (src/Generated.sol#55)"
+            }
+        ],
+        "max_gas_value": 851963,
+        "summary": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 2 finding(s) (low=1, medium=1). Gas analysis: max observed value 851963."
+    },
+    "structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "supply()",
+            "cost()",
+            "maxSupply()",
+            "preSaleWalletLimit()",
+            "currentSaleStatus()",
+            "whitelistUser(address,bool)",
+            "startPresale()",
+            "startPublicSale()",
+            "setCost(uint256)",
+            "isWhitelisted(address)",
+            "mintTokenWhitelisted(uint256)",
+            "mintTokenPublic(uint256)",
+            "preSaleWalletMinted(address)"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": true,
+        "test_failure": null,
+        "slither_findings": {
+            "count": 2,
+            "severity_counts": {
+                "medium": 1,
+                "low": 1
+            },
+            "items": [
+                {
+                    "check": "locked-ether",
+                    "impact": "medium",
+                    "confidence": "High",
+                    "description": "Contract locking ether found: Contract GrandGooseMansion (src/Generated.sol#4-88) has payable functions: - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#62-72) - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#74-79) But does not have a function to withdraw the ether"
+                },
+                {
+                    "check": "events-maths",
+                    "impact": "low",
+                    "confidence": "Medium",
+                    "description": "GrandGooseMansion.setCost(uint256) (src/Generated.sol#54-56) should emit an event for: - cost = newCost (src/Generated.sol#55)"
+                }
+            ],
+            "command_success": true
+        },
+        "gas_used": 851963,
+        "gas_command_success": true
+    },
+    "mid_action_execution_observation": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 1 finding(s) (low=1). Gas analysis: max observed value 972845.",
+    "mid_action_execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 0,
+            "stdout": "Compiling 25 files with Solc 0.8.20\nSolc 0.8.20 finished in 801.17ms\nCompiler run successful!\n",
+            "stderr": "note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:4:8\n  |\n4 | import \"forge-std/Test.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unwrapped-modifier-logic]: wrap modifier logic to reduce code size\n  --> src/Generated.sol:34:5\n   |\n34 | /     modifier onlyOwner() {\n35 | |         if (msg.sender != _owner) revert OnlyOwner();\n36 | |         _;\n37 | |     }\n   | |_____^\n   |\nhelp: wrap modifier logic to reduce code size\n   |\n34 ~     modifier onlyOwner() {\n35 +         _onlyOwner();\n36 +         _;\n37 +     }\n38 + \n39 +     function _onlyOwner() internal {\n40 +         if (msg.sender != _owner) revert OnlyOwner();\n41 +     }\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#unwrapped-modifier-logic\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:5:8\n  |\n5 | import \"../src/Generated.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\n",
+            "success": true
+        },
+        "abi": {
+            "checked": true,
+            "success": true,
+            "required": [
+                "supply()",
+                "cost()",
+                "maxSupply()",
+                "preSaleWalletLimit()",
+                "currentSaleStatus()",
+                "whitelistUser(address,bool)",
+                "startPresale()",
+                "startPublicSale()",
+                "setCost(uint256)",
+                "isWhitelisted(address)",
+                "mintTokenWhitelisted(uint256)",
+                "mintTokenPublic(uint256)",
+                "preSaleWalletMinted(address)"
+            ],
+            "forbidden": [],
+            "available": [
+                "constructor()",
+                "cost()",
+                "currentSaleStatus()",
+                "isWhitelisted(address)",
+                "maxSupply()",
+                "mintTokenPublic(uint256)",
+                "mintTokenWhitelisted(uint256)",
+                "preSaleWalletLimit()",
+                "preSaleWalletMinted(address)",
+                "setCost(uint256)",
+                "startPresale()",
+                "startPublicSale()",
+                "supply()",
+                "whitelistUser(address,bool)",
+                "withdraw()"
+            ],
+            "missing": [],
+            "forbidden_present": [],
+            "artifact": "/tmp/indict_solidity_8knc0inw/out/Generated.sol/GrandGooseMansion.json"
+        },
+        "tests": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" -vv",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testNonWhitelistedPresaleMintReverts() (gas: 45630)\n[PASS] testPublicMint() (gas: 71347)\n[PASS] testWhitelistedPresaleMint() (gas: 122749)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.28ms (883.72\u00b5s CPU time)\n\nRan 1 test suite in 23.94ms (1.28ms CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "slither": {
+            "command": "slither \"src/Generated.sol\" --exclude-dependencies --exclude-informational --exclude-optimization --fail-none --json \"/tmp/indict_solidity_8knc0inw/slither-result.json\"",
+            "returncode": 0,
+            "stdout": "",
+            "stderr": "'forge clean' running (wd: /tmp/indict_solidity_8knc0inw)\n'forge config --json' running\n'forge build --build-info src/Generated.sol' running (wd: /tmp/indict_solidity_8knc0inw)\n\nDetector: events-maths\nGrandGooseMansion.setCost(uint256) (src/Generated.sol#52-54) should emit an event for: \n\t- cost = newCost (src/Generated.sol#53) \nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#missing-events-arithmetic\nsrc/Generated.sol analyzed (1 contracts with 75 detectors), 1 result(s) found\n",
+            "success": true
+        },
+        "gas": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" --gas-report",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testNonWhitelistedPresaleMintReverts() (gas: 89898)\n[PASS] testPublicMint() (gas: 117615)\n[PASS] testWhitelistedPresaleMint() (gas: 204873)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.32ms (1.16ms CPU time)\n\n\u256d----------------------------------------------+-----------------+-------+--------+-------+---------\u256e\n| src/Generated.sol:GrandGooseMansion Contract |                 |       |        |       |         |\n+===================================================================================================+\n| Deployment Cost                              | Deployment Size |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| 972845                                       | 4062            |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n|                                              |                 |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| Function Name                                | Min             | Avg   | Median | Max   | # Calls |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| mintTokenPublic                              | 50956           | 50956 | 50956  | 50956 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| mintTokenWhitelisted                         | 26108           | 52061 | 52061  | 78014 | 2       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| preSaleWalletMinted                          | 2890            | 2890  | 2890   | 2890  | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| setCost                                      | 26068           | 26068 | 26068  | 26068 | 3       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| startPresale                                 | 45605           | 45605 | 45605  | 45605 | 2       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| startPublicSale                              | 45627           | 45627 | 45627  | 45627 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| supply                                       | 2449            | 2449  | 2449   | 2449  | 2       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| whitelistUser                                | 48747           | 48747 | 48747  | 48747 | 1       |\n\u2570----------------------------------------------+-----------------+-------+--------+-------+---------\u256f\n\n\nRan 1 test suite in 6.48ms (1.32ms CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "vulnerability_count": 1,
+        "vulnerability_severity_counts": {
+            "low": 1
+        },
+        "slither_findings": [
+            {
+                "check": "events-maths",
+                "impact": "low",
+                "confidence": "Medium",
+                "description": "GrandGooseMansion.setCost(uint256) (src/Generated.sol#52-54) should emit an event for: - cost = newCost (src/Generated.sol#53)"
+            }
+        ],
+        "max_gas_value": 972845,
+        "summary": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 1 finding(s) (low=1). Gas analysis: max observed value 972845."
+    },
+    "mid_structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "supply()",
+            "cost()",
+            "maxSupply()",
+            "preSaleWalletLimit()",
+            "currentSaleStatus()",
+            "whitelistUser(address,bool)",
+            "startPresale()",
+            "startPublicSale()",
+            "setCost(uint256)",
+            "isWhitelisted(address)",
+            "mintTokenWhitelisted(uint256)",
+            "mintTokenPublic(uint256)",
+            "preSaleWalletMinted(address)"
+        ],
+        "abi_missing": [],
+        "abi_extra": [
+            "withdraw()"
+        ],
+        "abi_forbidden_present": [],
+        "test_success": true,
+        "test_failure": null,
+        "slither_findings": {
+            "count": 1,
+            "severity_counts": {
+                "low": 1
+            },
+            "items": [
+                {
+                    "check": "events-maths",
+                    "impact": "low",
+                    "confidence": "Medium",
+                    "description": "GrandGooseMansion.setCost(uint256) (src/Generated.sol#52-54) should emit an event for: - cost = newCost (src/Generated.sol#53)"
+                }
+            ],
+            "command_success": true
+        },
+        "gas_used": 972845,
+        "gas_command_success": true
+    },
+    "final_action_execution_observation": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 2 finding(s) (low=1, medium=1). Gas analysis: max observed value 851963.",
+    "final_action_execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 0,
+            "stdout": "Compiling 25 files with Solc 0.8.20\nSolc 0.8.20 finished in 810.17ms\nCompiler run successful!\n",
+            "stderr": "note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:4:8\n  |\n4 | import \"forge-std/Test.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unwrapped-modifier-logic]: wrap modifier logic to reduce code size\n  --> src/Generated.sol:34:5\n   |\n34 | /     modifier onlyOwner() {\n35 | |         if (msg.sender != _owner) revert OnlyOwner();\n36 | |         _;\n37 | |     }\n   | |_____^\n   |\nhelp: wrap modifier logic to reduce code size\n   |\n34 ~     modifier onlyOwner() {\n35 +         _onlyOwner();\n36 +         _;\n37 +     }\n38 + \n39 +     function _onlyOwner() internal {\n40 +         if (msg.sender != _owner) revert OnlyOwner();\n41 +     }\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#unwrapped-modifier-logic\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:5:8\n  |\n5 | import \"../src/Generated.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\n",
+            "success": true
+        },
+        "abi": {
+            "checked": true,
+            "success": true,
+            "required": [
+                "supply()",
+                "cost()",
+                "maxSupply()",
+                "preSaleWalletLimit()",
+                "currentSaleStatus()",
+                "whitelistUser(address,bool)",
+                "startPresale()",
+                "startPublicSale()",
+                "setCost(uint256)",
+                "isWhitelisted(address)",
+                "mintTokenWhitelisted(uint256)",
+                "mintTokenPublic(uint256)",
+                "preSaleWalletMinted(address)"
+            ],
+            "forbidden": [],
+            "available": [
+                "constructor()",
+                "cost()",
+                "currentSaleStatus()",
+                "isWhitelisted(address)",
+                "maxSupply()",
+                "mintTokenPublic(uint256)",
+                "mintTokenWhitelisted(uint256)",
+                "preSaleWalletLimit()",
+                "preSaleWalletMinted(address)",
+                "setCost(uint256)",
+                "startPresale()",
+                "startPublicSale()",
+                "supply()",
+                "whitelistUser(address,bool)"
+            ],
+            "missing": [],
+            "forbidden_present": [],
+            "artifact": "/tmp/indict_solidity__q7zp2w3/out/Generated.sol/GrandGooseMansion.json"
+        },
+        "tests": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" -vv",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testNonWhitelistedPresaleMintReverts() (gas: 45651)\n[PASS] testPublicMint() (gas: 71301)\n[PASS] testWhitelistedPresaleMint() (gas: 122463)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 991.57\u00b5s (706.24\u00b5s CPU time)\n\nRan 1 test suite in 11.13ms (991.57\u00b5s CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "slither": {
+            "command": "slither \"src/Generated.sol\" --exclude-dependencies --exclude-informational --exclude-optimization --fail-none --json \"/tmp/indict_solidity__q7zp2w3/slither-result.json\"",
+            "returncode": 0,
+            "stdout": "",
+            "stderr": "'forge clean' running (wd: /tmp/indict_solidity__q7zp2w3)\n'forge config --json' running\n'forge build --build-info src/Generated.sol' running (wd: /tmp/indict_solidity__q7zp2w3)\n\nDetector: locked-ether\nContract locking ether found:\n\tContract GrandGooseMansion (src/Generated.sol#4-88) has payable functions:\n\t - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#62-72)\n\t - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#74-79)\n\tBut does not have a function to withdraw the ether\nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#contracts-that-lock-ether\n\nDetector: events-maths\nGrandGooseMansion.setCost(uint256) (src/Generated.sol#54-56) should emit an event for: \n\t- cost = newCost (src/Generated.sol#55) \nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#missing-events-arithmetic\nsrc/Generated.sol analyzed (1 contracts with 75 detectors), 2 result(s) found\n",
+            "success": true
+        },
+        "gas": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" --gas-report",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testNonWhitelistedPresaleMintReverts() (gas: 89919)\n[PASS] testPublicMint() (gas: 117569)\n[PASS] testWhitelistedPresaleMint() (gas: 202587)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.16ms (986.32\u00b5s CPU time)\n\n\u256d----------------------------------------------+-----------------+-------+--------+-------+---------\u256e\n| src/Generated.sol:GrandGooseMansion Contract |                 |       |        |       |         |\n+===================================================================================================+\n| Deployment Cost                              | Deployment Size |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| 851963                                       | 3499            |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n|                                              |                 |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| Function Name                                | Min             | Avg   | Median | Max   | # Calls |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| mintTokenPublic                              | 50956           | 50956 | 50956  | 50956 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| mintTokenWhitelisted                         | 26152           | 52105 | 52105  | 78058 | 2       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| preSaleWalletMinted                          | 2890            | 2890  | 2890   | 2890  | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| setCost                                      | 26068           | 26068 | 26068  | 26068 | 3       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| startPresale                                 | 45582           | 45582 | 45582  | 45582 | 2       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| startPublicSale                              | 45604           | 45604 | 45604  | 45604 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| supply                                       | 2426            | 2426  | 2426   | 2426  | 2       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| whitelistUser                                | 46463           | 46463 | 46463  | 46463 | 1       |\n\u2570----------------------------------------------+-----------------+-------+--------+-------+---------\u256f\n\n\nRan 1 test suite in 6.69ms (1.16ms CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "vulnerability_count": 2,
+        "vulnerability_severity_counts": {
+            "medium": 1,
+            "low": 1
+        },
+        "slither_findings": [
+            {
+                "check": "locked-ether",
+                "impact": "medium",
+                "confidence": "High",
+                "description": "Contract locking ether found: Contract GrandGooseMansion (src/Generated.sol#4-88) has payable functions: - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#62-72) - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#74-79) But does not have a function to withdraw the ether"
+            },
+            {
+                "check": "events-maths",
+                "impact": "low",
+                "confidence": "Medium",
+                "description": "GrandGooseMansion.setCost(uint256) (src/Generated.sol#54-56) should emit an event for: - cost = newCost (src/Generated.sol#55)"
+            }
+        ],
+        "max_gas_value": 851963,
+        "summary": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 2 finding(s) (low=1, medium=1). Gas analysis: max observed value 851963."
+    },
+    "final_structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "supply()",
+            "cost()",
+            "maxSupply()",
+            "preSaleWalletLimit()",
+            "currentSaleStatus()",
+            "whitelistUser(address,bool)",
+            "startPresale()",
+            "startPublicSale()",
+            "setCost(uint256)",
+            "isWhitelisted(address)",
+            "mintTokenWhitelisted(uint256)",
+            "mintTokenPublic(uint256)",
+            "preSaleWalletMinted(address)"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": true,
+        "test_failure": null,
+        "slither_findings": {
+            "count": 2,
+            "severity_counts": {
+                "medium": 1,
+                "low": 1
+            },
+            "items": [
+                {
+                    "check": "locked-ether",
+                    "impact": "medium",
+                    "confidence": "High",
+                    "description": "Contract locking ether found: Contract GrandGooseMansion (src/Generated.sol#4-88) has payable functions: - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#62-72) - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#74-79) But does not have a function to withdraw the ether"
+                },
+                {
+                    "check": "events-maths",
+                    "impact": "low",
+                    "confidence": "Medium",
+                    "description": "GrandGooseMansion.setCost(uint256) (src/Generated.sol#54-56) should emit an event for: - cost = newCost (src/Generated.sol#55)"
+                }
+            ],
+            "command_success": true
+        },
+        "gas_used": 851963,
+        "gas_command_success": true
+    },
+    "critic_posthoc": [
+        "Based on the compilation error and the structured execution feedback, here is the ordered repair list:\n\n## Ordered Repair List\n\n1. **Compilation Error**: The constructor requires 3 arguments (`_maxSupply`, `_cost`, `_preSaleWalletLimit`) but is being called with 0 arguments. The contract must be deployable without arguments.\n\n2. **ABI Extra**: The `owner` state variable is public, creating an unwanted `owner()` getter function. This must be removed.\n\n3. **Test Failure / Behavioral Flaw**: The `whitelistUser` function should reset `preSaleWalletMinted[user]` to 0 when removing a user from the whitelist to maintain proper per-wallet limit enforcement.\n\n4. **Gas Optimization**: Cache `preSaleWalletMinted[msg.sender]` in `mintTokenWhitelisted` to avoid duplicate storage reads.\n\n## Required Changes\n\n### 1. Fix Compilation Error - Remove Constructor Parameters\nThe contract must have a parameterless constructor that initializes values to reasonable defaults:\n```solidity\nconstructor() {\n    _owner = msg.sender;\n    maxSupply = 10000;          // Default value\n    cost = 0.1 ether;           // Default value  \n    preSaleWalletLimit = 5;     // Default value\n    currentSaleStatus = SaleStatus.Paused;\n}\n```\n\n### 2. Fix ABI Extra - Make `owner` Private\n```solidity\naddress private _owner;\n```\n\n### 3. Fix Whitelist Logic - Reset Counter on Removal\n```solidity\nfunction whitelistUser(address user, bool status) external onlyOwner {\n    if (_whitelisted[user] != status) {\n        _whitelisted[user] = status;\n        if (!status) {\n            preSaleWalletMinted[user] = 0;\n        }\n    }\n}\n```\n\n### 4. Gas Optimization - Cache Storage Value\n```solidity\nfunction mintTokenWhitelisted(uint256 amount) external payable {\n    if (currentSaleStatus != SaleStatus.Presale) revert NotPreSale();\n    if (!_whitelisted[msg.sender]) revert NotWhitelisted();\n    \n    uint256 walletMinted = preSaleWalletMinted[msg.sender];\n    if (walletMinted + amount > preSaleWalletLimit) revert ExceedsWalletLimit();\n    \n    _mint(amount);\n    preSaleWalletMinted[msg.sender] = walletMinted + amount;\n}\n```\n\n## Minimal Implementation Changes\n\nThe generator should:\n1. Replace the parameterized constructor with a parameterless one that sets default values\n2. Change `owner` to `private _owner` \n3. Update `whitelistUser` to reset the mint counter on removal (with status change check)\n4. Cache `preSaleWalletMinted[msg.sender]` in `mintTokenWhitelisted`\n\nThese changes address the compilation error, ABI compliance, logical flaw, and gas inefficiency while maintaining spec compliance.",
+        "**Summary of Critical Findings**\n\nThe current solution has one **critical spec compliance issue** and one **functional vulnerability**:\n\n1. **ABI Violation (Critical)**: The contract exposes an extra public function `withdraw()` that was not requested in the specification. This must be removed to achieve spec compliance.\n\n2. **Whitelist Counter Logic Flaw**: The `whitelistUser` function resets `preSaleWalletMinted[user] = 0` on **every** status change. This allows users who have reached their per-wallet limit to be re-whitelisted and mint again, bypassing the intended lifetime limit. The counter should only reset when removing a user (`status: false`).\n\n3. **Gas Inefficiency**: The current implementation performs unnecessary storage writes in `whitelistUser()` and misses optimization opportunities.\n\n**Ordered Repair List**\n\n1. **ABI Extra (`withdraw()` function)**: Remove the `withdraw()` function entirely. The contract should not expose any public/external APIs beyond those explicitly listed in the specification.\n\n2. **Test Failure / Behavioral Flaw (Whitelist Counter Reset)**: Modify `whitelistUser` to reset `preSaleWalletMinted[user] = 0` only when removing a user from the whitelist (`status: false`), not when adding or re-adding.\n\n3. **Gas Optimization**: \n   - Only reset the counter when necessary (as above)\n   - Consider caching `supply` in `mintTokenPublic()` to avoid duplicate storage reads\n\n**Implementation-Level Changes**\n\n```solidity\n// 1. Remove the entire withdraw() function\n\n// 2. Fix whitelistUser function\nfunction whitelistUser(address user, bool status) external onlyOwner {\n    whitelisted[user] = status;\n    if (!status) {\n        preSaleWalletMinted[user] = 0; // Reset only on removal\n    }\n}\n\n// 3. Optional gas optimization in mintTokenPublic\nfunction mintTokenPublic(uint256 amount) external payable {\n    if (currentSaleStatus != SaleStatus.PUBLIC_SALE) revert NotPublicSale();\n    \n    // Cache supply to avoid duplicate read in _mint\n    uint256 currentSupply = supply;\n    if (currentSupply + amount > maxSupply) revert ExceedsMaxSupply();\n    \n    if (msg.value != cost * amount) revert IncorrectPayment();\n    \n    supply = currentSupply + amount;\n}\n```\n\n**Note on Locked Ether**: While removing `withdraw()` leaves ETH permanently locked in the contract, this is spec-compliant as the specification does not require a withdrawal mechanism. The `locked-ether` finding from static analysis is acceptable given the spec constraints.\n\n**Note on Events**: The `events-maths` finding about `setCost()` not emitting an event is a low-impact recommendation that should not be implemented unless explicitly required by the specification."
+    ],
+    "mid_action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract GrandGooseMansion {\n    address private _owner;\n    \n    uint256 public supply;\n    uint256 public cost;\n    uint256 public maxSupply;\n    uint256 public preSaleWalletLimit;\n    \n    enum SaleStatus { Paused, Presale, PublicSale }\n    SaleStatus public currentSaleStatus;\n    \n    mapping(address => bool) private _whitelisted;\n    mapping(address => uint256) public preSaleWalletMinted;\n    \n    error InvalidAmount();\n    error ExceedsMaxSupply();\n    error WrongEtherAmount();\n    error SaleNotActive();\n    error NotWhitelisted();\n    error ExceedsWalletLimit();\n    error OnlyOwner();\n    \n    constructor() {\n        _owner = msg.sender;\n        maxSupply = 10000;\n        cost = 0.1 ether;\n        preSaleWalletLimit = 5;\n        currentSaleStatus = SaleStatus.Paused;\n    }\n    \n    modifier onlyOwner() {\n        if (msg.sender != _owner) revert OnlyOwner();\n        _;\n    }\n    \n    function whitelistUser(address user, bool status) external onlyOwner {\n        _whitelisted[user] = status;\n        preSaleWalletMinted[user] = 0;\n    }\n    \n    function startPresale() external onlyOwner {\n        currentSaleStatus = SaleStatus.Presale;\n    }\n    \n    function startPublicSale() external onlyOwner {\n        currentSaleStatus = SaleStatus.PublicSale;\n    }\n    \n    function setCost(uint256 newCost) external onlyOwner {\n        cost = newCost;\n    }\n    \n    function isWhitelisted(address user) external view returns (bool) {\n        return _whitelisted[user];\n    }\n    \n    function mintTokenWhitelisted(uint256 amount) external payable {\n        if (currentSaleStatus != SaleStatus.Presale) revert SaleNotActive();\n        if (!_whitelisted[msg.sender]) revert NotWhitelisted();\n        if (amount == 0) revert InvalidAmount();\n        \n        uint256 walletMinted = preSaleWalletMinted[msg.sender];\n        if (walletMinted + amount > preSaleWalletLimit) revert ExceedsWalletLimit();\n        \n        _mint(amount);\n        preSaleWalletMinted[msg.sender] = walletMinted + amount;\n    }\n    \n    function mintTokenPublic(uint256 amount) external payable {\n        if (currentSaleStatus != SaleStatus.PublicSale) revert SaleNotActive();\n        if (amount == 0) revert InvalidAmount();\n        \n        _mint(amount);\n    }\n    \n    function withdraw() external onlyOwner {\n        (bool success, ) = _owner.call{value: address(this).balance}(\"\");\n        require(success, \"Withdrawal failed\");\n    }\n    \n    function _mint(uint256 amount) private {\n        if (supply + amount > maxSupply) revert ExceedsMaxSupply();\n        if (msg.value != cost * amount) revert WrongEtherAmount();\n        \n        supply += amount;\n    }\n}\n```",
+    "critic_scratchpad_posthoc": "\nThe following critic(s) provide some analysis of previous solution(s). Use them as reference only to improve and update your critic based on the latest solution.\nPrevious Round Structured Execution Feedback:\n```json\n{\n  \"compile_success\": true,\n  \"compile_error\": null,\n  \"abi_checked\": true,\n  \"abi_success\": true,\n  \"abi_required\": [\n    \"supply()\",\n    \"cost()\",\n    \"maxSupply()\",\n    \"preSaleWalletLimit()\",\n    \"currentSaleStatus()\",\n    \"whitelistUser(address,bool)\",\n    \"startPresale()\",\n    \"startPublicSale()\",\n    \"setCost(uint256)\",\n    \"isWhitelisted(address)\",\n    \"mintTokenWhitelisted(uint256)\",\n    \"mintTokenPublic(uint256)\",\n    \"preSaleWalletMinted(address)\"\n  ],\n  \"abi_missing\": [],\n  \"abi_extra\": [],\n  \"abi_forbidden_present\": [],\n  \"test_success\": true,\n  \"test_failure\": null,\n  \"slither_findings\": {\n    \"count\": 2,\n    \"severity_counts\": {\n      \"medium\": 1,\n      \"low\": 1\n    },\n    \"items\": [\n      {\n        \"check\": \"locked-ether\",\n        \"impact\": \"medium\",\n        \"confidence\": \"High\",\n        \"description\": \"Contract locking ether found: Contract GrandGooseMansion (src/Generated.sol#4-90) has payable functions: - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#64-74) - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#76-81) But does not have a function to withdraw the ether\"\n      },\n      {\n        \"check\": \"events-maths\",\n        \"impact\": \"low\",\n        \"confidence\": \"Medium\",\n        \"description\": \"GrandGooseMansion.setCost(uint256) (src/Generated.sol#56-58) should emit an event for: - cost = newCost (src/Generated.sol#57)\"\n      }\n    ],\n    \"command_success\": true\n  },\n  \"gas_used\": 870298,\n  \"gas_command_success\": true\n}\n```\nPast Critic: **Summary of strongest points from the debate**\n\n1.  **ABI Non-Compliance (Extra):** The contract exposes a public `owner` state variable, creating an `owner()` getter function that was not requested in the specification. This must be removed.\n2.  **Logical Security Flaw:** The `preSaleWalletMinted` counter for a user is never reset when they are removed from the whitelist (`whitelistUser(user, false)`). If a user is removed and later re-added, they can mint again, potentially exceeding the intended lifetime per-wallet limit. This violates the intended functionality of the whitelist limit.\n3.  **Gas Inefficiency:** In `mintTokenWhitelisted`, the `preSaleWalletMinted[msg.sender]` storage value is read twice. This can be optimized by caching it in a local variable.\n\n**Ordered Repair List**\n\n1.  **ABI Extra (`owner` getter):** Make the `owner` variable `private` or `internal` to remove the public getter function from the ABI. The `onlyOwner` modifier can still access it.\n2.  **Test Failure / Behavioral Flaw (Whitelist Counter Reset):** When a user is removed from the whitelist via `whitelistUser(user, false)`, their `preSaleWalletMinted` count must be reset to 0. This ensures the per-wallet limit is enforced correctly across changes to whitelist status.\n3.  **Gas Optimization:** In `mintTokenWhitelisted`, cache `preSaleWalletMinted[msg.sender]` in a local `uint256` variable (e.g., `walletMinted`) to avoid a second storage read.\n\n**Implementation-Level Changes**\n\nApply the following minimal changes to the contract:\n\n1.  Change the declaration of `owner` to `private` or `internal`:\n    ```solidity\n    address private owner;\n    ```\n2.  Modify the `whitelistUser` function to reset the mint counter when `status` is `false`:\n    ```solidity\n    function whitelistUser(address user, bool status) external onlyOwner {\n        whitelisted[user] = status;\n        if (!status) {\n            preSaleWalletMinted[user] = 0; // Reset counter on removal\n        }\n    }\n    ```\n3.  Optimize `mintTokenWhitelisted`:\n    ```solidity\n    function mintTokenWhitelisted(uint256 amount) external payable {\n        if (currentSaleStatus != SaleStatus.PRE_SALE) revert NotPreSale();\n        if (!whitelisted[msg.sender]) revert NotWhitelisted();\n\n        uint256 walletMinted = preSaleWalletMinted[msg.sender]; // Cache\n        if (walletMinted + amount > preSaleWalletLimit) revert ExceedsWalletLimit();\n\n        _mint(amount);\n        preSaleWalletMinted[msg.sender] = walletMinted + amount; // Use cached value\n    }\n    ```\n\nThese changes ensure ABI compliance, fix the critical logical flaw in whitelist management, and improve gas efficiency with no impact on the required specification.\nThe following critic(s) provide some analysis of the current solution. Use them as reference only to improve and update your critic based on the latest observation.\nPast Critic: **Summary of Strongest Points from the Debate**\n\n1. **Critical Security/Functionality Flaw (Locked Ether)**: The contract accepts ETH payments but has no withdrawal mechanism, permanently trapping funds. This violates the fundamental requirement that contracts receiving ETH must allow the owner to withdraw it.\n2. **Critical Behavioral Flaw (Whitelist Counter Management)**: The `whitelistUser` function only resets `preSaleWalletMinted` when removing a user (`status: true \u2192 false`), but not when adding/re-adding a user (`status: false \u2192 true`). This allows a previously removed user who reached their limit to be re-whitelisted and mint again, bypassing the intended per-wallet lifetime limit.\n3. **Minor Gas Optimization Already Applied**: The caching of `preSaleWalletMinted[msg.sender]` in `mintTokenWhitelisted` is correctly implemented in the current solution.\n4. **ABI Compliance**: The contract correctly exposes all required functions with no extra public APIs (the `owner` getter issue from previous rounds has been resolved).\n\n**Ordered Repair List**\n\n1. **Test Failure / Critical Functionality (Locked Ether)**: Add an `onlyOwner` withdrawal function to transfer the contract's entire ETH balance to the owner. This is required for the contract to be usable.\n2. **Test Failure / Behavioral Flaw (Whitelist Counter Reset)**: Modify `whitelistUser` to reset `preSaleWalletMinted[user] = 0` whenever the whitelist status changes in **either direction** (both `false \u2192 true` and `true \u2192 false`). This ensures proper enforcement of per-wallet limits regardless of whitelist status changes.\n\n**Implementation-Level Changes**\n\nApply these minimal changes to fix the critical issues:\n\n1. **Add Withdrawal Function**:\n```solidity\nfunction withdraw() external onlyOwner {\n    (bool success, ) = owner.call{value: address(this).balance}(\"\");\n    require(success, \"Withdrawal failed\");\n}\n```\n\n2. **Fix Whitelist Counter Reset Logic**:\n```solidity\nfunction whitelistUser(address user, bool status) external onlyOwner {\n    whitelisted[user] = status;\n    // Reset counter whenever whitelist status changes\n    preSaleWalletMinted[user] = 0;\n}\n```\n\n**Note on Slither Findings**: \n- The `locked-ether` finding will be resolved by adding the withdrawal function.\n- The `events-maths` finding about `setCost` not emitting an event is a **low-impact** recommendation that **should not be implemented** unless explicitly required by the specification, as per the instruction to avoid adding unrequested features.\n\nThese changes ensure the contract is secure, functionally correct, and maintains reasonable gas efficiency while strictly adhering to the specification.\nThe following provides some observation(s) when executing the current solution. If these observations are relevant, use them to improve and update your critic:\nCurrent Solution Observation: Compilation: success. ABI: passed. Tests: passed. Static analysis: 1 finding(s) (low=1). Gas analysis: max observed value 972845.\nCurrent Structured Execution Feedback:\n```json\n{\n  \"compile_success\": true,\n  \"compile_error\": null,\n  \"abi_checked\": true,\n  \"abi_success\": true,\n  \"abi_required\": [\n    \"supply()\",\n    \"cost()\",\n    \"maxSupply()\",\n    \"preSaleWalletLimit()\",\n    \"currentSaleStatus()\",\n    \"whitelistUser(address,bool)\",\n    \"startPresale()\",\n    \"startPublicSale()\",\n    \"setCost(uint256)\",\n    \"isWhitelisted(address)\",\n    \"mintTokenWhitelisted(uint256)\",\n    \"mintTokenPublic(uint256)\",\n    \"preSaleWalletMinted(address)\"\n  ],\n  \"abi_missing\": [],\n  \"abi_extra\": [\n    \"withdraw()\"\n  ],\n  \"abi_forbidden_present\": [],\n  \"test_success\": true,\n  \"test_failure\": null,\n  \"slither_findings\": {\n    \"count\": 1,\n    \"severity_counts\": {\n      \"low\": 1\n    },\n    \"items\": [\n      {\n        \"check\": \"events-maths\",\n        \"impact\": \"low\",\n        \"confidence\": \"Medium\",\n        \"description\": \"GrandGooseMansion.setCost(uint256) (src/Generated.sol#52-54) should emit an event for: - cost = newCost (src/Generated.sol#53)\"\n      }\n    ],\n    \"command_success\": true\n  },\n  \"gas_used\": 972845,\n  \"gas_command_success\": true\n}\n```\nSecurity Critic: based on the above discussion, here is my updated analysis of solution security: **Security Analysis of Current Solution:**\n\nThe contract has one **critical security flaw** and one **functional vulnerability** that must be fixed:\n\n1. **Reentrancy Risk (Critical)**: The `withdraw()` function performs an external call to the owner before updating state. While the contract doesn't have state changes before the call in this function, this pattern is dangerous if future modifications add state changes. Use the Checks-Effects-Interactions pattern: ensure all state changes happen before external calls.\n\n2. **Whitelist Counter Reset Logic (Functional Vulnerability)**: The current implementation resets `preSaleWalletMinted[user] = 0` on **every** whitelist status change. This allows:\n   - A user who has minted their limit (e.g., 5 tokens) to be removed and re-added, resetting their counter to 0, allowing them to mint another 5 tokens\n   - This bypasses the intended **lifetime** per-wallet limit and should only reset when removing (`status: false`), not when adding\n\n**Minimal Fixes Required:**\n\n```solidity\nfunction withdraw() external onlyOwner {\n    uint256 balance = address(this).balance;\n    // State change (if any)\nFunctionality Critic: \nFunctionality Critic: based on the above discussion, here is my updated analysis of solution functionality and correctness: **Critique of Current Solution:**\n\nThe contract **fails spec compliance** due to an **extra ABI entry**: `withdraw()` is present but not required by the task. According to the strict scope rule, any non-empty `abi_extra` list is a functionality defect. The contract must not expose any public/external functions beyond those explicitly listed.\n\n**Behavioral Issues:**\n1. **ABI Violation**: The `withdraw()` function creates an unwanted public interface. While useful in practice, it's not part of the specification and must be removed.\n2. **Whitelist Counter Logic**: The current implementation resets `preSaleWalletMinted[user] = 0` on every whitelist status change. This allows users who reach their limit to be re-whitelisted and mint again, bypassing the intended lifetime per-wallet limit. The correct behavior is to reset only when removing from whitelist (`status: false`).\n\n**Recommended Minimal Fixes:**\n\n1. **Remove the `withdraw()` function entirely** to comply with ABI requirements.\n2. **Fix whitelist counter reset logic**:\n```solidity\nfunction whitelistUser(address user, bool status) external onlyOwner {\n    _whitelisted[user] = status;\n    if (!status) {\n        preSaleWalletMinted[user] = 0; // Reset only on removal\n    }\n}\n```\n\n**Note on Locked Ether**: While removing `withdraw()` leaves ether locked, this is spec-compliant per the task requirements. The specification doesn't require a withdrawal mechanism, so the contract shouldn't provide one.\n\n**Compilation & Tests**: The contract compiles successfully and passes tests, but the extra ABI entry makes it non-compliant with the exact interface specification.\nGas Critic: \nGas Critic: based on the above discussion, here is my updated analysis of solution gas usage and on-chain efficiency: **Gas Efficiency Analysis:**\n\nThe current solution has several gas inefficiencies that could be optimized:\n\n1. **Redundant Storage Writes in `whitelistUser()`**: The function always writes `preSaleWalletMinted[user] = 0` regardless of whether the user is being added or removed. This wastes gas when adding a new user (writing 0 to storage that's already 0). Only resetting on removal (`!status`) would save gas.\n\n2. **Inefficient `_mint()` Logic**: The function performs two separate storage reads (`supply` and `maxSupply`) and one storage write (`supply += amount`). While minimal, the multiplication `cost * amount` could overflow with large values (though 0.8.x reverts safely).\n\n3. **Missing Caching in `mintTokenPublic()`**: Unlike the whitelisted version, this function doesn't cache `supply` before checking limits, causing an extra storage read in `_mint()`.\n\n4. **Deployment Cost**: The contract uses 972,845 gas max. This could be reduced by:\n   - Using immutable for constants (`maxSupply`, `preSaleWalletLimit`, initial `cost`)\n   - Packing smaller state",
+    "safety_critics_posthoc": [
+        "**Security Analysis of Current Solution:**\n\nThe contract has one **critical security flaw** and one **functional vulnerability** that must be fixed:\n\n1. **Reentrancy Risk (Critical)**: The `withdraw()` function performs an external call to the owner before updating state. While the contract doesn't have state changes before the call in this function, this pattern is dangerous if future modifications add state changes. Use the Checks-Effects-Interactions pattern: ensure all state changes happen before external calls.\n\n2. **Whitelist Counter Reset Logic (Functional Vulnerability)**: The current implementation resets `preSaleWalletMinted[user] = 0` on **every** whitelist status change. This allows:\n   - A user who has minted their limit (e.g., 5 tokens) to be removed and re-added, resetting their counter to 0, allowing them to mint another 5 tokens\n   - This bypasses the intended **lifetime** per-wallet limit and should only reset when removing (`status: false`), not when adding\n\n**Minimal Fixes Required:**\n\n```solidity\nfunction withdraw() external onlyOwner {\n    uint256 balance = address(this).balance;\n    // State change (if any)"
+    ],
+    "safety_tool_output_posthoc": [
+        {
+            "tool": [
+                {
+                    "tool_name": "code_review",
+                    "parameters": {
+                        "query": "Solidity withdraw function reentrancy security best practices",
+                        "code": "function withdraw() external onlyOwner {\n    uint256 balance = address(this).balance;\n    // All state changes should happen here before external call\n    // For example: lastWithdrawal = block.timestamp;\n    \n    (bool success, ) = payable(msg.sender).call{value: balance}(\"\");\n    require(success, \"Withdrawal failed\");\n}"
+                    }
+                }
+            ],
+            "output": []
+        }
+    ],
+    "helpful_critics_posthoc": [
+        "**Critique of Current Solution:**\n\nThe contract **fails spec compliance** due to an **extra ABI entry**: `withdraw()` is present but not required by the task. According to the strict scope rule, any non-empty `abi_extra` list is a functionality defect. The contract must not expose any public/external functions beyond those explicitly listed.\n\n**Behavioral Issues:**\n1. **ABI Violation**: The `withdraw()` function creates an unwanted public interface. While useful in practice, it's not part of the specification and must be removed.\n2. **Whitelist Counter Logic**: The current implementation resets `preSaleWalletMinted[user] = 0` on every whitelist status change. This allows users who reach their limit to be re-whitelisted and mint again, bypassing the intended lifetime per-wallet limit. The correct behavior is to reset only when removing from whitelist (`status: false`).\n\n**Recommended Minimal Fixes:**\n\n1. **Remove the `withdraw()` function entirely** to comply with ABI requirements.\n2. **Fix whitelist counter reset logic**:\n```solidity\nfunction whitelistUser(address user, bool status) external onlyOwner {\n    _whitelisted[user] = status;\n    if (!status) {\n        preSaleWalletMinted[user] = 0; // Reset only on removal\n    }\n}\n```\n\n**Note on Locked Ether**: While removing `withdraw()` leaves ether locked, this is spec-compliant per the task requirements. The specification doesn't require a withdrawal mechanism, so the contract shouldn't provide one.\n\n**Compilation & Tests**: The contract compiles successfully and passes tests, but the extra ABI entry makes it non-compliant with the exact interface specification."
+    ],
+    "helpful_tool_output_posthoc": [
+        {
+            "tool": [
+                {
+                    "tool_name": "code_review",
+                    "parameters": {
+                        "query": "Solidity smart contract withdraw function ether locked security",
+                        "code": "// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract WithdrawExample {\n    address private owner;\n    \n    constructor() {\n        owner = msg.sender;\n    }\n    \n    modifier onlyOwner() {\n        require(msg.sender == owner, \"Not owner\");\n        _;\n    }\n    \n    // Secure withdrawal pattern - prevents reentrancy and ensures success\n    function withdraw() external onlyOwner {\n        uint256 balance = address(this).balance;\n        require(balance > 0, \"No funds\");\n        \n        (bool success, ) = payable"
+                    }
+                }
+            ],
+            "output": []
+        }
+    ],
+    "gas_critics_posthoc": [
+        "**Gas Efficiency Analysis:**\n\nThe current solution has several gas inefficiencies that could be optimized:\n\n1. **Redundant Storage Writes in `whitelistUser()`**: The function always writes `preSaleWalletMinted[user] = 0` regardless of whether the user is being added or removed. This wastes gas when adding a new user (writing 0 to storage that's already 0). Only resetting on removal (`!status`) would save gas.\n\n2. **Inefficient `_mint()` Logic**: The function performs two separate storage reads (`supply` and `maxSupply`) and one storage write (`supply += amount`). While minimal, the multiplication `cost * amount` could overflow with large values (though 0.8.x reverts safely).\n\n3. **Missing Caching in `mintTokenPublic()`**: Unlike the whitelisted version, this function doesn't cache `supply` before checking limits, causing an extra storage read in `_mint()`.\n\n4. **Deployment Cost**: The contract uses 972,845 gas max. This could be reduced by:\n   - Using immutable for constants (`maxSupply`, `preSaleWalletLimit`, initial `cost`)\n   - Packing smaller state"
+    ],
+    "gas_tool_output_posthoc": [
+        {
+            "tool": [
+                {
+                    "tool_name": "code_review",
+                    "parameters": {
+                        "query": "solidity gas optimization storage writes best practices",
+                        "code": "// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract GasOptimizedMinting {\n    // Use immutable for deployment constants\n    uint256 public immutable MAX_SUPPLY;\n    uint256 public immutable WALLET_LIMIT;\n    \n    // Pack related state variables\n    struct MintState {\n        uint128 supply;\n        uint128 cost;\n    }\n    MintState public mintState;\n    \n    // Use uint8 for small enums to save storage\n    enum SaleStatus { Paused, Presale, PublicSale }\n    SaleStatus public current"
+                    }
+                }
+            ],
+            "output": []
+        }
+    ]
+}

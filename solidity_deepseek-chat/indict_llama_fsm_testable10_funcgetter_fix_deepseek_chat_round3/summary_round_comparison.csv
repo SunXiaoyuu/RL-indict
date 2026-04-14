@@ -1,0 +1,11 @@
+﻿sample_idx,dataset_id,contract_name,partition,compile_transition,abi_transition,test_transition,slither_transition,gas_transition,status_transition,final_status,final_failure
+0,0,MembershipAirdrop,main,T -> T -> T,T -> T -> T,T -> T -> T,0 -> 0 -> 0,645869 -> 645869 -> 645869,passed_clean -> passed_clean -> passed_clean,passed_clean,
+1,1,SimpleCrowdsale,diagnostic,T -> T -> T,T -> T -> T,T -> T -> T,0 -> 0 -> 0,459126 -> 459114 -> 459114,passed_clean -> passed_clean -> passed_clean,passed_clean,
+2,2,TeamVestingVault,main,T -> T -> T,T -> T -> T,T -> T -> T,2 -> 1 -> 1,411809 -> 399843 -> 399843,passed_with_slither_findings -> passed_with_slither_findings -> passed_with_slither_findings,passed_with_slither_findings,
+3,3,TokenVoting,diagnostic,T -> T -> T,T -> T -> T,F -> T -> T,0 -> 0 -> 0,- -> 1059427 -> 1059427,test_failed -> passed_clean -> passed_clean,passed_clean,
+4,4,PostingBoard,diagnostic,T -> T -> T,T -> T -> T,T -> T -> T,0 -> 0 -> 0,951536 -> 951536 -> 951536,passed_clean -> passed_clean -> passed_clean,passed_clean,
+5,5,CollectibleSale,main,T -> T -> T,T -> T -> T,T -> T -> T,1 -> 1 -> 1,771771 -> 771771 -> 737905,passed_with_slither_findings -> passed_with_slither_findings -> passed_with_slither_findings,passed_with_slither_findings,
+6,6,FundPoolManager,diagnostic,T -> T -> T,T -> T -> T,T -> T -> T,2 -> 1 -> 1,583850 -> 605367 -> 605367,passed_with_slither_findings -> passed_with_slither_findings -> passed_with_slither_findings,passed_with_slither_findings,
+7,7,PresaleMint,diagnostic,T -> T -> T,T -> T -> T,T -> T -> T,0 -> 0 -> 0,596405 -> 596405 -> 596405,passed_clean -> passed_clean -> passed_clean,passed_clean,
+8,8,GrandGooseMansion,main,T -> T -> T,T -> T -> T,T -> T -> T,2 -> 2 -> 2,870298 -> 851963 -> 851963,passed_with_slither_findings -> passed_with_slither_findings -> passed_with_slither_findings,passed_with_slither_findings,
+9,9,ClosedPresaleMint,main,T -> T -> T,T -> T -> T,T -> T -> T,1 -> 1 -> 1,810508 -> 796931 -> 796931,passed_with_slither_findings -> passed_with_slither_findings -> passed_with_slither_findings,passed_with_slither_findings,

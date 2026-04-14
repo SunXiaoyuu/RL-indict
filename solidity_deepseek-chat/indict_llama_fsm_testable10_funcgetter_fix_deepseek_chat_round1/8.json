@@ -1,0 +1,499 @@
+{
+    "sample_idx": 8,
+    "action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract GrandGooseMansion {\n    address private _owner;\n    \n    uint256 public supply;\n    uint256 public cost;\n    uint256 public maxSupply;\n    uint256 public preSaleWalletLimit;\n    \n    enum SaleStatus { Paused, Presale, PublicSale }\n    SaleStatus public currentSaleStatus;\n    \n    mapping(address => bool) private _whitelisted;\n    mapping(address => uint256) public preSaleWalletMinted;\n    \n    error InvalidAmount();\n    error ExceedsMaxSupply();\n    error WrongEtherAmount();\n    error SaleNotActive();\n    error NotWhitelisted();\n    error ExceedsWalletLimit();\n    error OnlyOwner();\n    \n    constructor() {\n        _owner = msg.sender;\n        maxSupply = 10000;\n        cost = 0.1 ether;\n        preSaleWalletLimit = 5;\n        currentSaleStatus = SaleStatus.Paused;\n    }\n    \n    modifier onlyOwner() {\n        if (msg.sender != _owner) revert OnlyOwner();\n        _;\n    }\n    \n    function whitelistUser(address user, bool status) external onlyOwner {\n        if (_whitelisted[user] != status) {\n            _whitelisted[user] = status;\n            if (!status) {\n                preSaleWalletMinted[user] = 0;\n            }\n        }\n    }\n    \n    function startPresale() external onlyOwner {\n        currentSaleStatus = SaleStatus.Presale;\n    }\n    \n    function startPublicSale() external onlyOwner {\n        currentSaleStatus = SaleStatus.PublicSale;\n    }\n    \n    function setCost(uint256 newCost) external onlyOwner {\n        cost = newCost;\n    }\n    \n    function isWhitelisted(address user) external view returns (bool) {\n        return _whitelisted[user];\n    }\n    \n    function mintTokenWhitelisted(uint256 amount) external payable {\n        if (currentSaleStatus != SaleStatus.Presale) revert SaleNotActive();\n        if (!_whitelisted[msg.sender]) revert NotWhitelisted();\n        if (amount == 0) revert InvalidAmount();\n        \n        uint256 walletMinted = preSaleWalletMinted[msg.sender];\n        if (walletMinted + amount > preSaleWalletLimit) revert ExceedsWalletLimit();\n        \n        _mint(amount);\n        preSaleWalletMinted[msg.sender] = walletMinted + amount;\n    }\n    \n    function mintTokenPublic(uint256 amount) external payable {\n        if (currentSaleStatus != SaleStatus.PublicSale) revert SaleNotActive();\n        if (amount == 0) revert InvalidAmount();\n        \n        _mint(amount);\n    }\n    \n    function _mint(uint256 amount) private {\n        if (supply + amount > maxSupply) revert ExceedsMaxSupply();\n        if (msg.value != cost * amount) revert WrongEtherAmount();\n        \n        supply += amount;\n    }\n}\n```",
+    "scratchpad": "\nInitial Solution: ```solidity\n// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract GrandGooseMansion {\n    address public owner;\n    \n    uint256 public supply;\n    uint256 public cost;\n    uint256 public maxSupply;\n    uint256 public preSaleWalletLimit;\n    \n    enum SaleStatus { Paused, Presale, PublicSale }\n    SaleStatus public currentSaleStatus;\n    \n    mapping(address => bool) private _whitelisted;\n    mapping(address => uint256) public preSaleWalletMinted;\n    \n    error InvalidAmount();\n    error ExceedsMaxSupply();\n    error WrongEtherAmount();\n    error SaleNotActive();\n    error NotWhitelisted();\n    error ExceedsWalletLimit();\n    error OnlyOwner();\n    \n    constructor(uint256 _maxSupply, uint256 _cost, uint256 _preSaleWalletLimit) {\n        owner = msg.sender;\n        maxSupply = _maxSupply;\n        cost = _cost;\n        preSaleWalletLimit = _preSaleWalletLimit;\n        currentSaleStatus = SaleStatus.Paused;\n    }\n    \n    modifier onlyOwner() {\n        if (msg.sender != owner) revert OnlyOwner();\n        _;\n    }\n    \n    function whitelistUser(address user, bool status) external onlyOwner {\n        _whitelisted[user] = status;\n    }\n    \n    function startPresale() external onlyOwner {\n        currentSaleStatus = SaleStatus.Presale;\n    }\n    \n    function startPublicSale() external onlyOwner {\n        currentSaleStatus = SaleStatus.PublicSale;\n    }\n    \n    function setCost(uint256 newCost) external onlyOwner {\n        cost = newCost;\n    }\n    \n    function isWhitelisted(address user) external view returns (bool) {\n        return _whitelisted[user];\n    }\n    \n    function mintTokenWhitelisted(uint256 amount) external payable {\n        if (currentSaleStatus != SaleStatus.Presale) revert SaleNotActive();\n        if (!_whitelisted[msg.sender]) revert NotWhitelisted();\n        if (amount == 0) revert InvalidAmount();\n        if (preSaleWalletMinted[msg.sender] + amount > preSaleWalletLimit) revert ExceedsWalletLimit();\n        \n        _mint(amount);\n        preSaleWalletMinted[msg.sender] += amount;\n    }\n    \n    function mintTokenPublic(uint256 amount) external payable {\n        if (currentSaleStatus != SaleStatus.PublicSale) revert SaleNotActive();\n        if (amount == 0) revert InvalidAmount();\n        \n        _mint(amount);\n    }\n    \n    function _mint(uint256 amount) private {\n        if (supply + amount > maxSupply) revert ExceedsMaxSupply();\n        if (msg.value != cost * amount) revert WrongEtherAmount();\n        \n        supply += amount;\n    }\n}\n```\nInitial Structured Execution Feedback:\n```json\n{\n  \"compile_success\": false,\n  \"compile_error\": \"Error: Compiler run failed:\\nError (6160): Wrong argument count for function call: 0 arguments given but expected 3.\\n--> test/Generated.t.sol:12:13:\\n|\\n12 |         c = new GrandGooseMansion();\\n|             ^^^^^^^^^^^^^^^^^^^^^^^\",\n  \"abi_checked\": null,\n  \"abi_success\": null,\n  \"abi_required\": [\n    \"supply()\",\n    \"cost()\",\n    \"maxSupply()\",\n    \"preSaleWalletLimit()\",\n    \"currentSaleStatus()\",\n    \"whitelistUser(address,bool)\",\n    \"startPresale()\",\n    \"startPublicSale()\",\n    \"setCost(uint256)\",\n    \"isWhitelisted(address)\",\n    \"mintTokenWhitelisted(uint256)\",\n    \"mintTokenPublic(uint256)\",\n    \"preSaleWalletMinted(address)\"\n  ],\n  \"abi_missing\": [],\n  \"abi_extra\": [],\n  \"abi_forbidden_present\": [],\n  \"test_success\": null,\n  \"test_failure\": null,\n  \"slither_findings\": {\n    \"count\": null,\n    \"severity_counts\": {},\n    \"items\": []\n  },\n  \"gas_used\": null\n}\n```\nCritic: **Summary of strongest points from the debate**\n\n1.  **ABI Non-Compliance (Extra):** The contract exposes a public `owner` state variable, creating an `owner()` getter function that was not requested in the specification. This must be removed.\n2.  **Logical Security Flaw:** The `preSaleWalletMinted` counter for a user is never reset when they are removed from the whitelist (`whitelistUser(user, false)`). If a user is removed and later re-added, they can mint again, potentially exceeding the intended lifetime per-wallet limit. This violates the intended functionality of the whitelist limit.\n3.  **Gas Inefficiency:** In `mintTokenWhitelisted`, the `preSaleWalletMinted[msg.sender]` storage value is read twice. This can be optimized by caching it in a local variable.\n\n**Ordered Repair List**\n\n1.  **ABI Extra (`owner` getter):** Make the `owner` variable `private` or `internal` to remove the public getter function from the ABI. The `onlyOwner` modifier can still access it.\n2.  **Test Failure / Behavioral Flaw (Whitelist Counter Reset):** When a user is removed from the whitelist via `whitelistUser(user, false)`, their `preSaleWalletMinted` count must be reset to 0. This ensures the per-wallet limit is enforced correctly across changes to whitelist status.\n3.  **Gas Optimization:** In `mintTokenWhitelisted`, cache `preSaleWalletMinted[msg.sender]` in a local `uint256` variable (e.g., `walletMinted`) to avoid a second storage read.\n\n**Implementation-Level Changes**\n\nApply the following minimal changes to the contract:\n\n1.  Change the declaration of `owner` to `private` or `internal`:\n    ```solidity\n    address private owner;\n    ```\n2.  Modify the `whitelistUser` function to reset the mint counter when `status` is `false`:\n    ```solidity\n    function whitelistUser(address user, bool status) external onlyOwner {\n        whitelisted[user] = status;\n        if (!status) {\n            preSaleWalletMinted[user] = 0; // Reset counter on removal\n        }\n    }\n    ```\n3.  Optimize `mintTokenWhitelisted`:\n    ```solidity\n    function mintTokenWhitelisted(uint256 amount) external payable {\n        if (currentSaleStatus != SaleStatus.PRE_SALE) revert NotPreSale();\n        if (!whitelisted[msg.sender]) revert NotWhitelisted();\n\n        uint256 walletMinted = preSaleWalletMinted[msg.sender]; // Cache\n        if (walletMinted + amount > preSaleWalletLimit) revert ExceedsWalletLimit();\n\n        _mint(amount);\n        preSaleWalletMinted[msg.sender] = walletMinted + amount; // Use cached value\n    }\n    ```\n\nThese changes ensure ABI compliance, fix the critical logical flaw in whitelist management, and improve gas efficiency with no impact on the required specification.\nFirst Improved Solution: ```solidity\n// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract GrandGooseMansion {\n    address private owner;\n    \n    uint256 public supply;\n    uint256 public cost;\n    uint256 public maxSupply;\n    uint256 public preSaleWalletLimit;\n    \n    enum SaleStatus { Paused, Presale, PublicSale }\n    SaleStatus public currentSaleStatus;\n    \n    mapping(address => bool) private _whitelisted;\n    mapping(address => uint256) public preSaleWalletMinted;\n    \n    error InvalidAmount();\n    error ExceedsMaxSupply();\n    error WrongEtherAmount();\n    error SaleNotActive();\n    error NotWhitelisted();\n    error ExceedsWalletLimit();\n    error OnlyOwner();\n    \n    constructor(uint256 _maxSupply, uint256 _cost, uint256 _preSaleWalletLimit) {\n        owner = msg.sender;\n        maxSupply = _maxSupply;\n        cost = _cost;\n        preSaleWalletLimit = _preSaleWalletLimit;\n        currentSaleStatus = SaleStatus.Paused;\n    }\n    \n    modifier onlyOwner() {\n        if (msg.sender != owner) revert OnlyOwner();\n        _;\n    }\n    \n    function whitelistUser(address user, bool status) external onlyOwner {\n        _whitelisted[user] = status;\n        if (!status) {\n            preSaleWalletMinted[user] = 0;\n        }\n    }\n    \n    function startPresale() external onlyOwner {\n        currentSaleStatus = SaleStatus.Presale;\n    }\n    \n    function startPublicSale() external onlyOwner {\n        currentSaleStatus = SaleStatus.PublicSale;\n    }\n    \n    function setCost(uint256 newCost) external onlyOwner {\n        cost = newCost;\n    }\n    \n    function isWhitelisted(address user) external view returns (bool) {\n        return _whitelisted[user];\n    }\n    \n    function mintTokenWhitelisted(uint256 amount) external payable {\n        if (currentSaleStatus != SaleStatus.Presale) revert SaleNotActive();\n        if (!_whitelisted[msg.sender]) revert NotWhitelisted();\n        if (amount == 0) revert InvalidAmount();\n        \n        uint256 walletMinted = preSaleWalletMinted[msg.sender];\n        if (walletMinted + amount > preSaleWalletLimit) revert ExceedsWalletLimit();\n        \n        _mint(amount);\n        preSaleWalletMinted[msg.sender] = walletMinted + amount;\n    }\n    \n    function mintTokenPublic(uint256 amount) external payable {\n        if (currentSaleStatus != SaleStatus.PublicSale) revert SaleNotActive();\n        if (amount == 0) revert InvalidAmount();\n        \n        _mint(amount);\n    }\n    \n    function _mint(uint256 amount) private {\n        if (supply + amount > maxSupply) revert ExceedsMaxSupply();\n        if (msg.value != cost * amount) revert WrongEtherAmount();\n        \n        supply += amount;\n    }\n}\n```\nFirst Improved Structured Execution Feedback:\n```json\n{\n  \"compile_success\": false,\n  \"compile_error\": \"Error: Compiler run failed:\\nError (6160): Wrong argument count for function call: 0 arguments given but expected 3.\\n--> test/Generated.t.sol:12:13:\\n|\\n12 |         c = new GrandGooseMansion();\\n|             ^^^^^^^^^^^^^^^^^^^^^^^\",\n  \"abi_checked\": null,\n  \"abi_success\": null,\n  \"abi_required\": [\n    \"supply()\",\n    \"cost()\",\n    \"maxSupply()\",\n    \"preSaleWalletLimit()\",\n    \"currentSaleStatus()\",\n    \"whitelistUser(address,bool)\",\n    \"startPresale()\",\n    \"startPublicSale()\",\n    \"setCost(uint256)\",\n    \"isWhitelisted(address)\",\n    \"mintTokenWhitelisted(uint256)\",\n    \"mintTokenPublic(uint256)\",\n    \"preSaleWalletMinted(address)\"\n  ],\n  \"abi_missing\": [],\n  \"abi_extra\": [],\n  \"abi_forbidden_present\": [],\n  \"test_success\": null,\n  \"test_failure\": null,\n  \"slither_findings\": {\n    \"count\": null,\n    \"severity_counts\": {},\n    \"items\": []\n  },\n  \"gas_used\": null\n}\n```\nCritic: Based on the compilation error and the structured execution feedback, here is the ordered repair list:\n\n## Ordered Repair List\n\n1. **Compilation Error**: The constructor requires 3 arguments (`_maxSupply`, `_cost`, `_preSaleWalletLimit`) but is being called with 0 arguments. The contract must be deployable without arguments.\n\n2. **ABI Extra**: The `owner` state variable is public, creating an unwanted `owner()` getter function. This must be removed.\n\n3. **Test Failure / Behavioral Flaw**: The `whitelistUser` function should reset `preSaleWalletMinted[user]` to 0 when removing a user from the whitelist to maintain proper per-wallet limit enforcement.\n\n4. **Gas Optimization**: Cache `preSaleWalletMinted[msg.sender]` in `mintTokenWhitelisted` to avoid duplicate storage reads.\n\n## Required Changes\n\n### 1. Fix Compilation Error - Remove Constructor Parameters\nThe contract must have a parameterless constructor that initializes values to reasonable defaults:\n```solidity\nconstructor() {\n    _owner = msg.sender;\n    maxSupply = 10000;          // Default value\n    cost = 0.1 ether;           // Default value  \n    preSaleWalletLimit = 5;     // Default value\n    currentSaleStatus = SaleStatus.Paused;\n}\n```\n\n### 2. Fix ABI Extra - Make `owner` Private\n```solidity\naddress private _owner;\n```\n\n### 3. Fix Whitelist Logic - Reset Counter on Removal\n```solidity\nfunction whitelistUser(address user, bool status) external onlyOwner {\n    if (_whitelisted[user] != status) {\n        _whitelisted[user] = status;\n        if (!status) {\n            preSaleWalletMinted[user] = 0;\n        }\n    }\n}\n```\n\n### 4. Gas Optimization - Cache Storage Value\n```solidity\nfunction mintTokenWhitelisted(uint256 amount) external payable {\n    if (currentSaleStatus != SaleStatus.Presale) revert NotPreSale();\n    if (!_whitelisted[msg.sender]) revert NotWhitelisted();\n    \n    uint256 walletMinted = preSaleWalletMinted[msg.sender];\n    if (walletMinted + amount > preSaleWalletLimit) revert ExceedsWalletLimit();\n    \n    _mint(amount);\n    preSaleWalletMinted[msg.sender] = walletMinted + amount;\n}\n```\n\n## Minimal Implementation Changes\n\nThe generator should:\n1. Replace the parameterized constructor with a parameterless one that sets default values\n2. Change `owner` to `private _owner` \n3. Update `whitelistUser` to reset the mint counter on removal (with status change check)\n4. Cache `preSaleWalletMinted[msg.sender]` in `mintTokenWhitelisted`\n\nThese changes address the compilation error, ABI compliance, logical flaw, and gas inefficiency while maintaining spec compliance.\nSecond Improved Solution: Based on the above analysis, here's the updated version of the Solidity code in a single code block (wrap in ```solidity):\n```solidity\n// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract GrandGooseMansion {\n    address private _owner;\n    \n    uint256 public supply;\n    uint256 public cost;\n    uint256 public maxSupply;\n    uint256 public preSaleWalletLimit;\n    \n    enum SaleStatus { Paused, Presale, PublicSale }\n    SaleStatus public currentSaleStatus;\n    \n    mapping(address => bool) private _whitelisted;\n    mapping(address => uint256) public preSaleWalletMinted;\n    \n    error InvalidAmount();\n    error ExceedsMaxSupply();\n    error WrongEtherAmount();\n    error SaleNotActive();\n    error NotWhitelisted();\n    error ExceedsWalletLimit();\n    error OnlyOwner();\n    \n    constructor() {\n        _owner = msg.sender;\n        maxSupply = 10000;\n        cost = 0.1 ether;\n        preSaleWalletLimit = 5;\n        currentSaleStatus = SaleStatus.Paused;\n    }\n    \n    modifier onlyOwner() {\n        if (msg.sender != _owner) revert OnlyOwner();\n        _;\n    }\n    \n    function whitelistUser(address user, bool status) external onlyOwner {\n        if (_whitelisted[user] != status) {\n            _whitelisted[user] = status;\n            if (!status) {\n                preSaleWalletMinted[user] = 0;\n            }\n        }\n    }\n    \n    function startPresale() external onlyOwner {\n        currentSaleStatus = SaleStatus.Presale;\n    }\n    \n    function startPublicSale() external onlyOwner {\n        currentSaleStatus = SaleStatus.PublicSale;\n    }\n    \n    function setCost(uint256 newCost) external onlyOwner {\n        cost = newCost;\n    }\n    \n    function isWhitelisted(address user) external view returns (bool) {\n        return _whitelisted[user];\n    }\n    \n    function mintTokenWhitelisted(uint256 amount) external payable {\n        if (currentSaleStatus != SaleStatus.Presale) revert SaleNotActive();\n        if (!_whitelisted[msg.sender]) revert NotWhitelisted();\n        if (amount == 0) revert InvalidAmount();\n        \n        uint256 walletMinted = preSaleWalletMinted[msg.sender];\n        if (walletMinted + amount > preSaleWalletLimit) revert ExceedsWalletLimit();\n        \n        _mint(amount);\n        preSaleWalletMinted[msg.sender] = walletMinted + amount;\n    }\n    \n    function mintTokenPublic(uint256 amount) external payable {\n        if (currentSaleStatus != SaleStatus.PublicSale) revert SaleNotActive();\n        if (amount == 0) revert InvalidAmount();\n        \n        _mint(amount);\n    }\n    \n    function _mint(uint256 amount) private {\n        if (supply + amount > maxSupply) revert ExceedsMaxSupply();\n        if (msg.value != cost * amount) revert WrongEtherAmount();\n        \n        supply += amount;\n    }\n}\n```",
+    "critic": "**Summary of strongest points from the debate**\n\n1.  **ABI Non-Compliance (Extra):** The contract exposes a public `owner` state variable, creating an `owner()` getter function that was not requested in the specification. This must be removed.\n2.  **Logical Security Flaw:** The `preSaleWalletMinted` counter for a user is never reset when they are removed from the whitelist (`whitelistUser(user, false)`). If a user is removed and later re-added, they can mint again, potentially exceeding the intended lifetime per-wallet limit. This violates the intended functionality of the whitelist limit.\n3.  **Gas Inefficiency:** In `mintTokenWhitelisted`, the `preSaleWalletMinted[msg.sender]` storage value is read twice. This can be optimized by caching it in a local variable.\n\n**Ordered Repair List**\n\n1.  **ABI Extra (`owner` getter):** Make the `owner` variable `private` or `internal` to remove the public getter function from the ABI. The `onlyOwner` modifier can still access it.\n2.  **Test Failure / Behavioral Flaw (Whitelist Counter Reset):** When a user is removed from the whitelist via `whitelistUser(user, false)`, their `preSaleWalletMinted` count must be reset to 0. This ensures the per-wallet limit is enforced correctly across changes to whitelist status.\n3.  **Gas Optimization:** In `mintTokenWhitelisted`, cache `preSaleWalletMinted[msg.sender]` in a local `uint256` variable (e.g., `walletMinted`) to avoid a second storage read.\n\n**Implementation-Level Changes**\n\nApply the following minimal changes to the contract:\n\n1.  Change the declaration of `owner` to `private` or `internal`:\n    ```solidity\n    address private owner;\n    ```\n2.  Modify the `whitelistUser` function to reset the mint counter when `status` is `false`:\n    ```solidity\n    function whitelistUser(address user, bool status) external onlyOwner {\n        whitelisted[user] = status;\n        if (!status) {\n            preSaleWalletMinted[user] = 0; // Reset counter on removal\n        }\n    }\n    ```\n3.  Optimize `mintTokenWhitelisted`:\n    ```solidity\n    function mintTokenWhitelisted(uint256 amount) external payable {\n        if (currentSaleStatus != SaleStatus.PRE_SALE) revert NotPreSale();\n        if (!whitelisted[msg.sender]) revert NotWhitelisted();\n\n        uint256 walletMinted = preSaleWalletMinted[msg.sender]; // Cache\n        if (walletMinted + amount > preSaleWalletLimit) revert ExceedsWalletLimit();\n\n        _mint(amount);\n        preSaleWalletMinted[msg.sender] = walletMinted + amount; // Use cached value\n    }\n    ```\n\nThese changes ensure ABI compliance, fix the critical logical flaw in whitelist management, and improve gas efficiency with no impact on the required specification.",
+    "initial_action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract GrandGooseMansion {\n    address public owner;\n    \n    uint256 public supply;\n    uint256 public cost;\n    uint256 public maxSupply;\n    uint256 public preSaleWalletLimit;\n    \n    enum SaleStatus { Paused, Presale, PublicSale }\n    SaleStatus public currentSaleStatus;\n    \n    mapping(address => bool) private _whitelisted;\n    mapping(address => uint256) public preSaleWalletMinted;\n    \n    error InvalidAmount();\n    error ExceedsMaxSupply();\n    error WrongEtherAmount();\n    error SaleNotActive();\n    error NotWhitelisted();\n    error ExceedsWalletLimit();\n    error OnlyOwner();\n    \n    constructor(uint256 _maxSupply, uint256 _cost, uint256 _preSaleWalletLimit) {\n        owner = msg.sender;\n        maxSupply = _maxSupply;\n        cost = _cost;\n        preSaleWalletLimit = _preSaleWalletLimit;\n        currentSaleStatus = SaleStatus.Paused;\n    }\n    \n    modifier onlyOwner() {\n        if (msg.sender != owner) revert OnlyOwner();\n        _;\n    }\n    \n    function whitelistUser(address user, bool status) external onlyOwner {\n        _whitelisted[user] = status;\n    }\n    \n    function startPresale() external onlyOwner {\n        currentSaleStatus = SaleStatus.Presale;\n    }\n    \n    function startPublicSale() external onlyOwner {\n        currentSaleStatus = SaleStatus.PublicSale;\n    }\n    \n    function setCost(uint256 newCost) external onlyOwner {\n        cost = newCost;\n    }\n    \n    function isWhitelisted(address user) external view returns (bool) {\n        return _whitelisted[user];\n    }\n    \n    function mintTokenWhitelisted(uint256 amount) external payable {\n        if (currentSaleStatus != SaleStatus.Presale) revert SaleNotActive();\n        if (!_whitelisted[msg.sender]) revert NotWhitelisted();\n        if (amount == 0) revert InvalidAmount();\n        if (preSaleWalletMinted[msg.sender] + amount > preSaleWalletLimit) revert ExceedsWalletLimit();\n        \n        _mint(amount);\n        preSaleWalletMinted[msg.sender] += amount;\n    }\n    \n    function mintTokenPublic(uint256 amount) external payable {\n        if (currentSaleStatus != SaleStatus.PublicSale) revert SaleNotActive();\n        if (amount == 0) revert InvalidAmount();\n        \n        _mint(amount);\n    }\n    \n    function _mint(uint256 amount) private {\n        if (supply + amount > maxSupply) revert ExceedsMaxSupply();\n        if (msg.value != cost * amount) revert WrongEtherAmount();\n        \n        supply += amount;\n    }\n}\n```",
+    "critic_scratchpad": "\nSecurity Critic: here is my analysis of solution security: **Security Risks Identified:**\n\n1. **Reentrancy vulnerability in `_mint()`:** The state update (`supply += amount`) occurs *after* the external call (`msg.sender.call{value: ...}`) would happen. Since there's no external call in the current code, this is actually **safe** - but the pattern is risky if extended. However, there's a more critical issue:\n\n2. **Missing access control on `preSaleWalletMinted` mapping:** Anyone can call `mintTokenWhitelisted` multiple times to increase their count, but the real issue is **no reset when whitelist status changes**. A user could be whitelisted, mint up to limit, get removed from whitelist, then be re-whitelisted and mint again up to the limit.\n\n3. **Integer overflow protection:** Solidity 0.8.x provides built-in overflow checks, so arithmetic is safe.\n\n4. **Denial-of-Service via gas griefing:** If `maxSupply` is reached, further mints will revert, which is correct behavior.\n\n5. **Front-running whitelist changes:** Owner can update whitelist status at any time, but there's no protection against transactions in\nFunctionality Critic: \nFunctionality Critic: here is my analysis of solution functionality and correctness: **Functionality Assessment:**\n\nThe contract **largely satisfies the specification** but has **two critical ABI compliance issues** and one behavioral edge-case flaw:\n\n1. **ABI Extra (Non-Compliant):** The contract exposes a public `owner` variable, generating an `owner()` getter not required by the task. This is an extra ABI entry. Fix: Make `owner` private/internal and use a custom modifier without exposing a getter, or rename the storage variable (e.g., `_owner`) and keep the modifier.\n\n2. **ABI Missing (Non-Compliant):** The required getter `preSaleWalletMinted(address)` is implemented as a public mapping, which is correct. However, the task explicitly lists `preSaleWalletMinted(address)` as a required ABI signature. The public mapping satisfies this, so this point is actually **compliant**. No missing ABI.\n\n3. **Behavioral Edge Case:** The `preSaleWalletMinted` mapping is incremented in `mintTokenWhitelisted`, but if a user is removed from the whitelist via `whitelistUser(user, false)`, their already-minted count persists. If they are re-whitelisted later, they can mint again up to `preSaleWalletLimit` from their previous count, potentially exceeding the intended per-wallet limit across time. The spec does not explicitly forbid this, but it's a logical loophole. A stricter interpretation might require resetting the count on removal, but the task doesn't specify.\n\n4. **Compilation & Invariants:** The code compiles cleanly under Solidity 0.8.20. Supply caps, payment checks, sale-phase guards, and wallet limits are enforced. The `_mint` internal function correctly updates `supply` after all checks.\n\n**Recommended Minimal Fix\nGas Critic: \nGas Critic: here is my analysis of solution gas usage and on-chain efficiency: **Gas Efficiency Analysis:**\n\n**Deployment Cost:** Moderate. The contract uses 7 storage slots (owner, supply, cost, maxSupply, preSaleWalletLimit, currentSaleStatus, plus two mappings). The constructor writes 4 storage slots, which is reasonable. No expensive initialization loops.\n\n**Runtime Gas Optimizations Found:**\n\n1. **Redundant Storage Read in `mintTokenWhitelisted`:** `preSaleWalletMinted[msg.sender]` is read twice - once for the limit check and once for increment. Cache this in a local variable:\n   ```solidity\n   uint256 walletMinted = preSaleWalletMinted[msg.sender];\n   if (walletMinted + amount > preSaleWalletLimit) revert ExceedsWalletLimit();\n   // ... after _mint\n   preSaleWalletMinted[msg.sender] = walletMinted + amount;\n   ```\n\n2. **Expensive `cost * amount` Multiplication:** The `cost * amount` calculation occurs in every mint path. Since `cost` is a storage variable, this is relatively expensive (SLOAD + MUL). Consider caching `cost` locally in `_mint` if called frequently, though the benefit is minor here.\n\n3",
+    "safety_critics": [
+        "**Security Risks Identified:**\n\n1. **Reentrancy vulnerability in `_mint()`:** The state update (`supply += amount`) occurs *after* the external call (`msg.sender.call{value: ...}`) would happen. Since there's no external call in the current code, this is actually **safe** - but the pattern is risky if extended. However, there's a more critical issue:\n\n2. **Missing access control on `preSaleWalletMinted` mapping:** Anyone can call `mintTokenWhitelisted` multiple times to increase their count, but the real issue is **no reset when whitelist status changes**. A user could be whitelisted, mint up to limit, get removed from whitelist, then be re-whitelisted and mint again up to the limit.\n\n3. **Integer overflow protection:** Solidity 0.8.x provides built-in overflow checks, so arithmetic is safe.\n\n4. **Denial-of-Service via gas griefing:** If `maxSupply` is reached, further mints will revert, which is correct behavior.\n\n5. **Front-running whitelist changes:** Owner can update whitelist status at any time, but there's no protection against transactions in"
+    ],
+    "safety_tool_output": [
+        {
+            "tool": [
+                {
+                    "tool_name": "code_search",
+                    "parameters": {
+                        "query": "Solidity reentrancy vulnerability patterns in mint functions",
+                        "snippet": "// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract ReentrancyPatterns {\n    // Pattern 1: Checks-Effects-Interactions (Safe)\n    function mintSafe(uint256 amount) external payable {\n        require(msg.value == amount * 1 ether, \"Wrong payment\");\n        require(supply + amount <= maxSupply, \"Exceeds supply\");\n        \n        supply += amount; // Effects first\n        payable(msg.sender).transfer(0); // Interaction last (if any)\n    }\n    \n    // Pattern 2: Re"
+                    }
+                }
+            ],
+            "output": []
+        }
+    ],
+    "helpful_critics": [
+        "**Functionality Assessment:**\n\nThe contract **largely satisfies the specification** but has **two critical ABI compliance issues** and one behavioral edge-case flaw:\n\n1. **ABI Extra (Non-Compliant):** The contract exposes a public `owner` variable, generating an `owner()` getter not required by the task. This is an extra ABI entry. Fix: Make `owner` private/internal and use a custom modifier without exposing a getter, or rename the storage variable (e.g., `_owner`) and keep the modifier.\n\n2. **ABI Missing (Non-Compliant):** The required getter `preSaleWalletMinted(address)` is implemented as a public mapping, which is correct. However, the task explicitly lists `preSaleWalletMinted(address)` as a required ABI signature. The public mapping satisfies this, so this point is actually **compliant**. No missing ABI.\n\n3. **Behavioral Edge Case:** The `preSaleWalletMinted` mapping is incremented in `mintTokenWhitelisted`, but if a user is removed from the whitelist via `whitelistUser(user, false)`, their already-minted count persists. If they are re-whitelisted later, they can mint again up to `preSaleWalletLimit` from their previous count, potentially exceeding the intended per-wallet limit across time. The spec does not explicitly forbid this, but it's a logical loophole. A stricter interpretation might require resetting the count on removal, but the task doesn't specify.\n\n4. **Compilation & Invariants:** The code compiles cleanly under Solidity 0.8.20. Supply caps, payment checks, sale-phase guards, and wallet limits are enforced. The `_mint` internal function correctly updates `supply` after all checks.\n\n**Recommended Minimal Fix"
+    ],
+    "helpful_tool_output": [
+        {
+            "tool": [
+                {
+                    "tool_name": "code_search",
+                    "parameters": {
+                        "query": "Solidity public mapping getter function signature",
+                        "snippet": "// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract GrandGooseMansion {\n    address private _owner;\n    \n    uint256 public supply;\n    uint256 public cost;\n    uint256 public maxSupply;\n    uint256 public preSaleWalletLimit;\n    \n    enum SaleStatus { Paused, Presale, PublicSale }\n    SaleStatus public currentSaleStatus;\n    \n    mapping(address => bool) private _whitelisted;\n    mapping(address => uint256) public preSaleWalletMinted;\n    \n    error OnlyOwner();\n    \n    modifier onlyOwner"
+                    }
+                }
+            ],
+            "output": []
+        }
+    ],
+    "gas_critics": [
+        "**Gas Efficiency Analysis:**\n\n**Deployment Cost:** Moderate. The contract uses 7 storage slots (owner, supply, cost, maxSupply, preSaleWalletLimit, currentSaleStatus, plus two mappings). The constructor writes 4 storage slots, which is reasonable. No expensive initialization loops.\n\n**Runtime Gas Optimizations Found:**\n\n1. **Redundant Storage Read in `mintTokenWhitelisted`:** `preSaleWalletMinted[msg.sender]` is read twice - once for the limit check and once for increment. Cache this in a local variable:\n   ```solidity\n   uint256 walletMinted = preSaleWalletMinted[msg.sender];\n   if (walletMinted + amount > preSaleWalletLimit) revert ExceedsWalletLimit();\n   // ... after _mint\n   preSaleWalletMinted[msg.sender] = walletMinted + amount;\n   ```\n\n2. **Expensive `cost * amount` Multiplication:** The `cost * amount` calculation occurs in every mint path. Since `cost` is a storage variable, this is relatively expensive (SLOAD + MUL). Consider caching `cost` locally in `_mint` if called frequently, though the benefit is minor here.\n\n3"
+    ],
+    "gas_tool_output": [
+        {
+            "tool": [
+                {
+                    "tool_name": "code_search",
+                    "parameters": {
+                        "query": "Solidity gas optimization caching storage reads best practices",
+                        "snippet": "// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract GasOptimizationExample {\n    uint256 public cost;\n    mapping(address => uint256) public minted;\n    uint256 public walletLimit;\n    \n    error ExceedsLimit();\n    \n    // Unoptimized version\n    function mintUnoptimized(uint256 amount) external {\n        if (minted[msg.sender] + amount > walletLimit) revert ExceedsLimit();\n        // ... mint logic\n        minted[msg.sender] += amount;\n    }\n    \n    // Optimized version"
+                    }
+                }
+            ],
+            "output": []
+        }
+    ],
+    "initial_action_execution_observation": "Compilation: failed. Error: Compiler run failed:\nError (6160): Wrong argument count for function call: 0 arguments given but expected 3.\n  --> test/Generated.t.sol:12:13:\n   |\n12 |         c = new GrandGooseMansion();\n   |             ^^^^^^^^^^^^^^^^^^^^^^^ ABI: not checked. Tests: skipped (no Solidity test command available). Static analysis: skipped. Gas analysis: unavailable.",
+    "initial_action_execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 1,
+            "stdout": "Compiling 25 files with Solc 0.8.20\nSolc 0.8.20 finished in 538.44ms\n",
+            "stderr": "Error: Compiler run failed:\nError (6160): Wrong argument count for function call: 0 arguments given but expected 3.\n  --> test/Generated.t.sol:12:13:\n   |\n12 |         c = new GrandGooseMansion();\n   |             ^^^^^^^^^^^^^^^^^^^^^^^\n",
+            "success": false
+        },
+        "abi": null,
+        "tests": null,
+        "slither": null,
+        "gas": null,
+        "vulnerability_count": null,
+        "vulnerability_severity_counts": {},
+        "slither_findings": [],
+        "max_gas_value": null,
+        "skipped_after_compile_failure": true,
+        "summary": "Compilation: failed. Error: Compiler run failed:\nError (6160): Wrong argument count for function call: 0 arguments given but expected 3.\n  --> test/Generated.t.sol:12:13:\n   |\n12 |         c = new GrandGooseMansion();\n   |             ^^^^^^^^^^^^^^^^^^^^^^^ ABI: not checked. Tests: skipped (no Solidity test command available). Static analysis: skipped. Gas analysis: unavailable."
+    },
+    "initial_structured_feedback": {
+        "compile_success": false,
+        "compile_error": "Error: Compiler run failed:\nError (6160): Wrong argument count for function call: 0 arguments given but expected 3.\n--> test/Generated.t.sol:12:13:\n|\n12 |         c = new GrandGooseMansion();\n|             ^^^^^^^^^^^^^^^^^^^^^^^",
+        "abi_checked": null,
+        "abi_success": null,
+        "abi_required": [
+            "supply()",
+            "cost()",
+            "maxSupply()",
+            "preSaleWalletLimit()",
+            "currentSaleStatus()",
+            "whitelistUser(address,bool)",
+            "startPresale()",
+            "startPublicSale()",
+            "setCost(uint256)",
+            "isWhitelisted(address)",
+            "mintTokenWhitelisted(uint256)",
+            "mintTokenPublic(uint256)",
+            "preSaleWalletMinted(address)"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": null,
+        "test_failure": null,
+        "slither_findings": {
+            "count": null,
+            "severity_counts": {},
+            "items": []
+        },
+        "gas_used": null
+    },
+    "execution_observation": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 2 finding(s) (low=1, medium=1). Gas analysis: max observed value 870298.",
+    "execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 0,
+            "stdout": "Compiling 25 files with Solc 0.8.20\nSolc 0.8.20 finished in 800.22ms\nCompiler run successful!\n",
+            "stderr": "note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:4:8\n  |\n4 | import \"forge-std/Test.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unwrapped-modifier-logic]: wrap modifier logic to reduce code size\n  --> src/Generated.sol:34:5\n   |\n34 | /     modifier onlyOwner() {\n35 | |         if (msg.sender != _owner) revert OnlyOwner();\n36 | |         _;\n37 | |     }\n   | |_____^\n   |\nhelp: wrap modifier logic to reduce code size\n   |\n34 ~     modifier onlyOwner() {\n35 +         _onlyOwner();\n36 +         _;\n37 +     }\n38 + \n39 +     function _onlyOwner() internal {\n40 +         if (msg.sender != _owner) revert OnlyOwner();\n41 +     }\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#unwrapped-modifier-logic\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:5:8\n  |\n5 | import \"../src/Generated.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\n",
+            "success": true
+        },
+        "abi": {
+            "checked": true,
+            "success": true,
+            "required": [
+                "supply()",
+                "cost()",
+                "maxSupply()",
+                "preSaleWalletLimit()",
+                "currentSaleStatus()",
+                "whitelistUser(address,bool)",
+                "startPresale()",
+                "startPublicSale()",
+                "setCost(uint256)",
+                "isWhitelisted(address)",
+                "mintTokenWhitelisted(uint256)",
+                "mintTokenPublic(uint256)",
+                "preSaleWalletMinted(address)"
+            ],
+            "forbidden": [],
+            "available": [
+                "constructor()",
+                "cost()",
+                "currentSaleStatus()",
+                "isWhitelisted(address)",
+                "maxSupply()",
+                "mintTokenPublic(uint256)",
+                "mintTokenWhitelisted(uint256)",
+                "preSaleWalletLimit()",
+                "preSaleWalletMinted(address)",
+                "setCost(uint256)",
+                "startPresale()",
+                "startPublicSale()",
+                "supply()",
+                "whitelistUser(address,bool)"
+            ],
+            "missing": [],
+            "forbidden_present": [],
+            "artifact": "/tmp/indict_solidity_w5jzj8ne/out/Generated.sol/GrandGooseMansion.json"
+        },
+        "tests": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" -vv",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testNonWhitelistedPresaleMintReverts() (gas: 45651)\n[PASS] testPublicMint() (gas: 71301)\n[PASS] testWhitelistedPresaleMint() (gas: 122721)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.15ms (664.72\u00b5s CPU time)\n\nRan 1 test suite in 25.02ms (1.15ms CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "slither": {
+            "command": "slither \"src/Generated.sol\" --exclude-dependencies --exclude-informational --exclude-optimization --fail-none --json \"/tmp/indict_solidity_w5jzj8ne/slither-result.json\"",
+            "returncode": 0,
+            "stdout": "",
+            "stderr": "'forge clean' running (wd: /tmp/indict_solidity_w5jzj8ne)\n'forge config --json' running\n'forge build --build-info src/Generated.sol' running (wd: /tmp/indict_solidity_w5jzj8ne)\n\nDetector: locked-ether\nContract locking ether found:\n\tContract GrandGooseMansion (src/Generated.sol#4-90) has payable functions:\n\t - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#64-74)\n\t - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#76-81)\n\tBut does not have a function to withdraw the ether\nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#contracts-that-lock-ether\n\nDetector: events-maths\nGrandGooseMansion.setCost(uint256) (src/Generated.sol#56-58) should emit an event for: \n\t- cost = newCost (src/Generated.sol#57) \nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#missing-events-arithmetic\nsrc/Generated.sol analyzed (1 contracts with 75 detectors), 2 result(s) found\n",
+            "success": true
+        },
+        "gas": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" --gas-report",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testNonWhitelistedPresaleMintReverts() (gas: 89919)\n[PASS] testPublicMint() (gas: 117569)\n[PASS] testWhitelistedPresaleMint() (gas: 202845)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.28ms (1.22ms CPU time)\n\n\u256d----------------------------------------------+-----------------+-------+--------+-------+---------\u256e\n| src/Generated.sol:GrandGooseMansion Contract |                 |       |        |       |         |\n+===================================================================================================+\n| Deployment Cost                              | Deployment Size |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| 870298                                       | 3584            |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n|                                              |                 |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| Function Name                                | Min             | Avg   | Median | Max   | # Calls |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| mintTokenPublic                              | 50956           | 50956 | 50956  | 50956 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| mintTokenWhitelisted                         | 26152           | 52105 | 52105  | 78058 | 2       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| preSaleWalletMinted                          | 2890            | 2890  | 2890   | 2890  | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| setCost                                      | 26068           | 26068 | 26068  | 26068 | 3       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| startPresale                                 | 45582           | 45582 | 45582  | 45582 | 2       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| startPublicSale                              | 45604           | 45604 | 45604  | 45604 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| supply                                       | 2426            | 2426  | 2426   | 2426  | 2       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| whitelistUser                                | 46721           | 46721 | 46721  | 46721 | 1       |\n\u2570----------------------------------------------+-----------------+-------+--------+-------+---------\u256f\n\n\nRan 1 test suite in 5.68ms (1.28ms CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "vulnerability_count": 2,
+        "vulnerability_severity_counts": {
+            "medium": 1,
+            "low": 1
+        },
+        "slither_findings": [
+            {
+                "check": "locked-ether",
+                "impact": "medium",
+                "confidence": "High",
+                "description": "Contract locking ether found: Contract GrandGooseMansion (src/Generated.sol#4-90) has payable functions: - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#64-74) - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#76-81) But does not have a function to withdraw the ether"
+            },
+            {
+                "check": "events-maths",
+                "impact": "low",
+                "confidence": "Medium",
+                "description": "GrandGooseMansion.setCost(uint256) (src/Generated.sol#56-58) should emit an event for: - cost = newCost (src/Generated.sol#57)"
+            }
+        ],
+        "max_gas_value": 870298,
+        "summary": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 2 finding(s) (low=1, medium=1). Gas analysis: max observed value 870298."
+    },
+    "structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "supply()",
+            "cost()",
+            "maxSupply()",
+            "preSaleWalletLimit()",
+            "currentSaleStatus()",
+            "whitelistUser(address,bool)",
+            "startPresale()",
+            "startPublicSale()",
+            "setCost(uint256)",
+            "isWhitelisted(address)",
+            "mintTokenWhitelisted(uint256)",
+            "mintTokenPublic(uint256)",
+            "preSaleWalletMinted(address)"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": true,
+        "test_failure": null,
+        "slither_findings": {
+            "count": 2,
+            "severity_counts": {
+                "medium": 1,
+                "low": 1
+            },
+            "items": [
+                {
+                    "check": "locked-ether",
+                    "impact": "medium",
+                    "confidence": "High",
+                    "description": "Contract locking ether found: Contract GrandGooseMansion (src/Generated.sol#4-90) has payable functions: - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#64-74) - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#76-81) But does not have a function to withdraw the ether"
+                },
+                {
+                    "check": "events-maths",
+                    "impact": "low",
+                    "confidence": "Medium",
+                    "description": "GrandGooseMansion.setCost(uint256) (src/Generated.sol#56-58) should emit an event for: - cost = newCost (src/Generated.sol#57)"
+                }
+            ],
+            "command_success": true
+        },
+        "gas_used": 870298,
+        "gas_command_success": true
+    },
+    "mid_action_execution_observation": "Compilation: failed. Error: Compiler run failed:\nError (6160): Wrong argument count for function call: 0 arguments given but expected 3.\n  --> test/Generated.t.sol:12:13:\n   |\n12 |         c = new GrandGooseMansion();\n   |             ^^^^^^^^^^^^^^^^^^^^^^^ ABI: not checked. Tests: skipped (no Solidity test command available). Static analysis: skipped. Gas analysis: unavailable.",
+    "mid_action_execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 1,
+            "stdout": "Compiling 25 files with Solc 0.8.20\nSolc 0.8.20 finished in 540.05ms\n",
+            "stderr": "Error: Compiler run failed:\nError (6160): Wrong argument count for function call: 0 arguments given but expected 3.\n  --> test/Generated.t.sol:12:13:\n   |\n12 |         c = new GrandGooseMansion();\n   |             ^^^^^^^^^^^^^^^^^^^^^^^\n",
+            "success": false
+        },
+        "abi": null,
+        "tests": null,
+        "slither": null,
+        "gas": null,
+        "vulnerability_count": null,
+        "vulnerability_severity_counts": {},
+        "slither_findings": [],
+        "max_gas_value": null,
+        "skipped_after_compile_failure": true,
+        "summary": "Compilation: failed. Error: Compiler run failed:\nError (6160): Wrong argument count for function call: 0 arguments given but expected 3.\n  --> test/Generated.t.sol:12:13:\n   |\n12 |         c = new GrandGooseMansion();\n   |             ^^^^^^^^^^^^^^^^^^^^^^^ ABI: not checked. Tests: skipped (no Solidity test command available). Static analysis: skipped. Gas analysis: unavailable."
+    },
+    "mid_structured_feedback": {
+        "compile_success": false,
+        "compile_error": "Error: Compiler run failed:\nError (6160): Wrong argument count for function call: 0 arguments given but expected 3.\n--> test/Generated.t.sol:12:13:\n|\n12 |         c = new GrandGooseMansion();\n|             ^^^^^^^^^^^^^^^^^^^^^^^",
+        "abi_checked": null,
+        "abi_success": null,
+        "abi_required": [
+            "supply()",
+            "cost()",
+            "maxSupply()",
+            "preSaleWalletLimit()",
+            "currentSaleStatus()",
+            "whitelistUser(address,bool)",
+            "startPresale()",
+            "startPublicSale()",
+            "setCost(uint256)",
+            "isWhitelisted(address)",
+            "mintTokenWhitelisted(uint256)",
+            "mintTokenPublic(uint256)",
+            "preSaleWalletMinted(address)"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": null,
+        "test_failure": null,
+        "slither_findings": {
+            "count": null,
+            "severity_counts": {},
+            "items": []
+        },
+        "gas_used": null
+    },
+    "final_action_execution_observation": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 2 finding(s) (low=1, medium=1). Gas analysis: max observed value 870298.",
+    "final_action_execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 0,
+            "stdout": "Compiling 25 files with Solc 0.8.20\nSolc 0.8.20 finished in 800.22ms\nCompiler run successful!\n",
+            "stderr": "note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:4:8\n  |\n4 | import \"forge-std/Test.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unwrapped-modifier-logic]: wrap modifier logic to reduce code size\n  --> src/Generated.sol:34:5\n   |\n34 | /     modifier onlyOwner() {\n35 | |         if (msg.sender != _owner) revert OnlyOwner();\n36 | |         _;\n37 | |     }\n   | |_____^\n   |\nhelp: wrap modifier logic to reduce code size\n   |\n34 ~     modifier onlyOwner() {\n35 +         _onlyOwner();\n36 +         _;\n37 +     }\n38 + \n39 +     function _onlyOwner() internal {\n40 +         if (msg.sender != _owner) revert OnlyOwner();\n41 +     }\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#unwrapped-modifier-logic\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:5:8\n  |\n5 | import \"../src/Generated.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\n",
+            "success": true
+        },
+        "abi": {
+            "checked": true,
+            "success": true,
+            "required": [
+                "supply()",
+                "cost()",
+                "maxSupply()",
+                "preSaleWalletLimit()",
+                "currentSaleStatus()",
+                "whitelistUser(address,bool)",
+                "startPresale()",
+                "startPublicSale()",
+                "setCost(uint256)",
+                "isWhitelisted(address)",
+                "mintTokenWhitelisted(uint256)",
+                "mintTokenPublic(uint256)",
+                "preSaleWalletMinted(address)"
+            ],
+            "forbidden": [],
+            "available": [
+                "constructor()",
+                "cost()",
+                "currentSaleStatus()",
+                "isWhitelisted(address)",
+                "maxSupply()",
+                "mintTokenPublic(uint256)",
+                "mintTokenWhitelisted(uint256)",
+                "preSaleWalletLimit()",
+                "preSaleWalletMinted(address)",
+                "setCost(uint256)",
+                "startPresale()",
+                "startPublicSale()",
+                "supply()",
+                "whitelistUser(address,bool)"
+            ],
+            "missing": [],
+            "forbidden_present": [],
+            "artifact": "/tmp/indict_solidity_w5jzj8ne/out/Generated.sol/GrandGooseMansion.json"
+        },
+        "tests": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" -vv",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testNonWhitelistedPresaleMintReverts() (gas: 45651)\n[PASS] testPublicMint() (gas: 71301)\n[PASS] testWhitelistedPresaleMint() (gas: 122721)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.15ms (664.72\u00b5s CPU time)\n\nRan 1 test suite in 25.02ms (1.15ms CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "slither": {
+            "command": "slither \"src/Generated.sol\" --exclude-dependencies --exclude-informational --exclude-optimization --fail-none --json \"/tmp/indict_solidity_w5jzj8ne/slither-result.json\"",
+            "returncode": 0,
+            "stdout": "",
+            "stderr": "'forge clean' running (wd: /tmp/indict_solidity_w5jzj8ne)\n'forge config --json' running\n'forge build --build-info src/Generated.sol' running (wd: /tmp/indict_solidity_w5jzj8ne)\n\nDetector: locked-ether\nContract locking ether found:\n\tContract GrandGooseMansion (src/Generated.sol#4-90) has payable functions:\n\t - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#64-74)\n\t - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#76-81)\n\tBut does not have a function to withdraw the ether\nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#contracts-that-lock-ether\n\nDetector: events-maths\nGrandGooseMansion.setCost(uint256) (src/Generated.sol#56-58) should emit an event for: \n\t- cost = newCost (src/Generated.sol#57) \nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#missing-events-arithmetic\nsrc/Generated.sol analyzed (1 contracts with 75 detectors), 2 result(s) found\n",
+            "success": true
+        },
+        "gas": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" --gas-report",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testNonWhitelistedPresaleMintReverts() (gas: 89919)\n[PASS] testPublicMint() (gas: 117569)\n[PASS] testWhitelistedPresaleMint() (gas: 202845)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.28ms (1.22ms CPU time)\n\n\u256d----------------------------------------------+-----------------+-------+--------+-------+---------\u256e\n| src/Generated.sol:GrandGooseMansion Contract |                 |       |        |       |         |\n+===================================================================================================+\n| Deployment Cost                              | Deployment Size |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| 870298                                       | 3584            |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n|                                              |                 |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| Function Name                                | Min             | Avg   | Median | Max   | # Calls |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| mintTokenPublic                              | 50956           | 50956 | 50956  | 50956 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| mintTokenWhitelisted                         | 26152           | 52105 | 52105  | 78058 | 2       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| preSaleWalletMinted                          | 2890            | 2890  | 2890   | 2890  | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| setCost                                      | 26068           | 26068 | 26068  | 26068 | 3       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| startPresale                                 | 45582           | 45582 | 45582  | 45582 | 2       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| startPublicSale                              | 45604           | 45604 | 45604  | 45604 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| supply                                       | 2426            | 2426  | 2426   | 2426  | 2       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| whitelistUser                                | 46721           | 46721 | 46721  | 46721 | 1       |\n\u2570----------------------------------------------+-----------------+-------+--------+-------+---------\u256f\n\n\nRan 1 test suite in 5.68ms (1.28ms CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "vulnerability_count": 2,
+        "vulnerability_severity_counts": {
+            "medium": 1,
+            "low": 1
+        },
+        "slither_findings": [
+            {
+                "check": "locked-ether",
+                "impact": "medium",
+                "confidence": "High",
+                "description": "Contract locking ether found: Contract GrandGooseMansion (src/Generated.sol#4-90) has payable functions: - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#64-74) - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#76-81) But does not have a function to withdraw the ether"
+            },
+            {
+                "check": "events-maths",
+                "impact": "low",
+                "confidence": "Medium",
+                "description": "GrandGooseMansion.setCost(uint256) (src/Generated.sol#56-58) should emit an event for: - cost = newCost (src/Generated.sol#57)"
+            }
+        ],
+        "max_gas_value": 870298,
+        "summary": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 2 finding(s) (low=1, medium=1). Gas analysis: max observed value 870298."
+    },
+    "final_structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "supply()",
+            "cost()",
+            "maxSupply()",
+            "preSaleWalletLimit()",
+            "currentSaleStatus()",
+            "whitelistUser(address,bool)",
+            "startPresale()",
+            "startPublicSale()",
+            "setCost(uint256)",
+            "isWhitelisted(address)",
+            "mintTokenWhitelisted(uint256)",
+            "mintTokenPublic(uint256)",
+            "preSaleWalletMinted(address)"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": true,
+        "test_failure": null,
+        "slither_findings": {
+            "count": 2,
+            "severity_counts": {
+                "medium": 1,
+                "low": 1
+            },
+            "items": [
+                {
+                    "check": "locked-ether",
+                    "impact": "medium",
+                    "confidence": "High",
+                    "description": "Contract locking ether found: Contract GrandGooseMansion (src/Generated.sol#4-90) has payable functions: - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#64-74) - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#76-81) But does not have a function to withdraw the ether"
+                },
+                {
+                    "check": "events-maths",
+                    "impact": "low",
+                    "confidence": "Medium",
+                    "description": "GrandGooseMansion.setCost(uint256) (src/Generated.sol#56-58) should emit an event for: - cost = newCost (src/Generated.sol#57)"
+                }
+            ],
+            "command_success": true
+        },
+        "gas_used": 870298,
+        "gas_command_success": true
+    },
+    "critic_posthoc": "Based on the compilation error and the structured execution feedback, here is the ordered repair list:\n\n## Ordered Repair List\n\n1. **Compilation Error**: The constructor requires 3 arguments (`_maxSupply`, `_cost`, `_preSaleWalletLimit`) but is being called with 0 arguments. The contract must be deployable without arguments.\n\n2. **ABI Extra**: The `owner` state variable is public, creating an unwanted `owner()` getter function. This must be removed.\n\n3. **Test Failure / Behavioral Flaw**: The `whitelistUser` function should reset `preSaleWalletMinted[user]` to 0 when removing a user from the whitelist to maintain proper per-wallet limit enforcement.\n\n4. **Gas Optimization**: Cache `preSaleWalletMinted[msg.sender]` in `mintTokenWhitelisted` to avoid duplicate storage reads.\n\n## Required Changes\n\n### 1. Fix Compilation Error - Remove Constructor Parameters\nThe contract must have a parameterless constructor that initializes values to reasonable defaults:\n```solidity\nconstructor() {\n    _owner = msg.sender;\n    maxSupply = 10000;          // Default value\n    cost = 0.1 ether;           // Default value  \n    preSaleWalletLimit = 5;     // Default value\n    currentSaleStatus = SaleStatus.Paused;\n}\n```\n\n### 2. Fix ABI Extra - Make `owner` Private\n```solidity\naddress private _owner;\n```\n\n### 3. Fix Whitelist Logic - Reset Counter on Removal\n```solidity\nfunction whitelistUser(address user, bool status) external onlyOwner {\n    if (_whitelisted[user] != status) {\n        _whitelisted[user] = status;\n        if (!status) {\n            preSaleWalletMinted[user] = 0;\n        }\n    }\n}\n```\n\n### 4. Gas Optimization - Cache Storage Value\n```solidity\nfunction mintTokenWhitelisted(uint256 amount) external payable {\n    if (currentSaleStatus != SaleStatus.Presale) revert NotPreSale();\n    if (!_whitelisted[msg.sender]) revert NotWhitelisted();\n    \n    uint256 walletMinted = preSaleWalletMinted[msg.sender];\n    if (walletMinted + amount > preSaleWalletLimit) revert ExceedsWalletLimit();\n    \n    _mint(amount);\n    preSaleWalletMinted[msg.sender] = walletMinted + amount;\n}\n```\n\n## Minimal Implementation Changes\n\nThe generator should:\n1. Replace the parameterized constructor with a parameterless one that sets default values\n2. Change `owner` to `private _owner` \n3. Update `whitelistUser` to reset the mint counter on removal (with status change check)\n4. Cache `preSaleWalletMinted[msg.sender]` in `mintTokenWhitelisted`\n\nThese changes address the compilation error, ABI compliance, logical flaw, and gas inefficiency while maintaining spec compliance.",
+    "mid_action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract GrandGooseMansion {\n    address private owner;\n    \n    uint256 public supply;\n    uint256 public cost;\n    uint256 public maxSupply;\n    uint256 public preSaleWalletLimit;\n    \n    enum SaleStatus { Paused, Presale, PublicSale }\n    SaleStatus public currentSaleStatus;\n    \n    mapping(address => bool) private _whitelisted;\n    mapping(address => uint256) public preSaleWalletMinted;\n    \n    error InvalidAmount();\n    error ExceedsMaxSupply();\n    error WrongEtherAmount();\n    error SaleNotActive();\n    error NotWhitelisted();\n    error ExceedsWalletLimit();\n    error OnlyOwner();\n    \n    constructor(uint256 _maxSupply, uint256 _cost, uint256 _preSaleWalletLimit) {\n        owner = msg.sender;\n        maxSupply = _maxSupply;\n        cost = _cost;\n        preSaleWalletLimit = _preSaleWalletLimit;\n        currentSaleStatus = SaleStatus.Paused;\n    }\n    \n    modifier onlyOwner() {\n        if (msg.sender != owner) revert OnlyOwner();\n        _;\n    }\n    \n    function whitelistUser(address user, bool status) external onlyOwner {\n        _whitelisted[user] = status;\n        if (!status) {\n            preSaleWalletMinted[user] = 0;\n        }\n    }\n    \n    function startPresale() external onlyOwner {\n        currentSaleStatus = SaleStatus.Presale;\n    }\n    \n    function startPublicSale() external onlyOwner {\n        currentSaleStatus = SaleStatus.PublicSale;\n    }\n    \n    function setCost(uint256 newCost) external onlyOwner {\n        cost = newCost;\n    }\n    \n    function isWhitelisted(address user) external view returns (bool) {\n        return _whitelisted[user];\n    }\n    \n    function mintTokenWhitelisted(uint256 amount) external payable {\n        if (currentSaleStatus != SaleStatus.Presale) revert SaleNotActive();\n        if (!_whitelisted[msg.sender]) revert NotWhitelisted();\n        if (amount == 0) revert InvalidAmount();\n        \n        uint256 walletMinted = preSaleWalletMinted[msg.sender];\n        if (walletMinted + amount > preSaleWalletLimit) revert ExceedsWalletLimit();\n        \n        _mint(amount);\n        preSaleWalletMinted[msg.sender] = walletMinted + amount;\n    }\n    \n    function mintTokenPublic(uint256 amount) external payable {\n        if (currentSaleStatus != SaleStatus.PublicSale) revert SaleNotActive();\n        if (amount == 0) revert InvalidAmount();\n        \n        _mint(amount);\n    }\n    \n    function _mint(uint256 amount) private {\n        if (supply + amount > maxSupply) revert ExceedsMaxSupply();\n        if (msg.value != cost * amount) revert WrongEtherAmount();\n        \n        supply += amount;\n    }\n}\n```",
+    "critic_scratchpad_posthoc": "\nThe following critic(s) provide some analysis of the current solution. Use them as reference only to improve and update your critic based on the latest observation.\nPast Critic: **Summary of strongest points from the debate**\n\n1.  **ABI Non-Compliance (Extra):** The contract exposes a public `owner` state variable, creating an `owner()` getter function that was not requested in the specification. This must be removed.\n2.  **Logical Security Flaw:** The `preSaleWalletMinted` counter for a user is never reset when they are removed from the whitelist (`whitelistUser(user, false)`). If a user is removed and later re-added, they can mint again, potentially exceeding the intended lifetime per-wallet limit. This violates the intended functionality of the whitelist limit.\n3.  **Gas Inefficiency:** In `mintTokenWhitelisted`, the `preSaleWalletMinted[msg.sender]` storage value is read twice. This can be optimized by caching it in a local variable.\n\n**Ordered Repair List**\n\n1.  **ABI Extra (`owner` getter):** Make the `owner` variable `private` or `internal` to remove the public getter function from the ABI. The `onlyOwner` modifier can still access it.\n2.  **Test Failure / Behavioral Flaw (Whitelist Counter Reset):** When a user is removed from the whitelist via `whitelistUser(user, false)`, their `preSaleWalletMinted` count must be reset to 0. This ensures the per-wallet limit is enforced correctly across changes to whitelist status.\n3.  **Gas Optimization:** In `mintTokenWhitelisted`, cache `preSaleWalletMinted[msg.sender]` in a local `uint256` variable (e.g., `walletMinted`) to avoid a second storage read.\n\n**Implementation-Level Changes**\n\nApply the following minimal changes to the contract:\n\n1.  Change the declaration of `owner` to `private` or `internal`:\n    ```solidity\n    address private owner;\n    ```\n2.  Modify the `whitelistUser` function to reset the mint counter when `status` is `false`:\n    ```solidity\n    function whitelistUser(address user, bool status) external onlyOwner {\n        whitelisted[user] = status;\n        if (!status) {\n            preSaleWalletMinted[user] = 0; // Reset counter on removal\n        }\n    }\n    ```\n3.  Optimize `mintTokenWhitelisted`:\n    ```solidity\n    function mintTokenWhitelisted(uint256 amount) external payable {\n        if (currentSaleStatus != SaleStatus.PRE_SALE) revert NotPreSale();\n        if (!whitelisted[msg.sender]) revert NotWhitelisted();\n\n        uint256 walletMinted = preSaleWalletMinted[msg.sender]; // Cache\n        if (walletMinted + amount > preSaleWalletLimit) revert ExceedsWalletLimit();\n\n        _mint(amount);\n        preSaleWalletMinted[msg.sender] = walletMinted + amount; // Use cached value\n    }\n    ```\n\nThese changes ensure ABI compliance, fix the critical logical flaw in whitelist management, and improve gas efficiency with no impact on the required specification.\nThe following provides some observation(s) when executing the current solution. If these observations are relevant, use them to improve and update your critic:\nCurrent Solution Observation: Compilation: failed. Error: Compiler run failed:\nError (6160): Wrong argument count for function call: 0 arguments given but expected 3.\n  --> test/Generated.t.sol:12:13:\n   |\n12 |         c = new GrandGooseMansion();\n   |             ^^^^^^^^^^^^^^^^^^^^^^^ ABI: not checked. Tests: skipped (no Solidity test command available). Static analysis: skipped. Gas analysis: unavailable.\nCurrent Structured Execution Feedback:\n```json\n{\n  \"compile_success\": false,\n  \"compile_error\": \"Error: Compiler run failed:\\nError (6160): Wrong argument count for function call: 0 arguments given but expected 3.\\n--> test/Generated.t.sol:12:13:\\n|\\n12 |         c = new GrandGooseMansion();\\n|             ^^^^^^^^^^^^^^^^^^^^^^^\",\n  \"abi_checked\": null,\n  \"abi_success\": null,\n  \"abi_required\": [\n    \"supply()\",\n    \"cost()\",\n    \"maxSupply()\",\n    \"preSaleWalletLimit()\",\n    \"currentSaleStatus()\",\n    \"whitelistUser(address,bool)\",\n    \"startPresale()\",\n    \"startPublicSale()\",\n    \"setCost(uint256)\",\n    \"isWhitelisted(address)\",\n    \"mintTokenWhitelisted(uint256)\",\n    \"mintTokenPublic(uint256)\",\n    \"preSaleWalletMinted(address)\"\n  ],\n  \"abi_missing\": [],\n  \"abi_extra\": [],\n  \"abi_forbidden_present\": [],\n  \"test_success\": null,\n  \"test_failure\": null,\n  \"slither_findings\": {\n    \"count\": null,\n    \"severity_counts\": {},\n    \"items\": []\n  },\n  \"gas_used\": null\n}\n```\nSecurity Critic: here is my analysis of solution security: **Security Analysis of Candidate Contract**\n\nThe candidate solution contains several concrete security risks that must be addressed:\n\n1. **Missing Constructor Parameters**: The compilation error shows the constructor requires 3 arguments (`_maxSupply`, `_cost`, `_preSaleWalletLimit`), but the task specification doesn't explicitly require constructor parameters. This creates deployment issues and potential front-running vulnerabilities if parameters aren't properly initialized.\n\n2. **Unsafe Arithmetic**: While Solidity 0.8.20 has built-in overflow checks, the multiplication `cost * amount` in `_mint()` could overflow for large values. However, this is mitigated by the compiler's built-in checks.\n\n3. **Whitelist State Inconsistency**: The `whitelistUser` function resets `preSaleWalletMinted[user] = 0` when setting status to `false`, but this creates a potential exploit: a malicious owner could repeatedly whitelist/remove a user to bypass the per-wallet limit over time.\n\n4. **Missing Payment Withdrawal**: The contract accumulates ETH but has no withdrawal mechanism, permanently locking funds. While the task doesn't explicitly require it, this is a fund-locking vulnerability.\n\n5. **Reentrancy Risk**: The `_\nFunctionality Critic: \nFunctionality Critic: here is my analysis of solution functionality and correctness: The contract fails to compile because its constructor requires three arguments (`_maxSupply`, `_cost`, `_preSaleWalletLimit`), but the task specification does not mention any constructor parameters. The contract must be deployable without arguments. Additionally, the contract exposes an extra public `owner()` getter via the `owner` state variable, which violates the required ABI.\n\n**Critical Issues:**\n1. **Compilation Error:** Constructor must be parameterless or have default values. The task implies deployment with preset values, so remove constructor parameters and initialize `maxSupply`, `cost`, and `preSaleWalletLimit` to reasonable defaults (e.g., 10000, 0.1 ether, 5).\n2. **ABI Extra:** The `owner` state variable is public, generating an unwanted `owner()` getter. Make it private/internal.\n\n**Recommended Fixes:**\n- Remove constructor parameters and set defaults in the constructor.\n- Change `address private owner;` to `address private _owner;` or keep private but ensure no public getter.\n- Optionally, add a `withdraw()` function for the accumulated ETH (though not required by spec).\n\nHere is the corrected contract:\n\n```solidity\n// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract GrandGooseMansion {\n    address private _owner;\n    \n    uint256 public supply;\n    uint256 public cost;\n    uint256 public maxSupply;\n    uint256 public preSaleWalletLimit;\n    \n    enum SaleStatus { Paused, Presale, PublicSale }\n    SaleStatus public currentSaleStatus;\n    \n    mapping(address => bool) private _whitelisted;\n    mapping(address => uint256) public preSaleWalletMinted;\n    \n    error InvalidAmount();\n    error ExceedsMaxSupply();\n    error WrongEtherAmount();\nGas Critic: \nGas Critic: here is my analysis of solution gas usage and on-chain efficiency: Looking at the contract through a gas-efficiency lens, I see several areas for improvement while respecting the strict scope rules:\n\n**Deployment Cost Issues:**\n1. **Constructor parameters** - The current constructor with 3 parameters increases deployment cost. Removing these (as required by functionality) will reduce deployment gas.\n\n**Runtime Gas Inefficiencies:**\n1. **Redundant storage reads** - In `mintTokenWhitelisted`, `preSaleWalletMinted[msg.sender]` is read twice (once for the check, once for update). This should be cached.\n2. **Inefficient whitelist management** - The `whitelistUser` function writes to storage even when status doesn't change, and always writes `preSaleWalletMinted[user] = 0` on removal (even if already 0).\n3. **Multiplication in require check** - `cost * amount` is calculated on-chain each time; while necessary, it's a gas-intensive operation.\n\n**Specific Optimizations Within Scope:**\n1. Cache `preSaleWalletMinted[msg.sender]` in `mintTokenWhitelisted`\n2. Add a check in `whitelistUser` to avoid unnecessary storage writes\n3.",
+    "safety_critics_posthoc": [
+        "**Security Analysis of Candidate Contract**\n\nThe candidate solution contains several concrete security risks that must be addressed:\n\n1. **Missing Constructor Parameters**: The compilation error shows the constructor requires 3 arguments (`_maxSupply`, `_cost`, `_preSaleWalletLimit`), but the task specification doesn't explicitly require constructor parameters. This creates deployment issues and potential front-running vulnerabilities if parameters aren't properly initialized.\n\n2. **Unsafe Arithmetic**: While Solidity 0.8.20 has built-in overflow checks, the multiplication `cost * amount` in `_mint()` could overflow for large values. However, this is mitigated by the compiler's built-in checks.\n\n3. **Whitelist State Inconsistency**: The `whitelistUser` function resets `preSaleWalletMinted[user] = 0` when setting status to `false`, but this creates a potential exploit: a malicious owner could repeatedly whitelist/remove a user to bypass the per-wallet limit over time.\n\n4. **Missing Payment Withdrawal**: The contract accumulates ETH but has no withdrawal mechanism, permanently locking funds. While the task doesn't explicitly require it, this is a fund-locking vulnerability.\n\n5. **Reentrancy Risk**: The `_"
+    ],
+    "safety_tool_output_posthoc": [
+        {
+            "tool": [
+                {
+                    "tool_name": "code_review",
+                    "parameters": {
+                        "query": "Solidity constructor parameters best practices for NFT presale contracts",
+                        "code": "// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract GrandGooseMansion {\n    address private owner;\n    \n    uint256 public supply;\n    uint256 public cost;\n    uint256 public maxSupply;\n    uint256 public preSaleWalletLimit;\n    \n    enum SaleStatus { Paused, Presale, PublicSale }\n    SaleStatus public currentSaleStatus;\n    \n    mapping(address => bool) private _whitelisted;\n    mapping(address => uint256) public preSaleWalletMinted;\n    \n    error InvalidAmount();\n    error ExceedsMaxSupply"
+                    }
+                }
+            ],
+            "output": []
+        }
+    ],
+    "helpful_critics_posthoc": [
+        "The contract fails to compile because its constructor requires three arguments (`_maxSupply`, `_cost`, `_preSaleWalletLimit`), but the task specification does not mention any constructor parameters. The contract must be deployable without arguments. Additionally, the contract exposes an extra public `owner()` getter via the `owner` state variable, which violates the required ABI.\n\n**Critical Issues:**\n1. **Compilation Error:** Constructor must be parameterless or have default values. The task implies deployment with preset values, so remove constructor parameters and initialize `maxSupply`, `cost`, and `preSaleWalletLimit` to reasonable defaults (e.g., 10000, 0.1 ether, 5).\n2. **ABI Extra:** The `owner` state variable is public, generating an unwanted `owner()` getter. Make it private/internal.\n\n**Recommended Fixes:**\n- Remove constructor parameters and set defaults in the constructor.\n- Change `address private owner;` to `address private _owner;` or keep private but ensure no public getter.\n- Optionally, add a `withdraw()` function for the accumulated ETH (though not required by spec).\n\nHere is the corrected contract:\n\n```solidity\n// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract GrandGooseMansion {\n    address private _owner;\n    \n    uint256 public supply;\n    uint256 public cost;\n    uint256 public maxSupply;\n    uint256 public preSaleWalletLimit;\n    \n    enum SaleStatus { Paused, Presale, PublicSale }\n    SaleStatus public currentSaleStatus;\n    \n    mapping(address => bool) private _whitelisted;\n    mapping(address => uint256) public preSaleWalletMinted;\n    \n    error InvalidAmount();\n    error ExceedsMaxSupply();\n    error WrongEtherAmount();"
+    ],
+    "helpful_tool_output_posthoc": [
+        {
+            "tool": [
+                {
+                    "tool_name": "code_review",
+                    "parameters": {
+                        "query": "Solidity constructor default values best practices",
+                        "code": "// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract ConstructorDefaultsExample {\n    uint256 public maxSupply;\n    uint256 public cost;\n    uint256 public walletLimit;\n    address public owner;\n    \n    // Option 1: Hardcoded defaults in parameterless constructor\n    constructor() {\n        owner = msg.sender;\n        maxSupply = 10000;\n        cost = 0.1 ether;\n        walletLimit = 5;\n    }\n    \n    // Option 2: Constructor with parameters but using reasonable defaults\n    // when deployment arguments"
+                    }
+                }
+            ],
+            "output": []
+        }
+    ],
+    "gas_critics_posthoc": [
+        "Looking at the contract through a gas-efficiency lens, I see several areas for improvement while respecting the strict scope rules:\n\n**Deployment Cost Issues:**\n1. **Constructor parameters** - The current constructor with 3 parameters increases deployment cost. Removing these (as required by functionality) will reduce deployment gas.\n\n**Runtime Gas Inefficiencies:**\n1. **Redundant storage reads** - In `mintTokenWhitelisted`, `preSaleWalletMinted[msg.sender]` is read twice (once for the check, once for update). This should be cached.\n2. **Inefficient whitelist management** - The `whitelistUser` function writes to storage even when status doesn't change, and always writes `preSaleWalletMinted[user] = 0` on removal (even if already 0).\n3. **Multiplication in require check** - `cost * amount` is calculated on-chain each time; while necessary, it's a gas-intensive operation.\n\n**Specific Optimizations Within Scope:**\n1. Cache `preSaleWalletMinted[msg.sender]` in `mintTokenWhitelisted`\n2. Add a check in `whitelistUser` to avoid unnecessary storage writes\n3."
+    ],
+    "gas_tool_output_posthoc": [
+        {
+            "tool": [
+                {
+                    "tool_name": "code_review",
+                    "parameters": {
+                        "query": "Solidity gas optimization storage read patterns",
+                        "code": "// SPDX-License-Identifier: MIT\npragma solidity 0.8.20;\n\ncontract GasOptimizationExamples {\n    // Example 1: Caching storage reads\n    mapping(address => uint256) public userBalances;\n    \n    function updateBalanceWithCache(uint256 newAmount) external {\n        uint256 cachedBalance = userBalances[msg.sender]; // Cache storage read\n        require(cachedBalance > 0, \"No balance\");\n        userBalances[msg.sender] = cachedBalance + newAmount; // Single storage write\n    }\n    \n    // Example"
+                    }
+                }
+            ],
+            "output": []
+        }
+    ]
+}
