@@ -27,6 +27,16 @@ parser.add_argument(
     "--model", type=str, default='llama3-8b-instruct', 
     help='Base model to initialize llm agents',
 )
+parser.add_argument(
+    "--provider",
+    type=str,
+    default="auto",
+    choices={"auto", "qwen", "openai", "deepseek"},
+    help=(
+        "LLM API provider. Use auto to infer from --model; qwen uses DashScope/Qwen "
+        "openai uses OPENAI_API_KEY, and deepseek uses DEEPSEEK_API_KEY."
+    ),
+)
 
 # Generation configuration 
 parser.add_argument(

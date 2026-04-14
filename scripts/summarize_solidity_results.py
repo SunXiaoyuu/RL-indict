@@ -148,6 +148,8 @@ def classify_final_status(row: dict[str, Any]) -> str:
         return "test_failed"
     if row.get("test_success") is None:
         return "tests_unavailable"
+    if row.get("abi_extra"):
+        return "passed_with_extra_abi"
     vulnerability_count = row.get("vulnerability_count")
     if isinstance(vulnerability_count, int) and vulnerability_count > 0:
         return "passed_with_slither_findings"

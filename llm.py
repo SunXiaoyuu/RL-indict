@@ -5,6 +5,8 @@ import time
 from abc import ABC, abstractmethod
 from typing import Callable
 
+from deepseek_client import DeepSeekClient
+from openai_client import OpenAIClient
 from qwen_client import QwenClient
 
 
@@ -103,4 +105,45 @@ class QWEN(LLM):
         return self.client.query_with_system_prompt(system_prompt, prompt, max_tokens=max_tokens)
 
 
-OPENAI = QWEN
+class OPENAI(LLM):
+    def __init__(self, model_name: str = "gpt-5.4", api_key: str | None = None, base_url=None, api_mode=None) -> None:
+        super().__init__(model_name, api_key)
+        self.client = OpenAIClient(model_name=model_name, api_key=api_key, base_url=base_url, api_mode=api_mode)
+        self.name = model_name
+
+    def query(self, prompt: str, stop_seqs=None, max_tokens: int = 1024, num_outputs: int = 1) -> str:
+        del num_outputs
+        return self.client.query(prompt, max_tokens=max_tokens, stop=stop_seqs)
+
+    def query_with_system_prompt(
+        self,
+        system_prompt: str,
+        prompt: str,
+        stop_seqs=None,
+        max_tokens: int = 1024,
+        num_outputs: int = 1,
+    ) -> str:
+        del num_outputs
+        return self.client.query_with_system_prompt(system_prompt, prompt, max_tokens=max_tokens, stop=stop_seqs)
+
+
+class DEEPSEEK(LLM):
+    def __init__(self, model_name: str = "deepseek-chat", api_key: str | None = None, base_url=None) -> None:
+        super().__init__(model_name, api_key)
+        self.client = DeepSeekClient(model_name=model_name, api_key=api_key, base_url=base_url)
+        self.name = model_name
+
+    def query(self, prompt: str, stop_seqs=None, max_tokens: int = 1024, num_outputs: int = 1) -> str:
+        del num_outputs
+        return self.client.query(prompt, max_tokens=max_tokens, stop=stop_seqs)
+
+    def query_with_system_prompt(
+        self,
+        system_prompt: str,
+        prompt: str,
+        stop_seqs=None,
+        max_tokens: int = 1024,
+        num_outputs: int = 1,
+    ) -> str:
+        del num_outputs
+        return self.client.query_with_system_prompt(system_prompt, prompt, max_tokens=max_tokens, stop=stop_seqs)

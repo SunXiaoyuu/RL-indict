@@ -100,6 +100,7 @@ class Agents:
                         "analysis_focus": "solution security",
                         "support_label": "Supporting Fact(s) for Security",
                         "prompt": self.safety_critic_prompt,
+                        "max_tokens": 256,
                     }
                 )
             if self.helpful_critic_prompt is not None:
@@ -110,6 +111,7 @@ class Agents:
                         "analysis_focus": "solution functionality and correctness",
                         "support_label": "Supporting Fact(s) for Functionality",
                         "prompt": self.helpful_critic_prompt,
+                        "max_tokens": 384,
                     }
                 )
             if self.gas_critic_prompt is not None:
@@ -120,6 +122,7 @@ class Agents:
                         "analysis_focus": "solution gas usage and on-chain efficiency",
                         "support_label": "Supporting Fact(s) for Gas",
                         "prompt": self.gas_critic_prompt,
+                        "max_tokens": 256,
                     }
                 )
             return specs
@@ -231,9 +234,12 @@ class Agents:
         lines.extend(
             [
                 "- Preserve every required ABI signature exactly. Do not rename, remove, or change argument types for required public/external functions, constructors, mappings, or getters.",
-                "- Do not duplicate a public state variable with an explicit function of the same name; Solidity already creates getters for public variables and mappings.",
+                "- Required getter signatures must be implemented either by a public state variable/mapping or by an explicit function, never both.",
+                "- If you use a public state variable or public mapping, do not write an explicit function with the same name; Solidity already creates the getter.",
+                "- If you write an explicit getter function, the backing storage variable must use a different private/internal name such as `_name`; never declare storage and function identifiers with the same name.",
                 "- Do not add external imports, inherited contracts, upgradeable patterns, or third-party dependencies unless the task explicitly provides and requires them.",
                 "- Do not add broad unrequested APIs such as ownership-transfer functions, extra mint/admin functions, helper endpoints, or unrelated events.",
+                "- Extra public/external ABI entries count as interface drift unless explicitly required by the task.",
                 "- Prefer minimal edits that fix concrete compiler, ABI, test, Slither, or gas feedback while preserving the specified behavior.",
             ]
         )
@@ -505,7 +511,7 @@ class Agents:
                 critic_text = self.prompt_critic_agent(
                     self.critic_llm,
                     spec["prompt"],
-                    max_tokens=128,
+                    max_tokens=spec.get("max_tokens", 128),
                     answer=answer,
                 )
 
@@ -641,6 +647,15 @@ class Agents:
             or abi_result.get("success") is True
         )
 
+    def _abi_extra_count(self, metrics: dict[str, Any] | None) -> int | None:
+        if not isinstance(metrics, dict):
+            return None
+        feedback = self._build_structured_feedback(metrics)
+        abi_extra = feedback.get("abi_extra")
+        if not isinstance(abi_extra, list):
+            return None
+        return len(abi_extra)
+
     @classmethod
     def _vulnerability_score(cls, metrics: dict[str, Any] | None) -> int | None:
         if not isinstance(metrics, dict):
@@ -685,36 +700,42 @@ class Agents:
             return None
         return candidate_value < baseline_value
 
-    @classmethod
-    def _is_better_outcome(cls, candidate_metrics: dict[str, Any] | None, baseline_metrics: dict[str, Any] | None) -> bool:
-        candidate_compile = cls._compile_success(candidate_metrics)
-        baseline_compile = cls._compile_success(baseline_metrics)
+    def _is_better_outcome(self, candidate_metrics: dict[str, Any] | None, baseline_metrics: dict[str, Any] | None) -> bool:
+        candidate_compile = self._compile_success(candidate_metrics)
+        baseline_compile = self._compile_success(baseline_metrics)
         if candidate_compile != baseline_compile:
             return candidate_compile and not baseline_compile
 
         if not candidate_compile:
             return False
 
-        candidate_tests = cls._tests_success(candidate_metrics)
-        baseline_tests = cls._tests_success(baseline_metrics)
+        candidate_tests = self._tests_success(candidate_metrics)
+        baseline_tests = self._tests_success(baseline_metrics)
         if candidate_tests != baseline_tests:
             return candidate_tests and not baseline_tests
 
-        candidate_abi = cls._abi_success(candidate_metrics)
-        baseline_abi = cls._abi_success(baseline_metrics)
+        candidate_abi = self._abi_success(candidate_metrics)
+        baseline_abi = self._abi_success(baseline_metrics)
         if candidate_abi != baseline_abi:
             return candidate_abi and not baseline_abi
 
-        vulnerability_decision = cls._lower_metric_is_better(
-            cls._vulnerability_score(candidate_metrics),
-            cls._vulnerability_score(baseline_metrics),
+        abi_extra_decision = self._lower_metric_is_better(
+            self._abi_extra_count(candidate_metrics),
+            self._abi_extra_count(baseline_metrics),
+        )
+        if abi_extra_decision is not None:
+            return abi_extra_decision
+
+        vulnerability_decision = self._lower_metric_is_better(
+            self._vulnerability_score(candidate_metrics),
+            self._vulnerability_score(baseline_metrics),
         )
         if vulnerability_decision is not None:
             return vulnerability_decision
 
-        gas_decision = cls._lower_metric_is_better(
-            cls._gas_value(candidate_metrics),
-            cls._gas_value(baseline_metrics),
+        gas_decision = self._lower_metric_is_better(
+            self._gas_value(candidate_metrics),
+            self._gas_value(baseline_metrics),
         )
         if gas_decision is not None:
             return gas_decision

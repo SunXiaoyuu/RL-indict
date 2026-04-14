@@ -8,15 +8,21 @@ Usage:
 
 Environment overrides:
   MODEL=qwen2.5-14b-instruct
+  PROVIDER=auto
   STRATEGY=indict_llama
   DATA_PATH=data/solidity_fsm_testable_10.json
   EXPERIMENT=fsm_testable10_structured_retry
+  OPENAI_RESPONSES_URL=https://gmn.chuangzuoli.com/v1/responses
+  OPENAI_BASE_URL=https://gmn.chuangzuoli.com/v1
+  DEEPSEEK_API_BASE=https://api.deepseek.com
   PYTHON_BIN=python
   OVERRIDE=1
   DEBUG=1
 
 Required:
-  DASHSCOPE_API_KEY or QWEN_API_KEY
+  DASHSCOPE_API_KEY or QWEN_API_KEY for Qwen
+  OPENAI_API_KEY for OpenAI
+  DEEPSEEK_API_KEY for DeepSeek
 
 Outputs:
   solidity_<MODEL>/<STRATEGY>_<EXPERIMENT>_round1
@@ -35,6 +41,7 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
 fi
 
 model="${MODEL:-qwen2.5-14b-instruct}"
+provider="${PROVIDER:-auto}"
 strategy="${STRATEGY:-indict_llama}"
 data_path="${DATA_PATH:-data/solidity_fsm_testable_10.json}"
 experiment="${EXPERIMENT:-fsm_testable10_structured}"
@@ -42,8 +49,18 @@ python_bin="${PYTHON_BIN:-python}"
 override="${OVERRIDE:-1}"
 debug="${DEBUG:-0}"
 
-if [[ -z "${DASHSCOPE_API_KEY:-}" && -z "${QWEN_API_KEY:-}" ]]; then
-  echo "ERROR: set DASHSCOPE_API_KEY or QWEN_API_KEY before running generation." >&2
+if [[ "$provider" == "openai" || "$model" == openai:* || "$model" == openai-* || "$model" == gpt* ]]; then
+  if [[ -z "${OPENAI_API_KEY:-}" ]]; then
+    echo "ERROR: set OPENAI_API_KEY before running OpenAI generation." >&2
+    exit 2
+  fi
+elif [[ "$provider" == "deepseek" || "$model" == deepseek:* || "$model" == deepseek* ]]; then
+  if [[ -z "${DEEPSEEK_API_KEY:-}" ]]; then
+    echo "ERROR: set DEEPSEEK_API_KEY before running DeepSeek generation." >&2
+    exit 2
+  fi
+elif [[ -z "${DASHSCOPE_API_KEY:-}" && -z "${QWEN_API_KEY:-}" ]]; then
+  echo "ERROR: set DASHSCOPE_API_KEY or QWEN_API_KEY before running Qwen generation." >&2
   exit 2
 fi
 
@@ -62,6 +79,7 @@ common_args=(
   run.py
   --task solidity
   --model "$model"
+  --provider "$provider"
   --strategy "$strategy"
   --data_path "$data_path"
 )
@@ -139,6 +157,7 @@ run_round() {
 
 echo "Experiment config:"
 echo "  model:      $model"
+echo "  provider:   $provider"
 echo "  strategy:   $strategy"
 echo "  data_path:  $data_path"
 echo "  experiment: $experiment"

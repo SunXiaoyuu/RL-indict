@@ -38,7 +38,7 @@ if args.model == 'commandr' and AutoTokenizer is not None:
     tokenizer = AutoTokenizer.from_pretrained(model_mapping[args.model])
     
 # Set up agent
-model = get_model(args.model, model_mapping)
+model = get_model(args.model, model_mapping, provider=args.provider)
 agent_config = copy.deepcopy(agent_configs[strategy.value])
 task_config = task_agent_configs.get(args.task, {}).get(strategy.value, {})
 agent_config.update(task_config)

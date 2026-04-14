@@ -55,26 +55,52 @@ def load_data(task, data_path=None):
     return data, config["action_prompt_header"], config["question_prompt_key"]
 
 
-def get_model(model_name, model_mapping):
-    from llm import QWEN
+def get_model(model_name, model_mapping, provider="auto"):
+    from deepseek_client import DEFAULT_DEEPSEEK_MODEL
+    from llm import DEEPSEEK, OPENAI, QWEN
+    from openai_client import DEFAULT_OPENAI_MODEL
     from qwen_client import DEFAULT_QWEN_MODEL
 
-    if model_name in ["gpt4", "gpt3.5", "qwen"]:
-        qwen_model_name = model_mapping.get(model_name, "qwen2.5-14b-instruct")
-        print(f"Using Qwen client model for {model_name}: {qwen_model_name}")
-        return QWEN(model_name=qwen_model_name)
+    requested_model = (model_name or "").strip()
+    provider = (provider or "auto").strip().lower()
 
-    if model_name in model_mapping and model_name.startswith("qwen"):
-        qwen_model_name = model_mapping[model_name]
+    if requested_model.startswith("qwen:"):
+        provider = "qwen"
+        requested_model = requested_model.split(":", 1)[1]
+    elif requested_model.startswith("openai:"):
+        provider = "openai"
+        requested_model = requested_model.split(":", 1)[1]
+    elif requested_model.startswith("deepseek:"):
+        provider = "deepseek"
+        requested_model = requested_model.split(":", 1)[1]
+
+    if provider == "auto":
+        normalized = requested_model.lower()
+        if normalized.startswith(("gpt", "o1", "o3", "o4", "openai-")):
+            provider = "openai"
+        elif normalized.startswith("deepseek"):
+            provider = "deepseek"
+        else:
+            provider = "qwen"
+
+    if provider == "openai":
+        openai_model_name = model_mapping.get(requested_model, requested_model) if requested_model else DEFAULT_OPENAI_MODEL
+        if openai_model_name.startswith("openai-"):
+            openai_model_name = openai_model_name.replace("openai-", "", 1)
+        print(f"Using OpenAI client model: {openai_model_name}")
+        return OPENAI(model_name=openai_model_name)
+
+    if provider == "qwen":
+        qwen_model_name = model_mapping.get(requested_model, requested_model or DEFAULT_QWEN_MODEL)
         print(f"Using Qwen client model: {qwen_model_name}")
         return QWEN(model_name=qwen_model_name)
 
-    if model_name and model_name.startswith("qwen"):
-        print(f"Using Qwen client model: {model_name}")
-        return QWEN(model_name=model_name)
+    if provider == "deepseek":
+        deepseek_model_name = model_mapping.get(requested_model, requested_model or DEFAULT_DEEPSEEK_MODEL)
+        print(f"Using DeepSeek client model: {deepseek_model_name}")
+        return DEEPSEEK(model_name=deepseek_model_name)
 
-    print(f"Using default Qwen client model: {DEFAULT_QWEN_MODEL}")
-    return QWEN(model_name=DEFAULT_QWEN_MODEL)
+    raise ValueError(f"Unsupported provider: {provider}")
 
 
 def get_code_before(sample):
