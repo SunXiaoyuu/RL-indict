@@ -37,6 +37,28 @@ parser.add_argument(
         "openai uses OPENAI_API_KEY, and deepseek uses DEEPSEEK_API_KEY."
     ),
 )
+parser.add_argument(
+    "--cost_profile",
+    type=str,
+    default="full",
+    choices={"full", "gated", "cheap"},
+    help=(
+        "Runtime cost profile. full preserves the original all-critic flow; gated "
+        "routes critics by structured defects; cheap uses compact feedback, early "
+        "stop, failure-only posthoc, and disables LLM tool calls."
+    ),
+)
+parser.add_argument(
+    "--solidity_prompt_mode",
+    type=str,
+    default="normalized",
+    choices={"normalized", "light", "raw"},
+    help=(
+        "How strictly Solidity prompts are normalized. normalized uses the full "
+        "benchmark ABI/spec constraints; light keeps only broad internal constraints; "
+        "raw sends the user requirement without added Solidity hard constraints."
+    ),
+)
 
 # Generation configuration 
 parser.add_argument(

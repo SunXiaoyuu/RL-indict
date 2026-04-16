@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -118,6 +119,8 @@ class SolidityExecutionBackend(BaseExecutionBackend):
                             "vulnerability_count": None,
                             "vulnerability_severity_counts": {},
                             "slither_findings": [],
+                            "slither_classification_counts": {},
+                            "test_diagnostics": self._empty_test_diagnostics(command_success=None),
                             "max_gas_value": None,
                             "skipped_after_compile_failure": True,
                         },
@@ -129,6 +132,7 @@ class SolidityExecutionBackend(BaseExecutionBackend):
                 test_command = self._test_command(workdir, context)
                 if test_command is not None:
                     test_result = self._run_command(test_command, workdir)
+                test_diagnostics = self._parse_test_diagnostics(test_result)
 
                 gas_result = None
                 gas_command = self._gas_command(workdir, context)
@@ -141,7 +145,12 @@ class SolidityExecutionBackend(BaseExecutionBackend):
                 if slither_command is not None:
                     slither_result = self._run_command(slither_command, workdir)
 
-                vulnerability_count, severity_counts, slither_findings = self._parse_slither_count(slither_json_path)
+                (
+                    vulnerability_count,
+                    severity_counts,
+                    slither_findings,
+                    slither_classification_counts,
+                ) = self._parse_slither_count(slither_json_path)
                 max_gas_value = None
                 if gas_result is not None and gas_result["success"]:
                     max_gas_value = self._parse_gas_output(f"{gas_result['stdout']}\n{gas_result['stderr']}")
@@ -163,6 +172,8 @@ class SolidityExecutionBackend(BaseExecutionBackend):
                     "vulnerability_count": vulnerability_count,
                     "vulnerability_severity_counts": severity_counts,
                     "slither_findings": slither_findings,
+                    "slither_classification_counts": slither_classification_counts,
+                    "test_diagnostics": test_diagnostics,
                     "max_gas_value": max_gas_value,
                 }
                 return BackendObservation(summary=summary, details=details)
@@ -565,25 +576,151 @@ class SolidityExecutionBackend(BaseExecutionBackend):
 
         return " ".join(lines)
 
-    def _parse_slither_count(self, json_path: Path) -> tuple[int | None, dict[str, int], list[dict[str, Any]]]:
+    def _parse_slither_count(self, json_path: Path) -> tuple[int | None, dict[str, int], list[dict[str, Any]], dict[str, int]]:
         if not json_path.exists():
-            return None, {}, []
+            return None, {}, [], {}
         data = json.loads(json_path.read_text(encoding="utf-8"))
         detectors = data.get("results", {}).get("detectors", [])
         severity_counts: dict[str, int] = {}
+        classification_counts: dict[str, int] = {}
         findings: list[dict[str, Any]] = []
         for detector in detectors:
             impact = str(detector.get("impact", "unknown")).lower()
+            check = str(detector.get("check") or "unknown")
+            classification = self._classify_slither_finding(check, detector.get("description", ""), impact)
             severity_counts[impact] = severity_counts.get(impact, 0) + 1
+            classification_counts[classification] = classification_counts.get(classification, 0) + 1
             findings.append(
                 {
-                    "check": detector.get("check"),
+                    "check": check,
                     "impact": impact,
                     "confidence": detector.get("confidence"),
                     "description": self._short_text(detector.get("description", ""), limit=320),
+                    "classification": classification,
+                    "blocking": classification == "security_blocking",
                 }
             )
-        return len(detectors), severity_counts, findings
+        return len(detectors), severity_counts, findings, classification_counts
+
+    def _classify_slither_finding(self, check: str, description: Any, impact: str) -> str:
+        check_name = str(check or "").lower()
+        description_text = str(description or "").lower()
+        category = str(self.sample_metadata.get("category") or "").lower()
+        contract_name = str(self.sample_metadata.get("contract_name") or "").lower()
+        required = set(self._normalize_signature_list(self.sample_metadata.get("required_abi_signatures", [])))
+
+        if impact in {"critical", "high"}:
+            return "security_blocking"
+        if check_name == "arbitrary-send-eth":
+            return "security_blocking"
+        if check_name == "locked-ether":
+            if "withdraw()" not in required and not any(signature.startswith("withdraw(") for signature in required):
+                return "spec_conflict"
+            return "security_blocking"
+        if check_name == "timestamp":
+            if any(token in category or token in contract_name for token in ("vesting", "timelock", "lock", "presale", "sale")):
+                return "acceptable_pattern"
+            return "security_review"
+        if check_name in {"events-maths", "events-access", "reentrancy-events"}:
+            return "quality_warning"
+        if "should emit an event" in description_text:
+            return "quality_warning"
+        if impact == "medium":
+            return "security_review"
+        return "quality_warning"
+
+    def _empty_test_diagnostics(self, command_success: bool | None) -> dict[str, Any]:
+        return {
+            "command_success": command_success,
+            "passed_count": None,
+            "failed_count": None,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": [],
+        }
+
+    def _parse_test_diagnostics(self, test_result: dict[str, Any] | None) -> dict[str, Any]:
+        if not isinstance(test_result, dict):
+            return self._empty_test_diagnostics(command_success=None)
+
+        text = f"{test_result.get('stdout') or ''}\n{test_result.get('stderr') or ''}"
+        diagnostics = self._empty_test_diagnostics(command_success=test_result.get("success"))
+        diagnostics["passed_count"] = len(re.findall(r"^\[PASS\]\s+", text, flags=re.MULTILINE))
+        failed_tests: list[dict[str, Any]] = []
+
+        seen_failures: set[tuple[str, str, str | None]] = set()
+        for match in re.finditer(
+            r"^\[FAIL(?:: (?P<reason>[^\]]+))?\]\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)\(\)\s*(?:\(gas:\s*(?P<gas>\d+)\))?",
+            text,
+            flags=re.MULTILINE,
+        ):
+            reason = (match.group("reason") or "").strip()
+            key = (match.group("name"), reason, match.group("gas"))
+            if key in seen_failures:
+                continue
+            seen_failures.add(key)
+            actual, expected = self._parse_assertion_values(reason)
+            failed_tests.append(
+                {
+                    "name": match.group("name"),
+                    "reason": reason,
+                    "gas": int(match.group("gas")) if match.group("gas") else None,
+                    "failure_type": self._classify_test_failure(reason, match.group("name")),
+                    "expected": expected,
+                    "actual": actual,
+                    "repair_hint": self._test_repair_hint(match.group("name"), reason),
+                }
+            )
+
+        summary_match = re.search(
+            r"Suite result:\s+\w+\.\s+(?P<passed>\d+)\s+passed;\s+(?P<failed>\d+)\s+failed",
+            text,
+        )
+        if summary_match:
+            diagnostics["passed_count"] = int(summary_match.group("passed"))
+            diagnostics["failed_count"] = int(summary_match.group("failed"))
+        else:
+            diagnostics["failed_count"] = len(failed_tests)
+
+        diagnostics["failed_tests"] = failed_tests
+        diagnostics["failure_types"] = sorted({test["failure_type"] for test in failed_tests if test.get("failure_type")})
+        diagnostics["repair_hints"] = sorted({test["repair_hint"] for test in failed_tests if test.get("repair_hint")})
+        return diagnostics
+
+    def _classify_test_failure(self, reason: str, test_name: str = "") -> str:
+        combined = f"{test_name} {reason}".lower()
+        lowered = reason.lower()
+        if not reason and not test_name:
+            return "unknown_failure"
+        if "public" in combined or "presale" in combined or "sale" in combined:
+            return "sale_phase_transition"
+        if "only deployer" in combined or "owner" in combined or "unauthorized" in combined or "not owner" in combined:
+            return "access_control_or_initialization"
+        if "assertion failed" in lowered or "!=" in reason:
+            if "0x" in reason and ("416c696365" in lowered or len(reason) > 80):
+                return "return_encoding_mismatch"
+            return "assertion_mismatch"
+        if "revert" in lowered or "cannot" in lowered or "invalid" in lowered:
+            return "unexpected_revert"
+        return "test_revert_or_failure"
+
+    def _parse_assertion_values(self, reason: str) -> tuple[str | None, str | None]:
+        match = re.search(r"assertion failed:\s*(?P<actual>.+?)\s*!=\s*(?P<expected>.+)$", reason)
+        if not match:
+            return None, None
+        return match.group("actual").strip(), match.group("expected").strip()
+
+    def _test_repair_hint(self, test_name: str, reason: str) -> str:
+        combined = f"{test_name} {reason}".lower()
+        if "public" in combined or "presale" in combined or "sale" in combined:
+            return "Inspect sale state transitions, constructor initial state, and startPresale/startPublicSale guards."
+        if "owner" in combined or "deployer" in combined or "unauthorized" in combined:
+            return "Inspect owner/deployer initialization and only-owner permission checks."
+        if "0x" in combined and ("assertion failed" in combined or "!=" in combined):
+            return "Inspect return encoding; tests may expect a plain string or exact stored value rather than a hash/bytes32 surrogate."
+        if "assertion failed" in combined or "!=" in combined:
+            return "Inspect the state variable or mapping updated by the tested function."
+        return "Inspect the failed test's target function and preserve the required ABI."
 
     def _short_text(self, value: Any, limit: int = 320) -> str:
         text = " ".join(str(value or "").split())

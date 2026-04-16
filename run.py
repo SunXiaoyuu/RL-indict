@@ -42,6 +42,32 @@ model = get_model(args.model, model_mapping, provider=args.provider)
 agent_config = copy.deepcopy(agent_configs[strategy.value])
 task_config = task_agent_configs.get(args.task, {}).get(strategy.value, {})
 agent_config.update(task_config)
+
+cost_profiles = {
+    "full": {
+        "critic_mode": "full",
+        "feedback_mode": "full",
+        "posthoc_policy": "always",
+        "critic_tools_enabled": True,
+        "early_stop": False,
+    },
+    "gated": {
+        "critic_mode": "gated",
+        "feedback_mode": "compact",
+        "posthoc_policy": "failures",
+        "critic_tools_enabled": False,
+        "early_stop": True,
+    },
+    "cheap": {
+        "critic_mode": "cheap",
+        "feedback_mode": "compact",
+        "posthoc_policy": "failures",
+        "critic_tools_enabled": False,
+        "early_stop": True,
+    },
+}
+runtime_config = cost_profiles[args.cost_profile]
+
 all_agents = [Agents(idx, 
                item[question_prompt_key],
                
@@ -70,6 +96,13 @@ all_agents = [Agents(idx,
                code_before = get_code_before(item),
                sample_metadata=item,
                prev_trial=args.prev_trial + '/{}.json'.format(idx) if args.prev_trial else None, 
+               cost_profile=args.cost_profile,
+               critic_mode=runtime_config["critic_mode"],
+               feedback_mode=runtime_config["feedback_mode"],
+               posthoc_policy=runtime_config["posthoc_policy"],
+               critic_tools_enabled=runtime_config["critic_tools_enabled"],
+               early_stop=runtime_config["early_stop"],
+               solidity_prompt_mode=args.solidity_prompt_mode,
                      
                ) for idx, item in enumerate(data)] 
 

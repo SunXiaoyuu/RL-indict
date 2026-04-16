@@ -55,6 +55,15 @@ def parse_args() -> argparse.Namespace:
             "sibling round directories are detected automatically."
         ),
     )
+    parser.add_argument(
+        "--baseline-results-dir",
+        action="append",
+        default=[],
+        help=(
+            "Direct-generation or other baseline result directory to compare against "
+            "--results-dir. May be repeated."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -111,6 +120,15 @@ def extract_compile_failure_short(metrics: dict[str, Any]) -> str:
 
 
 def extract_test_failure_short(metrics: dict[str, Any]) -> str:
+    diagnostics = metrics.get("test_diagnostics") or {}
+    failed_tests = diagnostics.get("failed_tests") or []
+    if failed_tests:
+        first = failed_tests[0]
+        if isinstance(first, dict):
+            name = first.get("name") or "unknown"
+            reason = first.get("reason") or first.get("failure_type") or "test failed"
+            return normalize_text(f"{name}: {reason}")
+
     tests = metrics.get("tests") or {}
     stdout = tests.get("stdout") or ""
     summary = metrics.get("summary") or ""
@@ -137,6 +155,58 @@ def flatten_severity_counts(counts: dict[str, Any] | None) -> tuple[int, int, in
     )
 
 
+def flatten_classification_counts(counts: dict[str, Any] | None) -> tuple[int, int, int, int, int]:
+    counts = counts or {}
+    return (
+        int(counts.get("security_blocking", 0) or 0),
+        int(counts.get("security_review", 0) or 0),
+        int(counts.get("spec_conflict", 0) or 0),
+        int(counts.get("quality_warning", 0) or 0),
+        int(counts.get("acceptable_pattern", 0) or 0),
+    )
+
+
+def classify_slither_finding(check: Any, impact: Any, dataset_sample: dict[str, Any]) -> str:
+    check_name = str(check or "").lower()
+    impact_name = str(impact or "").lower()
+    category = str(dataset_sample.get("category") or "").lower()
+    contract_name = str(dataset_sample.get("contract_name") or "").lower()
+    required = set(str(signature).replace(" ", "") for signature in dataset_sample.get("required_abi_signatures") or [])
+    if impact_name in {"critical", "high"}:
+        return "security_blocking"
+    if check_name == "arbitrary-send-eth":
+        return "security_blocking"
+    if check_name == "locked-ether":
+        if "withdraw()" not in required and not any(signature.startswith("withdraw(") for signature in required):
+            return "spec_conflict"
+        return "security_blocking"
+    if check_name == "timestamp":
+        if any(token in category or token in contract_name for token in ("vesting", "timelock", "lock", "presale", "sale")):
+            return "acceptable_pattern"
+        return "security_review"
+    if check_name in {"events-maths", "events-access", "reentrancy-events"}:
+        return "quality_warning"
+    if impact_name == "medium":
+        return "security_review"
+    return "quality_warning"
+
+
+def infer_classification_counts(metrics: dict[str, Any], dataset_sample: dict[str, Any]) -> dict[str, int]:
+    counts = dict(metrics.get("slither_classification_counts") or {})
+    if counts:
+        return counts
+    for finding in metrics.get("slither_findings") or []:
+        if not isinstance(finding, dict):
+            continue
+        classification = finding.get("classification") or classify_slither_finding(
+            finding.get("check"),
+            finding.get("impact"),
+            dataset_sample,
+        )
+        counts[classification] = counts.get(classification, 0) + 1
+    return counts
+
+
 def classify_final_status(row: dict[str, Any]) -> str:
     if row.get("result_present") is not True:
         return "missing_result"
@@ -150,6 +220,10 @@ def classify_final_status(row: dict[str, Any]) -> str:
         return "tests_unavailable"
     if row.get("abi_extra"):
         return "passed_with_extra_abi"
+    if int(row.get("slither_security_blocking_count") or 0) > 0:
+        return "passed_with_security_blocking_findings"
+    if int(row.get("slither_security_review_count") or 0) > 0:
+        return "passed_with_security_review_findings"
     vulnerability_count = row.get("vulnerability_count")
     if isinstance(vulnerability_count, int) and vulnerability_count > 0:
         return "passed_with_slither_findings"
@@ -231,8 +305,28 @@ def build_row(
                 "high_count": 0,
                 "medium_count": 0,
                 "low_count": 0,
+                "slither_security_blocking_count": 0,
+                "slither_security_review_count": 0,
+                "slither_spec_conflict_count": 0,
+                "slither_quality_warning_count": 0,
+                "slither_acceptable_pattern_count": 0,
                 "max_gas_value": None,
+                "test_failure_types": "",
+                "failed_tests": "",
+                "repair_hints": "",
                 "degradation_guard": None,
+                "stop_reason": None,
+                "cost_profile": None,
+                "critic_mode": None,
+                "feedback_mode": None,
+                "posthoc_policy": None,
+                "total_llm_calls": 0,
+                "actor_calls": 0,
+                "critic_calls": 0,
+                "tool_planning_calls": 0,
+                "prompt_chars": 0,
+                "completion_chars": 0,
+                "max_tokens_requested": 0,
                 "compile_command": None,
                 "test_command": None,
                 "failure_stage": "missing_result",
@@ -244,6 +338,8 @@ def build_row(
         return row
 
     metrics = result_record.get("execution_metrics") or {}
+    runtime_config = result_record.get("runtime_config") or {}
+    llm_call_stats = result_record.get("llm_call_stats") or {}
     compile_metrics = metrics.get("compile") or {}
     abi_metrics = metrics.get("abi") or {}
     abi_missing = abi_metrics.get("missing") or []
@@ -262,6 +358,31 @@ def build_row(
     tests_metrics = metrics.get("tests")
     vulnerability_counts = metrics.get("vulnerability_severity_counts") or {}
     critical_count, high_count, medium_count, low_count = flatten_severity_counts(vulnerability_counts)
+    classification_counts = infer_classification_counts(metrics, dataset_sample)
+    (
+        slither_security_blocking_count,
+        slither_security_review_count,
+        slither_spec_conflict_count,
+        slither_quality_warning_count,
+        slither_acceptable_pattern_count,
+    ) = flatten_classification_counts(classification_counts)
+    test_diagnostics = metrics.get("test_diagnostics") or result_record.get("structured_feedback", {}).get("test_diagnostics") or {}
+    failed_tests = test_diagnostics.get("failed_tests") or []
+    failed_test_names = [
+        str(item.get("name"))
+        for item in failed_tests
+        if isinstance(item, dict) and item.get("name")
+    ]
+    failure_types = test_diagnostics.get("failure_types") or [
+        str(item.get("failure_type"))
+        for item in failed_tests
+        if isinstance(item, dict) and item.get("failure_type")
+    ]
+    repair_hints = test_diagnostics.get("repair_hints") or [
+        str(item.get("repair_hint"))
+        for item in failed_tests
+        if isinstance(item, dict) and item.get("repair_hint")
+    ]
 
     compile_success = compile_metrics.get("success")
     test_success = tests_metrics.get("success") if tests_metrics is not None else None
@@ -290,8 +411,28 @@ def build_row(
             "high_count": high_count,
             "medium_count": medium_count,
             "low_count": low_count,
+            "slither_security_blocking_count": slither_security_blocking_count,
+            "slither_security_review_count": slither_security_review_count,
+            "slither_spec_conflict_count": slither_spec_conflict_count,
+            "slither_quality_warning_count": slither_quality_warning_count,
+            "slither_acceptable_pattern_count": slither_acceptable_pattern_count,
             "max_gas_value": metrics.get("max_gas_value"),
+            "test_failure_types": ",".join(sorted(set(str(item) for item in failure_types if item))),
+            "failed_tests": ",".join(failed_test_names),
+            "repair_hints": " | ".join(sorted(set(str(item) for item in repair_hints if item))),
             "degradation_guard": result_record.get("degradation_guard"),
+            "stop_reason": result_record.get("stop_reason"),
+            "cost_profile": runtime_config.get("cost_profile"),
+            "critic_mode": runtime_config.get("critic_mode"),
+            "feedback_mode": runtime_config.get("feedback_mode"),
+            "posthoc_policy": runtime_config.get("posthoc_policy"),
+            "total_llm_calls": int(llm_call_stats.get("total_calls") or 0),
+            "actor_calls": int(llm_call_stats.get("actor_calls") or 0),
+            "critic_calls": int(llm_call_stats.get("critic_calls") or 0),
+            "tool_planning_calls": int(llm_call_stats.get("tool_planning_calls") or 0),
+            "prompt_chars": int(llm_call_stats.get("prompt_chars") or 0),
+            "completion_chars": int(llm_call_stats.get("completion_chars") or 0),
+            "max_tokens_requested": int(llm_call_stats.get("max_tokens_requested") or 0),
             "compile_command": compile_metrics.get("command"),
             "test_command": (tests_metrics or {}).get("command") if tests_metrics is not None else None,
             "failure_stage": failure_stage,
@@ -315,6 +456,21 @@ def compute_aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
     abi_passed = sum(1 for row in rows if row["abi_success"] is True)
     abi_failed = sum(1 for row in rows if row["abi_success"] is False)
     rollback_count = sum(1 for row in rows if row["degradation_guard"])
+    abi_extra_samples = sum(1 for row in rows if row.get("abi_extra"))
+    vulnerability_total = sum(int(row.get("vulnerability_count") or 0) for row in rows)
+    slither_security_blocking_total = sum(int(row.get("slither_security_blocking_count") or 0) for row in rows)
+    slither_security_review_total = sum(int(row.get("slither_security_review_count") or 0) for row in rows)
+    slither_spec_conflict_total = sum(int(row.get("slither_spec_conflict_count") or 0) for row in rows)
+    slither_quality_warning_total = sum(int(row.get("slither_quality_warning_count") or 0) for row in rows)
+    slither_acceptable_pattern_total = sum(int(row.get("slither_acceptable_pattern_count") or 0) for row in rows)
+    gas_values = [int(row["max_gas_value"]) for row in rows if isinstance(row.get("max_gas_value"), int)]
+    total_llm_calls = sum(int(row.get("total_llm_calls") or 0) for row in rows)
+    actor_calls = sum(int(row.get("actor_calls") or 0) for row in rows)
+    critic_calls = sum(int(row.get("critic_calls") or 0) for row in rows)
+    tool_planning_calls = sum(int(row.get("tool_planning_calls") or 0) for row in rows)
+    prompt_chars = sum(int(row.get("prompt_chars") or 0) for row in rows)
+    completion_chars = sum(int(row.get("completion_chars") or 0) for row in rows)
+    max_tokens_requested = sum(int(row.get("max_tokens_requested") or 0) for row in rows)
     final_status_counts: dict[str, int] = {}
     for row in rows:
         status = row.get("final_status") or "unknown"
@@ -332,6 +488,23 @@ def compute_aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "abi_passed": abi_passed,
         "abi_failed": abi_failed,
         "rollback_count": rollback_count,
+        "abi_extra_samples": abi_extra_samples,
+        "vulnerability_total": vulnerability_total,
+        "slither_security_blocking_total": slither_security_blocking_total,
+        "slither_security_review_total": slither_security_review_total,
+        "slither_spec_conflict_total": slither_spec_conflict_total,
+        "slither_quality_warning_total": slither_quality_warning_total,
+        "slither_acceptable_pattern_total": slither_acceptable_pattern_total,
+        "gas_available": len(gas_values),
+        "gas_average": round(sum(gas_values) / len(gas_values), 1) if gas_values else None,
+        "total_llm_calls": total_llm_calls,
+        "actor_calls": actor_calls,
+        "critic_calls": critic_calls,
+        "tool_planning_calls": tool_planning_calls,
+        "prompt_chars": prompt_chars,
+        "completion_chars": completion_chars,
+        "max_tokens_requested": max_tokens_requested,
+        "avg_llm_calls_per_sample": round(total_llm_calls / result_present, 2) if result_present else None,
         "final_status_counts": final_status_counts,
     }
 
@@ -365,8 +538,28 @@ def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         "high_count",
         "medium_count",
         "low_count",
+        "slither_security_blocking_count",
+        "slither_security_review_count",
+        "slither_spec_conflict_count",
+        "slither_quality_warning_count",
+        "slither_acceptable_pattern_count",
         "max_gas_value",
+        "test_failure_types",
+        "failed_tests",
+        "repair_hints",
         "degradation_guard",
+        "stop_reason",
+        "cost_profile",
+        "critic_mode",
+        "feedback_mode",
+        "posthoc_policy",
+        "total_llm_calls",
+        "actor_calls",
+        "critic_calls",
+        "tool_planning_calls",
+        "prompt_chars",
+        "completion_chars",
+        "max_tokens_requested",
         "failure_stage",
         "failure_reason_short",
         "final_status",
@@ -473,6 +666,7 @@ def build_round_comparison(
                 "test_transition": " -> ".join(bool_token(row.get("test_success")) for row in per_round),
                 "slither_transition": " -> ".join(metric_token(row.get("vulnerability_count")) for row in per_round),
                 "gas_transition": " -> ".join(metric_token(row.get("max_gas_value")) for row in per_round),
+                "llm_calls_transition": " -> ".join(metric_token(row.get("total_llm_calls")) for row in per_round),
                 "status_transition": " -> ".join(row.get("final_status", "unknown") for row in per_round),
                 "final_status": final_row.get("final_status", "unknown"),
                 "final_failure": final_row.get("failure_reason_short", ""),
@@ -497,8 +691,138 @@ def write_comparison_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         "test_transition",
         "slither_transition",
         "gas_transition",
+        "llm_calls_transition",
         "status_transition",
         "final_status",
+        "final_failure",
+    ]
+    with path.open("w", encoding="utf-8-sig", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({key: row.get(key) for key in fieldnames})
+
+
+def row_quality_score(row: dict[str, Any]) -> int:
+    score = 0
+    if row.get("compile_success") is True:
+        score += 1000
+    else:
+        return score
+    if row.get("abi_success") is True:
+        score += 300
+    if row.get("test_success") is True:
+        score += 500
+    if row.get("test_success") is False:
+        score -= 150
+    score -= 60 * len([item for item in str(row.get("abi_extra") or "").split(",") if item])
+    score -= 300 * int(row.get("slither_security_blocking_count") or 0)
+    score -= 80 * int(row.get("slither_security_review_count") or 0)
+    score -= 20 * int(row.get("slither_spec_conflict_count") or 0)
+    score -= 10 * int(row.get("slither_quality_warning_count") or 0)
+    score -= 2 * int(row.get("slither_acceptable_pattern_count") or 0)
+    return score
+
+
+def numeric_delta(final_value: Any, baseline_value: Any) -> str:
+    if final_value is None or baseline_value is None:
+        return "-"
+    try:
+        delta = int(final_value) - int(baseline_value)
+    except Exception:
+        return "-"
+    if delta > 0:
+        return f"+{delta}"
+    return str(delta)
+
+
+def bool_change(final_value: Any, baseline_value: Any) -> str:
+    return f"{bool_token(baseline_value)} -> {bool_token(final_value)}"
+
+
+def build_baseline_comparison(
+    dataset_rows: list[dict[str, Any]],
+    baseline_dir: Path,
+    final_dir: Path,
+    instruction_chars: int,
+) -> dict[str, Any]:
+    baseline_records = load_results(baseline_dir)
+    final_records = load_results(final_dir)
+    rows = []
+    for sample in dataset_rows:
+        sample_idx = int(sample["sample_idx"])
+        baseline_row = build_row(sample, baseline_records.get(sample_idx), instruction_chars)
+        final_row = build_row(sample, final_records.get(sample_idx), instruction_chars)
+        baseline_score = row_quality_score(baseline_row)
+        final_score = row_quality_score(final_row)
+        if final_score > baseline_score:
+            improvement_label = "improved"
+        elif final_score < baseline_score:
+            improvement_label = "regressed"
+        else:
+            improvement_label = "unchanged"
+        rows.append(
+            {
+                "sample_idx": sample_idx,
+                "dataset_id": sample.get("id"),
+                "contract_name": sample.get("contract_name"),
+                "partition": sample.get("benchmark_partition"),
+                "baseline_status": baseline_row.get("final_status"),
+                "final_status": final_row.get("final_status"),
+                "compile_change": bool_change(final_row.get("compile_success"), baseline_row.get("compile_success")),
+                "abi_change": bool_change(final_row.get("abi_success"), baseline_row.get("abi_success")),
+                "test_change": bool_change(final_row.get("test_success"), baseline_row.get("test_success")),
+                "abi_extra_change": f"{baseline_row.get('abi_extra') or '-'} -> {final_row.get('abi_extra') or '-'}",
+                "slither_change": numeric_delta(final_row.get("vulnerability_count"), baseline_row.get("vulnerability_count")),
+                "security_blocking_change": numeric_delta(
+                    final_row.get("slither_security_blocking_count"),
+                    baseline_row.get("slither_security_blocking_count"),
+                ),
+                "gas_change": numeric_delta(final_row.get("max_gas_value"), baseline_row.get("max_gas_value")),
+                "llm_calls_change": numeric_delta(final_row.get("total_llm_calls"), baseline_row.get("total_llm_calls")),
+                "prompt_chars_change": numeric_delta(final_row.get("prompt_chars"), baseline_row.get("prompt_chars")),
+                "baseline_score": baseline_score,
+                "final_score": final_score,
+                "improvement_label": improvement_label,
+                "baseline_failure": baseline_row.get("failure_reason_short", ""),
+                "final_failure": final_row.get("failure_reason_short", ""),
+            }
+        )
+
+    counts: dict[str, int] = {}
+    for row in rows:
+        label = row["improvement_label"]
+        counts[label] = counts.get(label, 0) + 1
+    return {
+        "baseline_dir": str(baseline_dir),
+        "final_dir": str(final_dir),
+        "counts": counts,
+        "rows": rows,
+    }
+
+
+def write_baseline_comparison_csv(path: Path, rows: list[dict[str, Any]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fieldnames = [
+        "sample_idx",
+        "dataset_id",
+        "contract_name",
+        "partition",
+        "baseline_status",
+        "final_status",
+        "compile_change",
+        "abi_change",
+        "test_change",
+        "abi_extra_change",
+        "slither_change",
+        "security_blocking_change",
+        "gas_change",
+        "llm_calls_change",
+        "prompt_chars_change",
+        "baseline_score",
+        "final_score",
+        "improvement_label",
+        "baseline_failure",
         "final_failure",
     ]
     with path.open("w", encoding="utf-8-sig", newline="") as f:
@@ -513,6 +837,7 @@ def write_markdown(
     rows: list[dict[str, Any]],
     aggregate: dict[str, Any],
     round_comparison: dict[str, Any] | None = None,
+    baseline_comparisons: list[dict[str, Any]] | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     final_status_counts = aggregate.get("final_status_counts", {})
@@ -531,15 +856,36 @@ def write_markdown(
         f"- Tests passed: {aggregate['tests_passed']}",
         f"- Tests failed: {aggregate['tests_failed']}",
         f"- Rollback triggered: {aggregate['rollback_count']}",
+        f"- ABI extra samples: {aggregate.get('abi_extra_samples', 0)}",
+        f"- Slither findings total: {aggregate.get('vulnerability_total', 0)}",
+        f"- Slither blocking/review/spec-conflict/quality/acceptable: "
+        f"{aggregate.get('slither_security_blocking_total', 0)}/"
+        f"{aggregate.get('slither_security_review_total', 0)}/"
+        f"{aggregate.get('slither_spec_conflict_total', 0)}/"
+        f"{aggregate.get('slither_quality_warning_total', 0)}/"
+        f"{aggregate.get('slither_acceptable_pattern_total', 0)}",
+        f"- Gas available / average: {aggregate.get('gas_available', 0)} / {aggregate.get('gas_average')}",
+        f"- LLM calls total / avg per sample: {aggregate.get('total_llm_calls', 0)} / {aggregate.get('avg_llm_calls_per_sample')}",
+        f"- LLM call split actor/critic/tool-planning: "
+        f"{aggregate.get('actor_calls', 0)}/{aggregate.get('critic_calls', 0)}/{aggregate.get('tool_planning_calls', 0)}",
+        f"- Prompt/completion chars: {aggregate.get('prompt_chars', 0)} / {aggregate.get('completion_chars', 0)}",
         f"- Final status: {final_status_text}",
         "",
-        "| idx | dataset_id | contract | partition | compile | ABI | test | vulns | gas | status | guard | failure |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| idx | dataset_id | contract | partition | compile | ABI | test | abi_extra | slither classes | gas | llm calls | status | guard/stop | failure |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for row in rows:
+        slither_classes = (
+            f"B{row.get('slither_security_blocking_count', 0)}/"
+            f"R{row.get('slither_security_review_count', 0)}/"
+            f"S{row.get('slither_spec_conflict_count', 0)}/"
+            f"Q{row.get('slither_quality_warning_count', 0)}/"
+            f"A{row.get('slither_acceptable_pattern_count', 0)}"
+        )
         lines.append(
             "| {sample_idx} | {dataset_id} | {contract_name} | {partition} | {compile_success} | "
-            "{abi_success} | {test_success} | {vulnerability_count} | {max_gas_value} | {final_status} | {degradation_guard} | {failure_reason_short} |".format(
+            "{abi_success} | {test_success} | {abi_extra} | {slither_classes} | {max_gas_value} | "
+            "{total_llm_calls} | {final_status} | {guard_or_stop} | {failure_reason_short} |".format(
                 sample_idx=row.get("sample_idx", ""),
                 dataset_id=row.get("dataset_id", ""),
                 contract_name=row.get("contract_name", ""),
@@ -547,10 +893,12 @@ def write_markdown(
                 compile_success=row.get("compile_success", ""),
                 abi_success=row.get("abi_success", ""),
                 test_success=row.get("test_success", ""),
-                vulnerability_count=row.get("vulnerability_count", ""),
+                abi_extra=(row.get("abi_extra", "") or "").replace("|", "/"),
+                slither_classes=slither_classes,
                 max_gas_value=row.get("max_gas_value", ""),
+                total_llm_calls=row.get("total_llm_calls", ""),
                 final_status=row.get("final_status", ""),
-                degradation_guard=row.get("degradation_guard", "") or "",
+                guard_or_stop=(row.get("degradation_guard") or row.get("stop_reason") or "").replace("|", "/"),
                 failure_reason_short=(row.get("failure_reason_short", "") or "").replace("|", "/"),
             )
         )
@@ -564,14 +912,14 @@ def write_markdown(
                 "",
                 f"Rounds: {round_labels}",
                 "",
-                "| idx | contract | compile | ABI | test | slither | gas | final status | final failure |",
-                "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+                "| idx | contract | compile | ABI | test | slither | gas | llm calls | final status | final failure |",
+                "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
             ]
         )
         for row in round_comparison["rows"]:
             lines.append(
                 "| {sample_idx} | {contract_name} | {compile_transition} | {abi_transition} | {test_transition} | "
-                "{slither_transition} | {gas_transition} | {final_status} | {final_failure} |".format(
+                "{slither_transition} | {gas_transition} | {llm_calls_transition} | {final_status} | {final_failure} |".format(
                     sample_idx=row.get("sample_idx", ""),
                     contract_name=row.get("contract_name", ""),
                     compile_transition=row.get("compile_transition", ""),
@@ -579,8 +927,43 @@ def write_markdown(
                     test_transition=row.get("test_transition", ""),
                     slither_transition=row.get("slither_transition", ""),
                     gas_transition=row.get("gas_transition", ""),
+                    llm_calls_transition=row.get("llm_calls_transition", ""),
                     final_status=row.get("final_status", ""),
                     final_failure=(row.get("final_failure", "") or "").replace("|", "/"),
+                )
+            )
+
+    for comparison in baseline_comparisons or []:
+        lines.extend(
+            [
+                "",
+                "## Baseline Comparison",
+                "",
+                f"Baseline: {comparison.get('baseline_dir')}",
+                f"Final: {comparison.get('final_dir')}",
+                f"Counts: {comparison.get('counts')}",
+                "",
+                "| idx | contract | baseline status | final status | compile | ABI | test | abi extra | slither | gas | llm calls | label |",
+                "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+            ]
+        )
+        for row in comparison.get("rows", []):
+            lines.append(
+                "| {sample_idx} | {contract_name} | {baseline_status} | {final_status} | "
+                "{compile_change} | {abi_change} | {test_change} | {abi_extra_change} | "
+                "{slither_change} | {gas_change} | {llm_calls_change} | {improvement_label} |".format(
+                    sample_idx=row.get("sample_idx", ""),
+                    contract_name=row.get("contract_name", ""),
+                    baseline_status=row.get("baseline_status", ""),
+                    final_status=row.get("final_status", ""),
+                    compile_change=row.get("compile_change", ""),
+                    abi_change=row.get("abi_change", ""),
+                    test_change=row.get("test_change", ""),
+                    abi_extra_change=(row.get("abi_extra_change", "") or "").replace("|", "/"),
+                    slither_change=row.get("slither_change", ""),
+                    gas_change=row.get("gas_change", ""),
+                    llm_calls_change=row.get("llm_calls_change", ""),
+                    improvement_label=row.get("improvement_label", ""),
                 )
             )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -612,6 +995,14 @@ def main() -> None:
     round_comparison = None
     if len(comparison_dirs) > 1:
         round_comparison = build_round_comparison(dataset_rows, comparison_dirs, args.instruction_chars)
+    baseline_comparisons = []
+    for baseline_value in args.baseline_results_dir:
+        baseline_dir = Path(baseline_value).resolve()
+        if not baseline_dir.exists() or not baseline_dir.is_dir():
+            raise FileNotFoundError(f"Baseline results directory not found: {baseline_dir}")
+        baseline_comparisons.append(
+            build_baseline_comparison(dataset_rows, baseline_dir, results_dir, args.instruction_chars)
+        )
 
     payload = {
         "dataset": str(dataset_path),
@@ -622,19 +1013,29 @@ def main() -> None:
     }
     if round_comparison is not None:
         payload["round_comparison"] = round_comparison
+    if baseline_comparisons:
+        payload["baseline_comparisons"] = baseline_comparisons
 
     write_json(output_prefix.with_suffix(".json"), payload)
     write_csv(output_prefix.with_suffix(".csv"), rows)
-    write_markdown(output_prefix.with_suffix(".md"), rows, aggregate, round_comparison)
+    write_markdown(output_prefix.with_suffix(".md"), rows, aggregate, round_comparison, baseline_comparisons)
     comparison_csv_path = output_prefix.with_name(output_prefix.name + "_round_comparison").with_suffix(".csv")
     if round_comparison is not None:
         write_comparison_csv(comparison_csv_path, round_comparison["rows"])
+    baseline_csv_paths = []
+    for index, comparison in enumerate(baseline_comparisons, start=1):
+        suffix = "_baseline_comparison" if len(baseline_comparisons) == 1 else f"_baseline_comparison_{index}"
+        baseline_csv_path = output_prefix.with_name(output_prefix.name + suffix).with_suffix(".csv")
+        write_baseline_comparison_csv(baseline_csv_path, comparison["rows"])
+        baseline_csv_paths.append(baseline_csv_path)
 
     print(f"Wrote {output_prefix.with_suffix('.json')}")
     print(f"Wrote {output_prefix.with_suffix('.csv')}")
     print(f"Wrote {output_prefix.with_suffix('.md')}")
     if round_comparison is not None:
         print(f"Wrote {comparison_csv_path}")
+    for baseline_csv_path in baseline_csv_paths:
+        print(f"Wrote {baseline_csv_path}")
     print(json.dumps(aggregate, ensure_ascii=False))
 
 

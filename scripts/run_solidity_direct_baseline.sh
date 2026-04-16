@@ -17,6 +17,7 @@ Environment overrides:
   PYTHON_BIN=python
   OVERRIDE=1
   DEBUG=1
+  SOLIDITY_PROMPT_MODE=raw # raw | light | normalized
   INCLUDE_HARD_CONSTRAINTS=1
   RUN_QWEN=0
   RUN_DEEPSEEK=0
@@ -44,6 +45,7 @@ python_bin="${PYTHON_BIN:-python}"
 override="${OVERRIDE:-1}"
 debug="${DEBUG:-0}"
 include_hard_constraints="${INCLUDE_HARD_CONSTRAINTS:-0}"
+solidity_prompt_mode="${SOLIDITY_PROMPT_MODE:-raw}"
 run_qwen="${RUN_QWEN:-1}"
 run_deepseek="${RUN_DEEPSEEK:-1}"
 
@@ -84,6 +86,7 @@ run_one() {
     --model "$model"
     --data_path "$data_path"
     --suffix "_${experiment}"
+    --solidity-prompt-mode "$solidity_prompt_mode"
   )
 
   if [[ "$override" =~ ^(1|true|yes|on)$ ]]; then
@@ -118,6 +121,7 @@ echo "  qwen_model:               $qwen_model"
 echo "  deepseek_model:           $deepseek_model"
 echo "  override:                 $override"
 echo "  debug:                    $debug"
+echo "  solidity_prompt_mode:     $solidity_prompt_mode"
 echo "  include_hard_constraints: $include_hard_constraints"
 
 if [[ "$run_qwen" =~ ^(1|true|yes|on)$ ]]; then

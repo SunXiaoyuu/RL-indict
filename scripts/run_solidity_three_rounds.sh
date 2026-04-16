@@ -18,6 +18,9 @@ Environment overrides:
   PYTHON_BIN=python
   OVERRIDE=1
   DEBUG=1
+  COST_PROFILE=full              # full | gated | cheap
+  SOLIDITY_PROMPT_MODE=normalized # normalized | light | raw
+  BASELINE_RESULTS_DIR=solidity_deepseek-chat/direct_generation_fsm_testable10_direct_baseline
 
 Required:
   DASHSCOPE_API_KEY or QWEN_API_KEY for Qwen
@@ -48,6 +51,9 @@ experiment="${EXPERIMENT:-fsm_testable10_structured}"
 python_bin="${PYTHON_BIN:-python}"
 override="${OVERRIDE:-1}"
 debug="${DEBUG:-0}"
+baseline_results_dir="${BASELINE_RESULTS_DIR:-}"
+cost_profile="${COST_PROFILE:-full}"
+solidity_prompt_mode="${SOLIDITY_PROMPT_MODE:-normalized}"
 
 if [[ "$provider" == "openai" || "$model" == openai:* || "$model" == openai-* || "$model" == gpt* ]]; then
   if [[ -z "${OPENAI_API_KEY:-}" ]]; then
@@ -82,6 +88,8 @@ common_args=(
   --provider "$provider"
   --strategy "$strategy"
   --data_path "$data_path"
+  --cost_profile "$cost_profile"
+  --solidity_prompt_mode "$solidity_prompt_mode"
 )
 
 if [[ "$override" =~ ^(1|true|yes|on)$ ]]; then
@@ -135,6 +143,13 @@ if "slither_findings" not in metrics:
         "The latest Solidity backend is not active."
     )
 
+runtime_config = record.get("runtime_config") or {}
+if "cost_profile" not in runtime_config:
+    raise SystemExit(
+        "ERROR: runtime_config.cost_profile is missing. "
+        "The latest cost-profile code is not active."
+    )
+
 print(f"[ok] latest-code fields found in {sample_path}")
 PY
 }
@@ -164,6 +179,11 @@ echo "  experiment: $experiment"
 echo "  output:     $output_root"
 echo "  override:   $override"
 echo "  debug:      $debug"
+echo "  cost:       $cost_profile"
+echo "  prompt:     $solidity_prompt_mode"
+if [[ -n "$baseline_results_dir" ]]; then
+  echo "  baseline:   $baseline_results_dir"
+fi
 
 run_round 1
 verify_latest_code_output "$round1_dir" 1
@@ -176,10 +196,16 @@ verify_latest_code_output "$round3_dir" 3
 
 echo
 echo "=== Summarizing round 3 and auto-detecting round comparison ==="
-"$python_bin" scripts/summarize_solidity_results.py \
-  --dataset "$data_path" \
-  --results-dir "$round3_dir" \
+summary_args=(
+  scripts/summarize_solidity_results.py
+  --dataset "$data_path"
+  --results-dir "$round3_dir"
   --output-prefix "$round3_dir/summary"
+)
+if [[ -n "$baseline_results_dir" ]]; then
+  summary_args+=(--baseline-results-dir "$baseline_results_dir")
+fi
+"$python_bin" "${summary_args[@]}"
 
 echo
 echo "[ok] All rounds and summary completed."
@@ -191,3 +217,6 @@ echo "  $round3_dir/summary.json"
 echo "  $round3_dir/summary.csv"
 echo "  $round3_dir/summary.md"
 echo "  $round3_dir/summary_round_comparison.csv"
+if [[ -n "$baseline_results_dir" ]]; then
+  echo "  $round3_dir/summary_baseline_comparison.csv"
+fi
