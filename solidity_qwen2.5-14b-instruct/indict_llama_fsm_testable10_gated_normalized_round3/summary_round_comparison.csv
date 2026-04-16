@@ -1,0 +1,11 @@
+﻿sample_idx,dataset_id,contract_name,partition,compile_transition,abi_transition,test_transition,slither_transition,gas_transition,llm_calls_transition,status_transition,final_status,final_failure
+0,0,MembershipAirdrop,main,T -> T -> T,T -> T -> T,T -> T -> T,- -> - -> -,944108 -> 944108 -> 944108,1 -> 0 -> 0,passed_clean -> passed_clean -> passed_clean,passed_clean,
+1,1,SimpleCrowdsale,diagnostic,T -> T -> T,T -> T -> T,T -> T -> T,- -> - -> -,460815 -> 460815 -> 460815,4 -> 0 -> 0,passed_clean -> passed_clean -> passed_clean,passed_clean,
+2,2,TeamVestingVault,main,T -> T -> T,T -> T -> T,F -> F -> F,- -> - -> -,- -> - -> -,7 -> 6 -> 6,test_failed -> test_failed -> test_failed,test_failed,testInvestorWithdrawsAfterUnlock: Insufficient balance
+3,3,TokenVoting,diagnostic,T -> T -> T,T -> T -> T,F -> F -> F,- -> - -> -,- -> - -> -,7 -> 6 -> 6,test_failed -> test_failed -> test_failed,test_failed,testOwnerAddsCandidates: assertion failed: Bob != Alice
+4,4,PostingBoard,diagnostic,T -> T -> T,T -> T -> T,T -> T -> T,- -> - -> -,1004524 -> 1004524 -> 1004524,1 -> 0 -> 0,passed_clean -> passed_clean -> passed_clean,passed_clean,
+5,5,CollectibleSale,main,T -> T -> T,T -> T -> T,T -> T -> T,- -> - -> -,758876 -> 758876 -> 758876,1 -> 0 -> 0,passed_clean -> passed_clean -> passed_clean,passed_clean,
+6,6,FundPoolManager,diagnostic,T -> T -> T,T -> T -> T,T -> T -> T,- -> - -> -,899231 -> 899231 -> 899231,4 -> 3 -> 3,passed_with_extra_abi -> passed_with_extra_abi -> passed_with_extra_abi,passed_with_extra_abi,
+7,7,PresaleMint,diagnostic,T -> T -> T,T -> T -> T,T -> T -> T,- -> - -> -,647105 -> 628110 -> 628110,7 -> 3 -> 0,passed_with_extra_abi -> passed_clean -> passed_clean,passed_clean,
+8,8,GrandGooseMansion,main,F -> F -> F,- -> - -> -,- -> - -> -,- -> - -> -,- -> - -> -,7 -> 6 -> 6,compile_failed -> compile_failed -> compile_failed,compile_failed,Error (6160): Wrong argument count for function call: 0 arguments given but expected 4.
+9,9,ClosedPresaleMint,main,T -> T -> T,T -> T -> T,F -> F -> F,- -> - -> -,- -> - -> -,7 -> 6 -> 6,test_failed -> test_failed -> test_failed,test_failed,testPublicMint: Public sale cannot be started yet

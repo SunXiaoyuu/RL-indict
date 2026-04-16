@@ -1,0 +1,438 @@
+{
+    "sample_idx": 4,
+    "action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract PostingBoard {\n    struct Post {\n        address author;\n        string content;\n        uint256 totalPower;\n    }\n\n    uint256 public postCount;\n    mapping(uint256 => Post) private _posts;\n    mapping(address => uint256) private _authorBalances;\n\n    event PostCreated(uint256 indexed postId, address indexed author, string content);\n    event PostBoosted(uint256 indexed postId, uint256 amount);\n    event Withdrawn(address indexed author, uint256 amount);\n\n    function posts(uint256 postId) public view returns (address author, string memory content, uint256 totalPower) {\n        Post memory post = _posts[postId];\n        return (post.author, post.content, post.totalPower);\n    }\n\n    function createPost(string calldata content) public returns (uint256) {\n        require(bytes(content).length > 0, \"Content cannot be empty\");\n        uint256 newPostId = postCount++;\n        _posts[newPostId] = Post({\n            author: msg.sender,\n            content: content,\n            totalPower: 0\n        });\n        emit PostCreated(newPostId, msg.sender, content);\n        return newPostId;\n    }\n\n    function boostPost(uint256 postId) public payable {\n        require(postCount > postId, \"Post does not exist\");\n        require(msg.value > 0, \"Value must be greater than 0\");\n        Post storage post = _posts[postId];\n        require(post.author != address(0), \"Post does not exist\");\n\n        post.totalPower += msg.value;\n        _authorBalances[post.author] += msg.value;\n\n        emit PostBoosted(postId, msg.value);\n    }\n\n    function authorBalances(address author) public view returns (uint256) {\n        return _authorBalances[author];\n    }\n\n    function withdraw() public {\n        uint256 balance = _authorBalances[msg.sender];\n        require(balance > 0, \"No funds to withdraw\");\n        _authorBalances[msg.sender] = 0;\n        (bool sent, ) = payable(msg.sender).call{value: balance}(\"\");\n        require(sent, \"Failed to send Ether\");\n        emit Withdrawn(msg.sender, balance);\n    }\n}\n```",
+    "scratchpad": "\nInitial Solution: ```solidity\n// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract PostingBoard {\n    struct Post {\n        address author;\n        string content;\n        uint256 totalPower;\n    }\n\n    uint256 public postCount;\n    mapping(uint256 => Post) private _posts;\n    mapping(address => uint256) private _authorBalances;\n\n    event PostCreated(uint256 indexed postId, address indexed author, string content);\n    event PostBoosted(uint256 indexed postId, uint256 amount);\n    event Withdrawn(address indexed author, uint256 amount);\n\n    function posts(uint256 postId) public view returns (address author, string memory content, uint256 totalPower) {\n        Post memory post = _posts[postId];\n        return (post.author, post.content, post.totalPower);\n    }\n\n    function createPost(string calldata content) public returns (uint256) {\n        require(bytes(content).length > 0, \"Content cannot be empty\");\n        uint256 newPostId = postCount++;\n        _posts[newPostId] = Post({\n            author: msg.sender,\n            content: content,\n            totalPower: 0\n        });\n        emit PostCreated(newPostId, msg.sender, content);\n        return newPostId;\n    }\n\n    function boostPost(uint256 postId) public payable {\n        require(postCount > postId, \"Post does not exist\");\n        require(msg.value > 0, \"Value must be greater than 0\");\n        Post storage post = _posts[postId];\n        require(post.author != address(0), \"Post does not exist\");\n\n        post.totalPower += msg.value;\n        _authorBalances[post.author] += msg.value;\n\n        emit PostBoosted(postId, msg.value);\n    }\n\n    function authorBalances(address author) public view returns (uint256) {\n        return _authorBalances[author];\n    }\n\n    function withdraw() public {\n        uint256 balance = _authorBalances[msg.sender];\n        require(balance > 0, \"No funds to withdraw\");\n        _authorBalances[msg.sender] = 0;\n        (bool sent, ) = payable(msg.sender).call{value: balance}(\"\");\n        require(sent, \"Failed to send Ether\");\n        emit Withdrawn(msg.sender, balance);\n    }\n}\n```\nInitial Structured Execution Feedback:\n```json\n{\n  \"target_defect\": \"none\",\n  \"compile_success\": true,\n  \"abi_success\": true,\n  \"abi_missing\": [],\n  \"abi_extra\": [],\n  \"abi_forbidden_present\": [],\n  \"test_success\": true,\n  \"test_failure\": \"\",\n  \"failed_tests\": [],\n  \"slither_classification_counts\": {},\n  \"top_slither_findings\": [],\n  \"gas_used\": 1004524\n}\n```\nStop Reason: initial_action_passed_clean",
+    "critic": "",
+    "initial_action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract PostingBoard {\n    struct Post {\n        address author;\n        string content;\n        uint256 totalPower;\n    }\n\n    uint256 public postCount;\n    mapping(uint256 => Post) private _posts;\n    mapping(address => uint256) private _authorBalances;\n\n    event PostCreated(uint256 indexed postId, address indexed author, string content);\n    event PostBoosted(uint256 indexed postId, uint256 amount);\n    event Withdrawn(address indexed author, uint256 amount);\n\n    function posts(uint256 postId) public view returns (address author, string memory content, uint256 totalPower) {\n        Post memory post = _posts[postId];\n        return (post.author, post.content, post.totalPower);\n    }\n\n    function createPost(string calldata content) public returns (uint256) {\n        require(bytes(content).length > 0, \"Content cannot be empty\");\n        uint256 newPostId = postCount++;\n        _posts[newPostId] = Post({\n            author: msg.sender,\n            content: content,\n            totalPower: 0\n        });\n        emit PostCreated(newPostId, msg.sender, content);\n        return newPostId;\n    }\n\n    function boostPost(uint256 postId) public payable {\n        require(postCount > postId, \"Post does not exist\");\n        require(msg.value > 0, \"Value must be greater than 0\");\n        Post storage post = _posts[postId];\n        require(post.author != address(0), \"Post does not exist\");\n\n        post.totalPower += msg.value;\n        _authorBalances[post.author] += msg.value;\n\n        emit PostBoosted(postId, msg.value);\n    }\n\n    function authorBalances(address author) public view returns (uint256) {\n        return _authorBalances[author];\n    }\n\n    function withdraw() public {\n        uint256 balance = _authorBalances[msg.sender];\n        require(balance > 0, \"No funds to withdraw\");\n        _authorBalances[msg.sender] = 0;\n        (bool sent, ) = payable(msg.sender).call{value: balance}(\"\");\n        require(sent, \"Failed to send Ether\");\n        emit Withdrawn(msg.sender, balance);\n    }\n}\n```",
+    "critic_scratchpad": "",
+    "runtime_config": {
+        "cost_profile": "gated",
+        "critic_mode": "gated",
+        "feedback_mode": "compact",
+        "posthoc_policy": "failures",
+        "critic_tools_enabled": false,
+        "early_stop": true,
+        "solidity_prompt_mode": "normalized"
+    },
+    "llm_call_stats": {
+        "total_calls": 1,
+        "actor_calls": 1,
+        "critic_calls": 0,
+        "tool_planning_calls": 0,
+        "prompt_chars": 2376,
+        "completion_chars": 2095,
+        "max_tokens_requested": 1024
+    },
+    "safety_critics": [],
+    "safety_tool_output": [],
+    "helpful_critics": [],
+    "helpful_tool_output": [],
+    "gas_critics": [],
+    "gas_tool_output": [],
+    "initial_action_execution_observation": "Compilation: success. ABI: passed. Tests: passed. Static analysis: skipped. Gas analysis: max observed value 1004524.",
+    "initial_action_execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 0,
+            "stdout": "Compiling 25 files with Solc 0.8.33\nSolc 0.8.33 finished in 826.72ms\nCompiler run successful!\n",
+            "stderr": "note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:4:8\n  |\n4 | import \"forge-std/Test.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:5:8\n  |\n5 | import \"../src/Generated.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\n",
+            "success": true
+        },
+        "abi": {
+            "checked": true,
+            "success": true,
+            "required": [
+                "postCount()",
+                "posts(uint256)",
+                "createPost(string)",
+                "boostPost(uint256)",
+                "authorBalances(address)",
+                "withdraw()"
+            ],
+            "forbidden": [],
+            "available": [
+                "authorBalances(address)",
+                "boostPost(uint256)",
+                "createPost(string)",
+                "postCount()",
+                "posts(uint256)",
+                "withdraw()"
+            ],
+            "missing": [],
+            "forbidden_present": [],
+            "artifact": "/tmp/indict_solidity_1ruo367c/out/Generated.sol/PostingBoard.json"
+        },
+        "tests": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" -vv",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testBoostCreditsAuthor() (gas: 141203)\n[PASS] testCreatePostStoresAuthorAndContent() (gas: 89531)\n[PASS] testInvalidBoostReverts() (gas: 20557)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 774.12\u00b5s (734.65\u00b5s CPU time)\n\nRan 1 test suite in 10.82ms (774.12\u00b5s CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "slither": null,
+        "gas": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" --gas-report",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testBoostCreditsAuthor() (gas: 191927)\n[PASS] testCreatePostStoresAuthorAndContent() (gas: 121563)\n[PASS] testInvalidBoostReverts() (gas: 41773)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 856.84\u00b5s (831.53\u00b5s CPU time)\n\n\u256d-----------------------------------------+-----------------+-------+--------+-------+---------\u256e\n| src/Generated.sol:PostingBoard Contract |                 |       |        |       |         |\n+==============================================================================================+\n| Deployment Cost                         | Deployment Size |       |        |       |         |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n| 1004524                                 | 4444            |       |        |       |         |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n|                                         |                 |       |        |       |         |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n| Function Name                           | Min             | Avg   | Median | Max   | # Calls |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n| authorBalances                          | 2873            | 2873  | 2873   | 2873  | 1       |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n| boostPost                               | 24063           | 48261 | 48261  | 72459 | 2       |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n| createPost                              | 94705           | 94705 | 94705  | 94705 | 2       |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n| posts                                   | 8297            | 8297  | 8297   | 8297  | 1       |\n\u2570-----------------------------------------+-----------------+-------+--------+-------+---------\u256f\n\n\nRan 1 test suite in 3.17ms (856.84\u00b5s CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "vulnerability_count": null,
+        "vulnerability_severity_counts": {},
+        "slither_findings": [],
+        "slither_classification_counts": {},
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "max_gas_value": 1004524,
+        "summary": "Compilation: success. ABI: passed. Tests: passed. Static analysis: skipped. Gas analysis: max observed value 1004524."
+    },
+    "initial_structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "postCount()",
+            "posts(uint256)",
+            "createPost(string)",
+            "boostPost(uint256)",
+            "authorBalances(address)",
+            "withdraw()"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": true,
+        "test_failure": null,
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "slither_findings": {
+            "count": null,
+            "severity_counts": {},
+            "classification_counts": {},
+            "items": []
+        },
+        "gas_used": 1004524,
+        "gas_command_success": true,
+        "target_defect": "none"
+    },
+    "execution_observation": "Compilation: success. ABI: passed. Tests: passed. Static analysis: skipped. Gas analysis: max observed value 1004524.",
+    "execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 0,
+            "stdout": "Compiling 25 files with Solc 0.8.33\nSolc 0.8.33 finished in 826.72ms\nCompiler run successful!\n",
+            "stderr": "note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:4:8\n  |\n4 | import \"forge-std/Test.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:5:8\n  |\n5 | import \"../src/Generated.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\n",
+            "success": true
+        },
+        "abi": {
+            "checked": true,
+            "success": true,
+            "required": [
+                "postCount()",
+                "posts(uint256)",
+                "createPost(string)",
+                "boostPost(uint256)",
+                "authorBalances(address)",
+                "withdraw()"
+            ],
+            "forbidden": [],
+            "available": [
+                "authorBalances(address)",
+                "boostPost(uint256)",
+                "createPost(string)",
+                "postCount()",
+                "posts(uint256)",
+                "withdraw()"
+            ],
+            "missing": [],
+            "forbidden_present": [],
+            "artifact": "/tmp/indict_solidity_1ruo367c/out/Generated.sol/PostingBoard.json"
+        },
+        "tests": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" -vv",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testBoostCreditsAuthor() (gas: 141203)\n[PASS] testCreatePostStoresAuthorAndContent() (gas: 89531)\n[PASS] testInvalidBoostReverts() (gas: 20557)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 774.12\u00b5s (734.65\u00b5s CPU time)\n\nRan 1 test suite in 10.82ms (774.12\u00b5s CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "slither": null,
+        "gas": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" --gas-report",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testBoostCreditsAuthor() (gas: 191927)\n[PASS] testCreatePostStoresAuthorAndContent() (gas: 121563)\n[PASS] testInvalidBoostReverts() (gas: 41773)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 856.84\u00b5s (831.53\u00b5s CPU time)\n\n\u256d-----------------------------------------+-----------------+-------+--------+-------+---------\u256e\n| src/Generated.sol:PostingBoard Contract |                 |       |        |       |         |\n+==============================================================================================+\n| Deployment Cost                         | Deployment Size |       |        |       |         |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n| 1004524                                 | 4444            |       |        |       |         |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n|                                         |                 |       |        |       |         |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n| Function Name                           | Min             | Avg   | Median | Max   | # Calls |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n| authorBalances                          | 2873            | 2873  | 2873   | 2873  | 1       |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n| boostPost                               | 24063           | 48261 | 48261  | 72459 | 2       |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n| createPost                              | 94705           | 94705 | 94705  | 94705 | 2       |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n| posts                                   | 8297            | 8297  | 8297   | 8297  | 1       |\n\u2570-----------------------------------------+-----------------+-------+--------+-------+---------\u256f\n\n\nRan 1 test suite in 3.17ms (856.84\u00b5s CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "vulnerability_count": null,
+        "vulnerability_severity_counts": {},
+        "slither_findings": [],
+        "slither_classification_counts": {},
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "max_gas_value": 1004524,
+        "summary": "Compilation: success. ABI: passed. Tests: passed. Static analysis: skipped. Gas analysis: max observed value 1004524."
+    },
+    "structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "postCount()",
+            "posts(uint256)",
+            "createPost(string)",
+            "boostPost(uint256)",
+            "authorBalances(address)",
+            "withdraw()"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": true,
+        "test_failure": null,
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "slither_findings": {
+            "count": null,
+            "severity_counts": {},
+            "classification_counts": {},
+            "items": []
+        },
+        "gas_used": 1004524,
+        "gas_command_success": true,
+        "target_defect": "none"
+    },
+    "mid_action_execution_observation": "Compilation: success. ABI: passed. Tests: passed. Static analysis: skipped. Gas analysis: max observed value 1004524.",
+    "mid_action_execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 0,
+            "stdout": "Compiling 25 files with Solc 0.8.33\nSolc 0.8.33 finished in 826.72ms\nCompiler run successful!\n",
+            "stderr": "note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:4:8\n  |\n4 | import \"forge-std/Test.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:5:8\n  |\n5 | import \"../src/Generated.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\n",
+            "success": true
+        },
+        "abi": {
+            "checked": true,
+            "success": true,
+            "required": [
+                "postCount()",
+                "posts(uint256)",
+                "createPost(string)",
+                "boostPost(uint256)",
+                "authorBalances(address)",
+                "withdraw()"
+            ],
+            "forbidden": [],
+            "available": [
+                "authorBalances(address)",
+                "boostPost(uint256)",
+                "createPost(string)",
+                "postCount()",
+                "posts(uint256)",
+                "withdraw()"
+            ],
+            "missing": [],
+            "forbidden_present": [],
+            "artifact": "/tmp/indict_solidity_1ruo367c/out/Generated.sol/PostingBoard.json"
+        },
+        "tests": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" -vv",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testBoostCreditsAuthor() (gas: 141203)\n[PASS] testCreatePostStoresAuthorAndContent() (gas: 89531)\n[PASS] testInvalidBoostReverts() (gas: 20557)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 774.12\u00b5s (734.65\u00b5s CPU time)\n\nRan 1 test suite in 10.82ms (774.12\u00b5s CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "slither": null,
+        "gas": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" --gas-report",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testBoostCreditsAuthor() (gas: 191927)\n[PASS] testCreatePostStoresAuthorAndContent() (gas: 121563)\n[PASS] testInvalidBoostReverts() (gas: 41773)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 856.84\u00b5s (831.53\u00b5s CPU time)\n\n\u256d-----------------------------------------+-----------------+-------+--------+-------+---------\u256e\n| src/Generated.sol:PostingBoard Contract |                 |       |        |       |         |\n+==============================================================================================+\n| Deployment Cost                         | Deployment Size |       |        |       |         |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n| 1004524                                 | 4444            |       |        |       |         |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n|                                         |                 |       |        |       |         |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n| Function Name                           | Min             | Avg   | Median | Max   | # Calls |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n| authorBalances                          | 2873            | 2873  | 2873   | 2873  | 1       |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n| boostPost                               | 24063           | 48261 | 48261  | 72459 | 2       |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n| createPost                              | 94705           | 94705 | 94705  | 94705 | 2       |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n| posts                                   | 8297            | 8297  | 8297   | 8297  | 1       |\n\u2570-----------------------------------------+-----------------+-------+--------+-------+---------\u256f\n\n\nRan 1 test suite in 3.17ms (856.84\u00b5s CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "vulnerability_count": null,
+        "vulnerability_severity_counts": {},
+        "slither_findings": [],
+        "slither_classification_counts": {},
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "max_gas_value": 1004524,
+        "summary": "Compilation: success. ABI: passed. Tests: passed. Static analysis: skipped. Gas analysis: max observed value 1004524."
+    },
+    "mid_structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "postCount()",
+            "posts(uint256)",
+            "createPost(string)",
+            "boostPost(uint256)",
+            "authorBalances(address)",
+            "withdraw()"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": true,
+        "test_failure": null,
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "slither_findings": {
+            "count": null,
+            "severity_counts": {},
+            "classification_counts": {},
+            "items": []
+        },
+        "gas_used": 1004524,
+        "gas_command_success": true,
+        "target_defect": "none"
+    },
+    "final_action_execution_observation": "Compilation: success. ABI: passed. Tests: passed. Static analysis: skipped. Gas analysis: max observed value 1004524.",
+    "final_action_execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 0,
+            "stdout": "Compiling 25 files with Solc 0.8.33\nSolc 0.8.33 finished in 826.72ms\nCompiler run successful!\n",
+            "stderr": "note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:4:8\n  |\n4 | import \"forge-std/Test.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:5:8\n  |\n5 | import \"../src/Generated.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\n",
+            "success": true
+        },
+        "abi": {
+            "checked": true,
+            "success": true,
+            "required": [
+                "postCount()",
+                "posts(uint256)",
+                "createPost(string)",
+                "boostPost(uint256)",
+                "authorBalances(address)",
+                "withdraw()"
+            ],
+            "forbidden": [],
+            "available": [
+                "authorBalances(address)",
+                "boostPost(uint256)",
+                "createPost(string)",
+                "postCount()",
+                "posts(uint256)",
+                "withdraw()"
+            ],
+            "missing": [],
+            "forbidden_present": [],
+            "artifact": "/tmp/indict_solidity_1ruo367c/out/Generated.sol/PostingBoard.json"
+        },
+        "tests": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" -vv",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testBoostCreditsAuthor() (gas: 141203)\n[PASS] testCreatePostStoresAuthorAndContent() (gas: 89531)\n[PASS] testInvalidBoostReverts() (gas: 20557)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 774.12\u00b5s (734.65\u00b5s CPU time)\n\nRan 1 test suite in 10.82ms (774.12\u00b5s CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "slither": null,
+        "gas": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" --gas-report",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testBoostCreditsAuthor() (gas: 191927)\n[PASS] testCreatePostStoresAuthorAndContent() (gas: 121563)\n[PASS] testInvalidBoostReverts() (gas: 41773)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 856.84\u00b5s (831.53\u00b5s CPU time)\n\n\u256d-----------------------------------------+-----------------+-------+--------+-------+---------\u256e\n| src/Generated.sol:PostingBoard Contract |                 |       |        |       |         |\n+==============================================================================================+\n| Deployment Cost                         | Deployment Size |       |        |       |         |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n| 1004524                                 | 4444            |       |        |       |         |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n|                                         |                 |       |        |       |         |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n| Function Name                           | Min             | Avg   | Median | Max   | # Calls |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n| authorBalances                          | 2873            | 2873  | 2873   | 2873  | 1       |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n| boostPost                               | 24063           | 48261 | 48261  | 72459 | 2       |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n| createPost                              | 94705           | 94705 | 94705  | 94705 | 2       |\n|-----------------------------------------+-----------------+-------+--------+-------+---------|\n| posts                                   | 8297            | 8297  | 8297   | 8297  | 1       |\n\u2570-----------------------------------------+-----------------+-------+--------+-------+---------\u256f\n\n\nRan 1 test suite in 3.17ms (856.84\u00b5s CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "vulnerability_count": null,
+        "vulnerability_severity_counts": {},
+        "slither_findings": [],
+        "slither_classification_counts": {},
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "max_gas_value": 1004524,
+        "summary": "Compilation: success. ABI: passed. Tests: passed. Static analysis: skipped. Gas analysis: max observed value 1004524."
+    },
+    "final_structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "postCount()",
+            "posts(uint256)",
+            "createPost(string)",
+            "boostPost(uint256)",
+            "authorBalances(address)",
+            "withdraw()"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": true,
+        "test_failure": null,
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "slither_findings": {
+            "count": null,
+            "severity_counts": {},
+            "classification_counts": {},
+            "items": []
+        },
+        "gas_used": 1004524,
+        "gas_command_success": true,
+        "target_defect": "none"
+    },
+    "stop_reason": "initial_action_passed_clean",
+    "critic_posthoc": "",
+    "mid_action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract PostingBoard {\n    struct Post {\n        address author;\n        string content;\n        uint256 totalPower;\n    }\n\n    uint256 public postCount;\n    mapping(uint256 => Post) private _posts;\n    mapping(address => uint256) private _authorBalances;\n\n    event PostCreated(uint256 indexed postId, address indexed author, string content);\n    event PostBoosted(uint256 indexed postId, uint256 amount);\n    event Withdrawn(address indexed author, uint256 amount);\n\n    function posts(uint256 postId) public view returns (address author, string memory content, uint256 totalPower) {\n        Post memory post = _posts[postId];\n        return (post.author, post.content, post.totalPower);\n    }\n\n    function createPost(string calldata content) public returns (uint256) {\n        require(bytes(content).length > 0, \"Content cannot be empty\");\n        uint256 newPostId = postCount++;\n        _posts[newPostId] = Post({\n            author: msg.sender,\n            content: content,\n            totalPower: 0\n        });\n        emit PostCreated(newPostId, msg.sender, content);\n        return newPostId;\n    }\n\n    function boostPost(uint256 postId) public payable {\n        require(postCount > postId, \"Post does not exist\");\n        require(msg.value > 0, \"Value must be greater than 0\");\n        Post storage post = _posts[postId];\n        require(post.author != address(0), \"Post does not exist\");\n\n        post.totalPower += msg.value;\n        _authorBalances[post.author] += msg.value;\n\n        emit PostBoosted(postId, msg.value);\n    }\n\n    function authorBalances(address author) public view returns (uint256) {\n        return _authorBalances[author];\n    }\n\n    function withdraw() public {\n        uint256 balance = _authorBalances[msg.sender];\n        require(balance > 0, \"No funds to withdraw\");\n        _authorBalances[msg.sender] = 0;\n        (bool sent, ) = payable(msg.sender).call{value: balance}(\"\");\n        require(sent, \"Failed to send Ether\");\n        emit Withdrawn(msg.sender, balance);\n    }\n}\n```",
+    "critic_scratchpad_posthoc": "",
+    "safety_critics_posthoc": [],
+    "safety_tool_output_posthoc": [],
+    "helpful_critics_posthoc": [],
+    "helpful_tool_output_posthoc": [],
+    "gas_critics_posthoc": [],
+    "gas_tool_output_posthoc": []
+}
