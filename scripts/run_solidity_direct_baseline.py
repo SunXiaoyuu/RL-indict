@@ -172,6 +172,7 @@ def build_structured_feedback(metrics: dict[str, Any], sample: dict[str, Any]) -
     feedback = {
         "compile_success": compile_result.get("success") if isinstance(compile_result, dict) else None,
         "compile_error": short_command_failure(compile_result),
+        "compile_diagnostics": metrics.get("compile_diagnostics") or {},
         "abi_checked": abi_result.get("checked") if isinstance(abi_result, dict) else None,
         "abi_success": abi_result.get("success") if isinstance(abi_result, dict) else None,
         "abi_required": required,
@@ -194,13 +195,19 @@ def build_structured_feedback(metrics: dict[str, Any], sample: dict[str, Any]) -
         feedback["slither_findings"]["command_success"] = slither_result.get("success")
         if slither_result.get("success") is False:
             feedback["slither_findings"]["error"] = short_command_failure(slither_result)
+    else:
+        feedback["slither_findings"]["command_success"] = None
+        if metrics.get("slither_skipped_reason"):
+            feedback["slither_findings"]["skipped_reason"] = metrics.get("slither_skipped_reason")
     feedback["target_defect"] = infer_target_defect(feedback)
     return feedback
 
 
 def infer_target_defect(feedback: dict[str, Any]) -> str:
     if feedback.get("compile_success") is False:
-        return "compile_error"
+        diagnostics = feedback.get("compile_diagnostics") or {}
+        failure_types = diagnostics.get("failure_types") or []
+        return "compile_error:" + ",".join(str(item) for item in failure_types) if failure_types else "compile_error"
     if feedback.get("abi_missing"):
         return "abi_missing"
     if feedback.get("abi_forbidden_present"):
@@ -217,6 +224,10 @@ def infer_target_defect(feedback: dict[str, Any]) -> str:
         return "security_blocking_slither"
     if classification_counts.get("security_review"):
         return "security_review_slither"
+    if slither.get("command_success") is None:
+        return "slither_unavailable"
+    if slither.get("command_success") is False:
+        return "slither_failed"
     if feedback.get("gas_used") is None:
         return "gas_unavailable"
     return "none"

@@ -98,6 +98,7 @@ class SolidityExecutionBackend(BaseExecutionBackend):
 
                 compile_command = self._compile_command(workdir, context)
                 compile_result = self._run_command(compile_command, workdir)
+                compile_diagnostics = self._parse_compile_diagnostics(compile_result, context)
 
                 if not compile_result["success"]:
                     summary = self._build_summary(
@@ -112,6 +113,7 @@ class SolidityExecutionBackend(BaseExecutionBackend):
                         summary=summary,
                         details={
                             "compile": compile_result,
+                            "compile_diagnostics": compile_diagnostics,
                             "abi": None,
                             "tests": None,
                             "slither": None,
@@ -144,6 +146,9 @@ class SolidityExecutionBackend(BaseExecutionBackend):
                 slither_command = self._slither_command(workdir, context, slither_json_path)
                 if slither_command is not None:
                     slither_result = self._run_command(slither_command, workdir)
+                slither_skipped_reason = None
+                if slither_command is None:
+                    slither_skipped_reason = "slither command not found in PATH"
 
                 (
                     vulnerability_count,
@@ -165,9 +170,11 @@ class SolidityExecutionBackend(BaseExecutionBackend):
                 )
                 details = {
                     "compile": compile_result,
+                    "compile_diagnostics": compile_diagnostics,
                     "abi": abi_result,
                     "tests": test_result,
                     "slither": slither_result,
+                    "slither_skipped_reason": slither_skipped_reason,
                     "gas": gas_result,
                     "vulnerability_count": vulnerability_count,
                     "vulnerability_severity_counts": severity_counts,
@@ -639,6 +646,75 @@ class SolidityExecutionBackend(BaseExecutionBackend):
             "repair_hints": [],
         }
 
+    def _empty_compile_diagnostics(self, command_success: bool | None) -> dict[str, Any]:
+        return {
+            "command_success": command_success,
+            "failure_types": [],
+            "items": [],
+            "repair_hints": [],
+        }
+
+    def _parse_compile_diagnostics(self, compile_result: dict[str, Any] | None, context: dict[str, str]) -> dict[str, Any]:
+        if not isinstance(compile_result, dict):
+            return self._empty_compile_diagnostics(command_success=None)
+
+        diagnostics = self._empty_compile_diagnostics(command_success=compile_result.get("success"))
+        if compile_result.get("success") is True:
+            return diagnostics
+
+        text = f"{compile_result.get('stdout') or ''}\n{compile_result.get('stderr') or ''}"
+        test_relpath = context.get("test_relpath", "")
+        source_relpath = context.get("source_relpath", "")
+        items: list[dict[str, Any]] = []
+
+        constructor_mismatch = re.search(
+            r"Wrong argument count for function call:\s*(?P<given>\d+)\s+arguments?\s+given\s+but\s+expected\s+(?P<expected>\d+)",
+            text,
+        )
+        if constructor_mismatch:
+            location = "test_deployment" if test_relpath and test_relpath in text else "candidate_contract"
+            items.append(
+                {
+                    "failure_type": "constructor_argument_mismatch",
+                    "given_args": int(constructor_mismatch.group("given")),
+                    "expected_args": int(constructor_mismatch.group("expected")),
+                    "location": location,
+                    "repair_hint": (
+                        "Match the candidate constructor to the required ABI and test deployment. "
+                        "If required ABI has no constructor and tests call new Contract(), remove constructor parameters "
+                        "or provide defaults; do not ask to change tests."
+                    ),
+                }
+            )
+
+        duplicate_identifier = re.search(r"Identifier already declared", text)
+        if duplicate_identifier:
+            items.append(
+                {
+                    "failure_type": "duplicate_identifier_or_getter",
+                    "location": "candidate_contract" if source_relpath and source_relpath in text else "unknown",
+                    "repair_hint": (
+                        "Remove duplicate declarations. For public variables/mappings, do not also add an explicit same-name getter."
+                    ),
+                }
+            )
+
+        if not items:
+            first_error = self._short_text(text, limit=260)
+            items.append(
+                {
+                    "failure_type": "compile_error",
+                    "location": "unknown",
+                    "message": first_error,
+                    "repair_hint": "Fix the Solidity compiler error while preserving the required contract name and ABI.",
+                }
+            )
+
+        diagnostics["items"] = items
+        diagnostics["failure_types"] = sorted({item["failure_type"] for item in items if item.get("failure_type")})
+        diagnostics["repair_hints"] = sorted({item["repair_hint"] for item in items if item.get("repair_hint")})
+        return diagnostics
+
     def _parse_test_diagnostics(self, test_result: dict[str, Any] | None) -> dict[str, Any]:
         if not isinstance(test_result, dict):
             return self._empty_test_diagnostics(command_success=None)
@@ -692,14 +768,18 @@ class SolidityExecutionBackend(BaseExecutionBackend):
         lowered = reason.lower()
         if not reason and not test_name:
             return "unknown_failure"
+        if "insufficient balance" in lowered or "not enough balance" in lowered:
+            return "unexpected_balance_dependency"
+        if "assertion failed" in lowered or "!=" in reason:
+            if "0x" in reason and ("416c696365" in lowered or len(reason) > 80):
+                return "return_encoding_mismatch"
+            if any(token in combined for token in ("candidate", "name", "names", "id", "index")):
+                return "indexing_or_return_value_mismatch"
+            return "assertion_mismatch"
         if "public" in combined or "presale" in combined or "sale" in combined:
             return "sale_phase_transition"
         if "only deployer" in combined or "owner" in combined or "unauthorized" in combined or "not owner" in combined:
             return "access_control_or_initialization"
-        if "assertion failed" in lowered or "!=" in reason:
-            if "0x" in reason and ("416c696365" in lowered or len(reason) > 80):
-                return "return_encoding_mismatch"
-            return "assertion_mismatch"
         if "revert" in lowered or "cannot" in lowered or "invalid" in lowered:
             return "unexpected_revert"
         return "test_revert_or_failure"
@@ -712,8 +792,12 @@ class SolidityExecutionBackend(BaseExecutionBackend):
 
     def _test_repair_hint(self, test_name: str, reason: str) -> str:
         combined = f"{test_name} {reason}".lower()
+        if "insufficient balance" in combined or "not enough balance" in combined:
+            return "Inspect whether the contract introduced an unfunded ETH transfer or balance check; tests may require accounting-only withdrawal."
+        if "assertion failed" in combined and any(token in combined for token in ("candidate", "name", "names", "id", "index")):
+            return "Inspect indexing and return-value semantics; tests may expect one-based ids or exact insertion order."
         if "public" in combined or "presale" in combined or "sale" in combined:
-            return "Inspect sale state transitions, constructor initial state, and startPresale/startPublicSale guards."
+            return "Inspect sale state transitions and avoid stricter ordering than the required tests/spec allow."
         if "owner" in combined or "deployer" in combined or "unauthorized" in combined:
             return "Inspect owner/deployer initialization and only-owner permission checks."
         if "0x" in combined and ("assertion failed" in combined or "!=" in combined):

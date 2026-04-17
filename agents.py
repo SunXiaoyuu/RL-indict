@@ -49,6 +49,7 @@ class Agents:
         critic_tools_enabled: bool = True,
         early_stop: bool = False,
         solidity_prompt_mode: str = "normalized",
+        critic_rounds: int = 1,
     ) -> None:
         self.sample_idx = sample_idx
         self.question = question
@@ -79,6 +80,7 @@ class Agents:
         self.critic_tools_enabled = critic_tools_enabled
         self.early_stop = early_stop
         self.solidity_prompt_mode = solidity_prompt_mode
+        self.critic_rounds = max(1, int(critic_rounds or 1))
 
         if task == "promptinject":
             self.question_only = self.question
@@ -92,7 +94,6 @@ class Agents:
             assert self.prev_trial["sample_idx"] == self.sample_idx
 
         self.num_actions = 1
-        self.critic_rounds = 1
         self.num_tool_queries = 1
         self.execution_backend = execution_backend or create_execution_backend(
             task=task,
@@ -338,6 +339,7 @@ class Agents:
         compact = {
             "target_defect": feedback.get("target_defect"),
             "compile_success": feedback.get("compile_success"),
+            "compile_diagnostics": feedback.get("compile_diagnostics") or {},
             "abi_success": feedback.get("abi_success"),
             "abi_missing": feedback.get("abi_missing") or [],
             "abi_extra": feedback.get("abi_extra") or [],
@@ -346,6 +348,8 @@ class Agents:
             "test_failure": self._short_text(feedback.get("test_failure"), 240),
             "failed_tests": failed_tests,
             "slither_classification_counts": slither.get("classification_counts") or {},
+            "slither_command_success": slither.get("command_success"),
+            "slither_skipped_reason": slither.get("skipped_reason"),
             "top_slither_findings": top_findings,
             "gas_used": feedback.get("gas_used"),
         }
@@ -390,6 +394,7 @@ class Agents:
         feedback: dict[str, Any] = {
             "compile_success": compile_result.get("success") if isinstance(compile_result, dict) else None,
             "compile_error": None,
+            "compile_diagnostics": metrics.get("compile_diagnostics") or {},
             "abi_checked": abi_result.get("checked") if isinstance(abi_result, dict) else None,
             "abi_success": abi_result.get("success") if isinstance(abi_result, dict) else None,
             "abi_required": required,
@@ -416,6 +421,10 @@ class Agents:
             feedback["slither_findings"]["command_success"] = slither_result.get("success")
             if slither_result.get("success") is False:
                 feedback["slither_findings"]["error"] = self._short_command_failure(slither_result)
+        else:
+            feedback["slither_findings"]["command_success"] = None
+            if metrics.get("slither_skipped_reason"):
+                feedback["slither_findings"]["skipped_reason"] = metrics.get("slither_skipped_reason")
         if isinstance(gas_result, dict) and gas_result:
             feedback["gas_command_success"] = gas_result.get("success")
 
@@ -424,6 +433,10 @@ class Agents:
 
     def _infer_target_defect(self, feedback: dict[str, Any]) -> str:
         if feedback.get("compile_success") is False:
+            diagnostics = feedback.get("compile_diagnostics") or {}
+            failure_types = diagnostics.get("failure_types") or []
+            if failure_types:
+                return "compile_error:" + ",".join(str(item) for item in failure_types)
             return "compile_error"
         if feedback.get("abi_missing"):
             return "abi_missing"
@@ -443,6 +456,10 @@ class Agents:
             return "security_blocking_slither"
         if classification_counts.get("security_review"):
             return "security_review_slither"
+        if slither.get("command_success") is None:
+            return "slither_unavailable"
+        if slither.get("command_success") is False:
+            return "slither_failed"
         if feedback.get("gas_used") is None:
             return "gas_unavailable"
         return "none"
@@ -611,6 +628,9 @@ class Agents:
         if self.early_stop and self._should_stop_after_feedback(self.initial_structured_feedback):
             self._accept_initial_action("initial_action_passed_clean")
             return
+        if self._is_environment_blocked_feedback(self.initial_structured_feedback):
+            self._accept_initial_action(self.initial_structured_feedback.get("target_defect") or "environment_blocked")
+            return
 
         self.critic = self.perform_critic_debate(
             answer=self.action,
@@ -644,6 +664,9 @@ class Agents:
 
         if self.early_stop and self._should_stop_after_feedback(self.mid_structured_feedback):
             self._accept_mid_action("first_rewrite_passed_clean")
+            return
+        if self._is_environment_blocked_feedback(self.mid_structured_feedback):
+            self._accept_mid_action(self.mid_structured_feedback.get("target_defect") or "environment_blocked")
             return
 
         if not self._should_run_posthoc(self.mid_structured_feedback):
@@ -741,6 +764,12 @@ class Agents:
         if not isinstance(feedback, dict):
             return False
         return feedback.get("target_defect") == "none"
+
+    @staticmethod
+    def _is_environment_blocked_feedback(feedback: dict[str, Any] | None) -> bool:
+        if not isinstance(feedback, dict):
+            return False
+        return feedback.get("target_defect") in {"slither_unavailable", "slither_failed"}
 
     def _should_run_posthoc(self, feedback: dict[str, Any] | None) -> bool:
         if self.posthoc_policy == "never":
@@ -1011,6 +1040,7 @@ class Agents:
             "critic_tools_enabled": self.critic_tools_enabled,
             "early_stop": self.early_stop,
             "solidity_prompt_mode": self.solidity_prompt_mode,
+            "critic_rounds": self.critic_rounds,
         }
 
     def _record_llm_call(self, kind: str, prompt: str, output: str, max_tokens: int) -> None:

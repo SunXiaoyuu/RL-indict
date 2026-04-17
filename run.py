@@ -103,6 +103,7 @@ all_agents = [Agents(idx,
                critic_tools_enabled=runtime_config["critic_tools_enabled"],
                early_stop=runtime_config["early_stop"],
                solidity_prompt_mode=args.solidity_prompt_mode,
+               critic_rounds=args.critic_rounds,
                      
                ) for idx, item in enumerate(data)] 
 

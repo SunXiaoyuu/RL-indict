@@ -220,6 +220,10 @@ def classify_final_status(row: dict[str, Any]) -> str:
         return "tests_unavailable"
     if row.get("abi_extra"):
         return "passed_with_extra_abi"
+    if row.get("slither_command_success") is None:
+        return "passed_slither_unavailable"
+    if row.get("slither_command_success") is False:
+        return "passed_slither_failed"
     if int(row.get("slither_security_blocking_count") or 0) > 0:
         return "passed_with_security_blocking_findings"
     if int(row.get("slither_security_review_count") or 0) > 0:
@@ -310,7 +314,11 @@ def build_row(
                 "slither_spec_conflict_count": 0,
                 "slither_quality_warning_count": 0,
                 "slither_acceptable_pattern_count": 0,
+                "slither_command_success": None,
+                "slither_skipped_reason": "",
                 "max_gas_value": None,
+                "compile_failure_types": "",
+                "compile_repair_hints": "",
                 "test_failure_types": "",
                 "failed_tests": "",
                 "repair_hints": "",
@@ -341,6 +349,7 @@ def build_row(
     runtime_config = result_record.get("runtime_config") or {}
     llm_call_stats = result_record.get("llm_call_stats") or {}
     compile_metrics = metrics.get("compile") or {}
+    compile_diagnostics = metrics.get("compile_diagnostics") or result_record.get("structured_feedback", {}).get("compile_diagnostics") or {}
     abi_metrics = metrics.get("abi") or {}
     abi_missing = abi_metrics.get("missing") or []
     abi_forbidden_present = abi_metrics.get("forbidden_present") or []
@@ -383,6 +392,8 @@ def build_row(
         for item in failed_tests
         if isinstance(item, dict) and item.get("repair_hint")
     ]
+    compile_failure_types = compile_diagnostics.get("failure_types") or []
+    compile_repair_hints = compile_diagnostics.get("repair_hints") or []
 
     compile_success = compile_metrics.get("success")
     test_success = tests_metrics.get("success") if tests_metrics is not None else None
@@ -416,7 +427,11 @@ def build_row(
             "slither_spec_conflict_count": slither_spec_conflict_count,
             "slither_quality_warning_count": slither_quality_warning_count,
             "slither_acceptable_pattern_count": slither_acceptable_pattern_count,
+            "slither_command_success": (metrics.get("slither") or {}).get("success") if isinstance(metrics.get("slither"), dict) else None,
+            "slither_skipped_reason": metrics.get("slither_skipped_reason") or "",
             "max_gas_value": metrics.get("max_gas_value"),
+            "compile_failure_types": ",".join(sorted(set(str(item) for item in compile_failure_types if item))),
+            "compile_repair_hints": " | ".join(sorted(set(str(item) for item in compile_repair_hints if item))),
             "test_failure_types": ",".join(sorted(set(str(item) for item in failure_types if item))),
             "failed_tests": ",".join(failed_test_names),
             "repair_hints": " | ".join(sorted(set(str(item) for item in repair_hints if item))),
@@ -463,6 +478,9 @@ def compute_aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
     slither_spec_conflict_total = sum(int(row.get("slither_spec_conflict_count") or 0) for row in rows)
     slither_quality_warning_total = sum(int(row.get("slither_quality_warning_count") or 0) for row in rows)
     slither_acceptable_pattern_total = sum(int(row.get("slither_acceptable_pattern_count") or 0) for row in rows)
+    slither_available = sum(1 for row in rows if row.get("slither_command_success") is not None)
+    slither_passed_commands = sum(1 for row in rows if row.get("slither_command_success") is True)
+    slither_unavailable = sum(1 for row in rows if row.get("compile_success") is True and row.get("slither_command_success") is None)
     gas_values = [int(row["max_gas_value"]) for row in rows if isinstance(row.get("max_gas_value"), int)]
     total_llm_calls = sum(int(row.get("total_llm_calls") or 0) for row in rows)
     actor_calls = sum(int(row.get("actor_calls") or 0) for row in rows)
@@ -495,6 +513,9 @@ def compute_aggregate(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "slither_spec_conflict_total": slither_spec_conflict_total,
         "slither_quality_warning_total": slither_quality_warning_total,
         "slither_acceptable_pattern_total": slither_acceptable_pattern_total,
+        "slither_available": slither_available,
+        "slither_passed_commands": slither_passed_commands,
+        "slither_unavailable": slither_unavailable,
         "gas_available": len(gas_values),
         "gas_average": round(sum(gas_values) / len(gas_values), 1) if gas_values else None,
         "total_llm_calls": total_llm_calls,
@@ -543,7 +564,11 @@ def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         "slither_spec_conflict_count",
         "slither_quality_warning_count",
         "slither_acceptable_pattern_count",
+        "slither_command_success",
+        "slither_skipped_reason",
         "max_gas_value",
+        "compile_failure_types",
+        "compile_repair_hints",
         "test_failure_types",
         "failed_tests",
         "repair_hints",
@@ -858,6 +883,10 @@ def write_markdown(
         f"- Rollback triggered: {aggregate['rollback_count']}",
         f"- ABI extra samples: {aggregate.get('abi_extra_samples', 0)}",
         f"- Slither findings total: {aggregate.get('vulnerability_total', 0)}",
+        f"- Slither command available / passed / unavailable: "
+        f"{aggregate.get('slither_available', 0)} / "
+        f"{aggregate.get('slither_passed_commands', 0)} / "
+        f"{aggregate.get('slither_unavailable', 0)}",
         f"- Slither blocking/review/spec-conflict/quality/acceptable: "
         f"{aggregate.get('slither_security_blocking_total', 0)}/"
         f"{aggregate.get('slither_security_review_total', 0)}/"

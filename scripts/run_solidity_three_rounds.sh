@@ -20,6 +20,7 @@ Environment overrides:
   DEBUG=1
   COST_PROFILE=full              # full | gated | cheap
   SOLIDITY_PROMPT_MODE=normalized # normalized | light | raw
+  CRITIC_ROUNDS=1
   BASELINE_RESULTS_DIR=solidity_deepseek-chat/direct_generation_fsm_testable10_direct_baseline
 
 Required:
@@ -54,6 +55,7 @@ debug="${DEBUG:-0}"
 baseline_results_dir="${BASELINE_RESULTS_DIR:-}"
 cost_profile="${COST_PROFILE:-full}"
 solidity_prompt_mode="${SOLIDITY_PROMPT_MODE:-normalized}"
+critic_rounds="${CRITIC_ROUNDS:-1}"
 
 if [[ "$provider" == "openai" || "$model" == openai:* || "$model" == openai-* || "$model" == gpt* ]]; then
   if [[ -z "${OPENAI_API_KEY:-}" ]]; then
@@ -90,6 +92,7 @@ common_args=(
   --data_path "$data_path"
   --cost_profile "$cost_profile"
   --solidity_prompt_mode "$solidity_prompt_mode"
+  --critic_rounds "$critic_rounds"
 )
 
 if [[ "$override" =~ ^(1|true|yes|on)$ ]]; then
@@ -181,6 +184,7 @@ echo "  override:   $override"
 echo "  debug:      $debug"
 echo "  cost:       $cost_profile"
 echo "  prompt:     $solidity_prompt_mode"
+echo "  critics:    $critic_rounds"
 if [[ -n "$baseline_results_dir" ]]; then
   echo "  baseline:   $baseline_results_dir"
 fi

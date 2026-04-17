@@ -59,6 +59,15 @@ parser.add_argument(
         "raw sends the user requirement without added Solidity hard constraints."
     ),
 )
+parser.add_argument(
+    "--critic_rounds",
+    type=int,
+    default=1,
+    help=(
+        "Number of debate passes among active critics inside one generation step. "
+        "Keep 1 for cost-controlled main runs; use 2 only for small diagnostic ablations."
+    ),
+)
 
 # Generation configuration 
 parser.add_argument(
