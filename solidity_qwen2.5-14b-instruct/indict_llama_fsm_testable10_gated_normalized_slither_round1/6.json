@@ -1,0 +1,691 @@
+{
+    "sample_idx": 6,
+    "action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract FundPoolManager {\n    address private _owner;\n    mapping(address => address) private _pools;\n\n    event PoolAdded(address indexed pool, address indexed rewardToken);\n    event PoolRemoved(address indexed pool);\n    event TransferExecuted(address indexed to, uint256 amount);\n    event FundRescued(address indexed to, uint256 amount);\n\n    modifier onlyOwner() {\n        require(msg.sender == _owner, \"Ownable: caller is not the owner\");\n        _;\n    }\n\n    constructor() {\n        _owner = msg.sender;\n    }\n\n    function pools(address pool) public view returns (address) {\n        return _pools[pool];\n    }\n\n    function addPool(address pool, address rewardToken) public onlyOwner {\n        require(pool != address(0), \"Invalid pool address\");\n        require(_pools[pool] == address(0), \"Pool already exists\");\n        _pools[pool] = rewardToken;\n        emit PoolAdded(pool, rewardToken);\n    }\n\n    function removePool(address pool) public onlyOwner {\n        require(_pools[pool] != address(0), \"Pool does not exist\");\n        delete _pools[pool];\n        emit PoolRemoved(pool);\n    }\n\n    function transferTo(address payable to, uint256 amount) external {\n        require(to != address(0), \"Invalid recipient address\");\n        require(_pools[msg.sender] != address(0), \"Unauthorized pool\");\n        require(address(this).balance >= amount, \"Insufficient balance\");\n        (bool sent,) = to.call{value: amount}(\"\");\n        require(sent, \"Transfer failed\");\n        emit TransferExecuted(to, amount);\n    }\n\n    function rescueFund(address payable to, uint256 amount) public onlyOwner {\n        require(to != address(0), \"Invalid recipient address\");\n        require(address(this).balance >= amount, \"Insufficient balance\");\n        (bool sent,) = to.call{value: amount}(\"\");\n        require(sent, \"Transfer failed\");\n        emit FundRescued(to, amount);\n    }\n\n    receive() external payable {}\n\n}\n```",
+    "scratchpad": "\nInitial Solution: ```solidity\n// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract FundPoolManager {\n    address private _owner;\n    mapping(address => address) private _pools;\n\n    event PoolAdded(address indexed pool, address indexed rewardToken);\n    event PoolRemoved(address indexed pool);\n    event TransferExecuted(address indexed to, uint256 amount);\n    event FundRescued(address indexed to, uint256 amount);\n\n    modifier onlyOwner() {\n        require(msg.sender == _owner, \"Ownable: caller is not the owner\");\n        _;\n    }\n\n    constructor() {\n        _owner = msg.sender;\n    }\n\n    function pools(address pool) public view returns (address) {\n        return _pools[pool];\n    }\n\n    function addPool(address pool, address rewardToken) public onlyOwner {\n        require(pool != address(0), \"Invalid pool address\");\n        require(_pools[pool] == address(0), \"Pool already exists\");\n        _pools[pool] = rewardToken;\n        emit PoolAdded(pool, rewardToken);\n    }\n\n    function removePool(address pool) public onlyOwner {\n        require(_pools[pool] != address(0), \"Pool does not exist\");\n        delete _pools[pool];\n        emit PoolRemoved(pool);\n    }\n\n    function transferTo(address payable to, uint256 amount) external {\n        require(to != address(0), \"Invalid recipient address\");\n        require(_pools[msg.sender] != address(0), \"Unauthorized pool\");\n        require(address(this).balance >= amount, \"Insufficient balance\");\n        (bool sent,) = to.call{value: amount}(\"\");\n        require(sent, \"Transfer failed\");\n        emit TransferExecuted(to, amount);\n    }\n\n    function rescueFund(address payable to, uint256 amount) public onlyOwner {\n        require(to != address(0), \"Invalid recipient address\");\n        require(address(this).balance >= amount, \"Insufficient balance\");\n        (bool sent,) = to.call{value: amount}(\"\");\n        require(sent, \"Transfer failed\");\n        emit FundRescued(to, amount);\n    }\n\n    receive() external payable {}\n\n}\n```\nInitial Structured Execution Feedback:\n```json\n{\n  \"target_defect\": \"none\",\n  \"compile_success\": true,\n  \"compile_diagnostics\": {\n    \"command_success\": true,\n    \"failure_types\": [],\n    \"items\": [],\n    \"repair_hints\": []\n  },\n  \"abi_success\": true,\n  \"abi_missing\": [],\n  \"abi_extra\": [],\n  \"abi_forbidden_present\": [],\n  \"test_success\": true,\n  \"test_failure\": \"\",\n  \"failed_tests\": [],\n  \"slither_classification_counts\": {\n    \"quality_warning\": 2\n  },\n  \"slither_command_success\": true,\n  \"slither_skipped_reason\": null,\n  \"top_slither_findings\": [\n    {\n      \"check\": \"reentrancy-events\",\n      \"impact\": \"low\",\n      \"classification\": \"quality_warning\",\n      \"description\": \"Reentrancy in FundPoolManager.rescueFund(address,uint256) (src/Generated.sol#48-54): External calls: - (sent,None) = to.call{value: amount}() (src/Generated.sol#51) Event emitte...\"\n    },\n    {\n      \"check\": \"reentrancy-events\",\n      \"impact\": \"low\",\n      \"classification\": \"quality_warning\",\n      \"description\": \"Reentrancy in FundPoolManager.transferTo(address,uint256) (src/Generated.sol#39-46): External calls: - (sent,None) = to.call{value: amount}() (src/Generated.sol#43) Event emitte...\"\n    }\n  ],\n  \"gas_used\": 980597\n}\n```\nStop Reason: initial_action_passed_clean",
+    "critic": "",
+    "initial_action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract FundPoolManager {\n    address private _owner;\n    mapping(address => address) private _pools;\n\n    event PoolAdded(address indexed pool, address indexed rewardToken);\n    event PoolRemoved(address indexed pool);\n    event TransferExecuted(address indexed to, uint256 amount);\n    event FundRescued(address indexed to, uint256 amount);\n\n    modifier onlyOwner() {\n        require(msg.sender == _owner, \"Ownable: caller is not the owner\");\n        _;\n    }\n\n    constructor() {\n        _owner = msg.sender;\n    }\n\n    function pools(address pool) public view returns (address) {\n        return _pools[pool];\n    }\n\n    function addPool(address pool, address rewardToken) public onlyOwner {\n        require(pool != address(0), \"Invalid pool address\");\n        require(_pools[pool] == address(0), \"Pool already exists\");\n        _pools[pool] = rewardToken;\n        emit PoolAdded(pool, rewardToken);\n    }\n\n    function removePool(address pool) public onlyOwner {\n        require(_pools[pool] != address(0), \"Pool does not exist\");\n        delete _pools[pool];\n        emit PoolRemoved(pool);\n    }\n\n    function transferTo(address payable to, uint256 amount) external {\n        require(to != address(0), \"Invalid recipient address\");\n        require(_pools[msg.sender] != address(0), \"Unauthorized pool\");\n        require(address(this).balance >= amount, \"Insufficient balance\");\n        (bool sent,) = to.call{value: amount}(\"\");\n        require(sent, \"Transfer failed\");\n        emit TransferExecuted(to, amount);\n    }\n\n    function rescueFund(address payable to, uint256 amount) public onlyOwner {\n        require(to != address(0), \"Invalid recipient address\");\n        require(address(this).balance >= amount, \"Insufficient balance\");\n        (bool sent,) = to.call{value: amount}(\"\");\n        require(sent, \"Transfer failed\");\n        emit FundRescued(to, amount);\n    }\n\n    receive() external payable {}\n\n}\n```",
+    "critic_scratchpad": "",
+    "runtime_config": {
+        "cost_profile": "gated",
+        "critic_mode": "gated",
+        "feedback_mode": "compact",
+        "posthoc_policy": "failures",
+        "critic_tools_enabled": false,
+        "early_stop": true,
+        "solidity_prompt_mode": "normalized",
+        "critic_rounds": 1
+    },
+    "llm_call_stats": {
+        "total_calls": 1,
+        "actor_calls": 1,
+        "critic_calls": 0,
+        "tool_planning_calls": 0,
+        "prompt_chars": 2387,
+        "completion_chars": 1994,
+        "max_tokens_requested": 1024
+    },
+    "safety_critics": [],
+    "safety_tool_output": [],
+    "helpful_critics": [],
+    "helpful_tool_output": [],
+    "gas_critics": [],
+    "gas_tool_output": [],
+    "initial_action_execution_observation": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 2 finding(s) (low=2). Gas analysis: max observed value 980597.",
+    "initial_action_execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 0,
+            "stdout": "Compiling 25 files with Solc 0.8.33\nSolc 0.8.33 finished in 752.87ms\nCompiler run successful with warnings:\nWarning (9207): 'transfer' is deprecated and scheduled for removal. Use 'call{value: <amount>}(\"\")' instead.\n  --> test/Generated.t.sol:15:9:\n   |\n15 |         payable(address(c)).transfer(2 ether);\n   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n",
+            "stderr": "note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:4:8\n  |\n4 | import \"forge-std/Test.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unwrapped-modifier-logic]: wrap modifier logic to reduce code size\n  --> src/Generated.sol:13:5\n   |\n13 | /     modifier onlyOwner() {\n14 | |         require(msg.sender == _owner, \"Ownable: caller is not the owner\");\n15 | |         _;\n16 | |     }\n   | |_____^\n   |\nhelp: wrap modifier logic to reduce code size\n   |\n13 ~     modifier onlyOwner() {\n14 +         _onlyOwner();\n15 +         _;\n16 +     }\n17 + \n18 +     function _onlyOwner() internal {\n19 +         require(msg.sender == _owner, \"Ownable: caller is not the owner\");\n20 +     }\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#unwrapped-modifier-logic\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:5:8\n  |\n5 | import \"../src/Generated.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\n",
+            "success": true
+        },
+        "compile_diagnostics": {
+            "command_success": true,
+            "failure_types": [],
+            "items": [],
+            "repair_hints": []
+        },
+        "abi": {
+            "checked": true,
+            "success": true,
+            "required": [
+                "pools(address)",
+                "addPool(address,address)",
+                "removePool(address)",
+                "transferTo(address,uint256)",
+                "rescueFund(address,uint256)",
+                "receive()"
+            ],
+            "forbidden": [],
+            "available": [
+                "addPool(address,address)",
+                "constructor()",
+                "pools(address)",
+                "receive()",
+                "removePool(address)",
+                "rescueFund(address,uint256)",
+                "transferTo(address,uint256)"
+            ],
+            "missing": [],
+            "forbidden_present": [],
+            "artifact": "/tmp/indict_solidity_76455nds/out/Generated.sol/FundPoolManager.json"
+        },
+        "tests": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" -vv",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testOwnerAddsAndRemovesPool() (gas: 31248)\n[PASS] testRegisteredPoolTransfersFunds() (gas: 80448)\n[PASS] testUnregisteredPoolCannotTransfer() (gas: 16413)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 964.23\u00b5s (882.04\u00b5s CPU time)\n\nRan 1 test suite in 22.39ms (964.23\u00b5s CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "slither": {
+            "command": "slither \"src/Generated.sol\" --exclude-dependencies --exclude-informational --exclude-optimization --fail-none --json \"/tmp/indict_solidity_76455nds/slither-result.json\"",
+            "returncode": 0,
+            "stdout": "",
+            "stderr": "'forge clean' running (wd: /tmp/indict_solidity_76455nds)\n'forge config --json' running\n'forge build --build-info src/Generated.sol' running (wd: /tmp/indict_solidity_76455nds)\n\nDetector: reentrancy-events\nReentrancy in FundPoolManager.rescueFund(address,uint256) (src/Generated.sol#48-54):\n\tExternal calls:\n\t- (sent,None) = to.call{value: amount}() (src/Generated.sol#51)\n\tEvent emitted after the call(s):\n\t- FundRescued(to,amount) (src/Generated.sol#53)\nReentrancy in FundPoolManager.transferTo(address,uint256) (src/Generated.sol#39-46):\n\tExternal calls:\n\t- (sent,None) = to.call{value: amount}() (src/Generated.sol#43)\n\tEvent emitted after the call(s):\n\t- TransferExecuted(to,amount) (src/Generated.sol#45)\nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-4\nsrc/Generated.sol analyzed (1 contracts with 75 detectors), 2 result(s) found\n",
+            "success": true
+        },
+        "slither_skipped_reason": null,
+        "gas": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" --gas-report",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testOwnerAddsAndRemovesPool() (gas: 96610)\n[PASS] testRegisteredPoolTransfersFunds() (gas: 125232)\n[PASS] testUnregisteredPoolCannotTransfer() (gas: 37829)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 923.59\u00b5s (907.97\u00b5s CPU time)\n\n\u256d--------------------------------------------+-----------------+-------+--------+-------+---------\u256e\n| src/Generated.sol:FundPoolManager Contract |                 |       |        |       |         |\n+=================================================================================================+\n| Deployment Cost                            | Deployment Size |       |        |       |         |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| 980597                                     | 4298            |       |        |       |         |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n|                                            |                 |       |        |       |         |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| Function Name                              | Min             | Avg   | Median | Max   | # Calls |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| addPool                                    | 48359           | 48359 | 48359  | 48359 | 2       |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| pools                                      | 2956            | 2956  | 2956   | 2956  | 2       |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| receive                                    | 0               | 0     | 0      | 0     | 3       |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| removePool                                 | 25580           | 25580 | 25580  | 25580 | 1       |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| transferTo                                 | 24583           | 42545 | 42545  | 60507 | 2       |\n\u2570--------------------------------------------+-----------------+-------+--------+-------+---------\u256f\n\n\nRan 1 test suite in 3.30ms (923.59\u00b5s CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "vulnerability_count": 2,
+        "vulnerability_severity_counts": {
+            "low": 2
+        },
+        "slither_findings": [
+            {
+                "check": "reentrancy-events",
+                "impact": "low",
+                "confidence": "Medium",
+                "description": "Reentrancy in FundPoolManager.rescueFund(address,uint256) (src/Generated.sol#48-54): External calls: - (sent,None) = to.call{value: amount}() (src/Generated.sol#51) Event emitted after the call(s): - FundRescued(to,amount) (src/Generated.sol#53)",
+                "classification": "quality_warning",
+                "blocking": false
+            },
+            {
+                "check": "reentrancy-events",
+                "impact": "low",
+                "confidence": "Medium",
+                "description": "Reentrancy in FundPoolManager.transferTo(address,uint256) (src/Generated.sol#39-46): External calls: - (sent,None) = to.call{value: amount}() (src/Generated.sol#43) Event emitted after the call(s): - TransferExecuted(to,amount) (src/Generated.sol#45)",
+                "classification": "quality_warning",
+                "blocking": false
+            }
+        ],
+        "slither_classification_counts": {
+            "quality_warning": 2
+        },
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "max_gas_value": 980597,
+        "summary": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 2 finding(s) (low=2). Gas analysis: max observed value 980597."
+    },
+    "initial_structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "compile_diagnostics": {
+            "command_success": true,
+            "failure_types": [],
+            "items": [],
+            "repair_hints": []
+        },
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "pools(address)",
+            "addPool(address,address)",
+            "removePool(address)",
+            "transferTo(address,uint256)",
+            "rescueFund(address,uint256)",
+            "receive()"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": true,
+        "test_failure": null,
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "slither_findings": {
+            "count": 2,
+            "severity_counts": {
+                "low": 2
+            },
+            "classification_counts": {
+                "quality_warning": 2
+            },
+            "items": [
+                {
+                    "check": "reentrancy-events",
+                    "impact": "low",
+                    "confidence": "Medium",
+                    "description": "Reentrancy in FundPoolManager.rescueFund(address,uint256) (src/Generated.sol#48-54): External calls: - (sent,None) = to.call{value: amount}() (src/Generated.sol#51) Event emitted after the call(s): - FundRescued(to,amount) (src/Generated.sol#53)",
+                    "classification": "quality_warning",
+                    "blocking": false
+                },
+                {
+                    "check": "reentrancy-events",
+                    "impact": "low",
+                    "confidence": "Medium",
+                    "description": "Reentrancy in FundPoolManager.transferTo(address,uint256) (src/Generated.sol#39-46): External calls: - (sent,None) = to.call{value: amount}() (src/Generated.sol#43) Event emitted after the call(s): - TransferExecuted(to,amount) (src/Generated.sol#45)",
+                    "classification": "quality_warning",
+                    "blocking": false
+                }
+            ],
+            "command_success": true
+        },
+        "gas_used": 980597,
+        "gas_command_success": true,
+        "target_defect": "none"
+    },
+    "execution_observation": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 2 finding(s) (low=2). Gas analysis: max observed value 980597.",
+    "execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 0,
+            "stdout": "Compiling 25 files with Solc 0.8.33\nSolc 0.8.33 finished in 752.87ms\nCompiler run successful with warnings:\nWarning (9207): 'transfer' is deprecated and scheduled for removal. Use 'call{value: <amount>}(\"\")' instead.\n  --> test/Generated.t.sol:15:9:\n   |\n15 |         payable(address(c)).transfer(2 ether);\n   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n",
+            "stderr": "note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:4:8\n  |\n4 | import \"forge-std/Test.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unwrapped-modifier-logic]: wrap modifier logic to reduce code size\n  --> src/Generated.sol:13:5\n   |\n13 | /     modifier onlyOwner() {\n14 | |         require(msg.sender == _owner, \"Ownable: caller is not the owner\");\n15 | |         _;\n16 | |     }\n   | |_____^\n   |\nhelp: wrap modifier logic to reduce code size\n   |\n13 ~     modifier onlyOwner() {\n14 +         _onlyOwner();\n15 +         _;\n16 +     }\n17 + \n18 +     function _onlyOwner() internal {\n19 +         require(msg.sender == _owner, \"Ownable: caller is not the owner\");\n20 +     }\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#unwrapped-modifier-logic\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:5:8\n  |\n5 | import \"../src/Generated.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\n",
+            "success": true
+        },
+        "compile_diagnostics": {
+            "command_success": true,
+            "failure_types": [],
+            "items": [],
+            "repair_hints": []
+        },
+        "abi": {
+            "checked": true,
+            "success": true,
+            "required": [
+                "pools(address)",
+                "addPool(address,address)",
+                "removePool(address)",
+                "transferTo(address,uint256)",
+                "rescueFund(address,uint256)",
+                "receive()"
+            ],
+            "forbidden": [],
+            "available": [
+                "addPool(address,address)",
+                "constructor()",
+                "pools(address)",
+                "receive()",
+                "removePool(address)",
+                "rescueFund(address,uint256)",
+                "transferTo(address,uint256)"
+            ],
+            "missing": [],
+            "forbidden_present": [],
+            "artifact": "/tmp/indict_solidity_76455nds/out/Generated.sol/FundPoolManager.json"
+        },
+        "tests": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" -vv",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testOwnerAddsAndRemovesPool() (gas: 31248)\n[PASS] testRegisteredPoolTransfersFunds() (gas: 80448)\n[PASS] testUnregisteredPoolCannotTransfer() (gas: 16413)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 964.23\u00b5s (882.04\u00b5s CPU time)\n\nRan 1 test suite in 22.39ms (964.23\u00b5s CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "slither": {
+            "command": "slither \"src/Generated.sol\" --exclude-dependencies --exclude-informational --exclude-optimization --fail-none --json \"/tmp/indict_solidity_76455nds/slither-result.json\"",
+            "returncode": 0,
+            "stdout": "",
+            "stderr": "'forge clean' running (wd: /tmp/indict_solidity_76455nds)\n'forge config --json' running\n'forge build --build-info src/Generated.sol' running (wd: /tmp/indict_solidity_76455nds)\n\nDetector: reentrancy-events\nReentrancy in FundPoolManager.rescueFund(address,uint256) (src/Generated.sol#48-54):\n\tExternal calls:\n\t- (sent,None) = to.call{value: amount}() (src/Generated.sol#51)\n\tEvent emitted after the call(s):\n\t- FundRescued(to,amount) (src/Generated.sol#53)\nReentrancy in FundPoolManager.transferTo(address,uint256) (src/Generated.sol#39-46):\n\tExternal calls:\n\t- (sent,None) = to.call{value: amount}() (src/Generated.sol#43)\n\tEvent emitted after the call(s):\n\t- TransferExecuted(to,amount) (src/Generated.sol#45)\nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-4\nsrc/Generated.sol analyzed (1 contracts with 75 detectors), 2 result(s) found\n",
+            "success": true
+        },
+        "slither_skipped_reason": null,
+        "gas": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" --gas-report",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testOwnerAddsAndRemovesPool() (gas: 96610)\n[PASS] testRegisteredPoolTransfersFunds() (gas: 125232)\n[PASS] testUnregisteredPoolCannotTransfer() (gas: 37829)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 923.59\u00b5s (907.97\u00b5s CPU time)\n\n\u256d--------------------------------------------+-----------------+-------+--------+-------+---------\u256e\n| src/Generated.sol:FundPoolManager Contract |                 |       |        |       |         |\n+=================================================================================================+\n| Deployment Cost                            | Deployment Size |       |        |       |         |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| 980597                                     | 4298            |       |        |       |         |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n|                                            |                 |       |        |       |         |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| Function Name                              | Min             | Avg   | Median | Max   | # Calls |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| addPool                                    | 48359           | 48359 | 48359  | 48359 | 2       |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| pools                                      | 2956            | 2956  | 2956   | 2956  | 2       |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| receive                                    | 0               | 0     | 0      | 0     | 3       |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| removePool                                 | 25580           | 25580 | 25580  | 25580 | 1       |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| transferTo                                 | 24583           | 42545 | 42545  | 60507 | 2       |\n\u2570--------------------------------------------+-----------------+-------+--------+-------+---------\u256f\n\n\nRan 1 test suite in 3.30ms (923.59\u00b5s CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "vulnerability_count": 2,
+        "vulnerability_severity_counts": {
+            "low": 2
+        },
+        "slither_findings": [
+            {
+                "check": "reentrancy-events",
+                "impact": "low",
+                "confidence": "Medium",
+                "description": "Reentrancy in FundPoolManager.rescueFund(address,uint256) (src/Generated.sol#48-54): External calls: - (sent,None) = to.call{value: amount}() (src/Generated.sol#51) Event emitted after the call(s): - FundRescued(to,amount) (src/Generated.sol#53)",
+                "classification": "quality_warning",
+                "blocking": false
+            },
+            {
+                "check": "reentrancy-events",
+                "impact": "low",
+                "confidence": "Medium",
+                "description": "Reentrancy in FundPoolManager.transferTo(address,uint256) (src/Generated.sol#39-46): External calls: - (sent,None) = to.call{value: amount}() (src/Generated.sol#43) Event emitted after the call(s): - TransferExecuted(to,amount) (src/Generated.sol#45)",
+                "classification": "quality_warning",
+                "blocking": false
+            }
+        ],
+        "slither_classification_counts": {
+            "quality_warning": 2
+        },
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "max_gas_value": 980597,
+        "summary": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 2 finding(s) (low=2). Gas analysis: max observed value 980597."
+    },
+    "structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "compile_diagnostics": {
+            "command_success": true,
+            "failure_types": [],
+            "items": [],
+            "repair_hints": []
+        },
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "pools(address)",
+            "addPool(address,address)",
+            "removePool(address)",
+            "transferTo(address,uint256)",
+            "rescueFund(address,uint256)",
+            "receive()"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": true,
+        "test_failure": null,
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "slither_findings": {
+            "count": 2,
+            "severity_counts": {
+                "low": 2
+            },
+            "classification_counts": {
+                "quality_warning": 2
+            },
+            "items": [
+                {
+                    "check": "reentrancy-events",
+                    "impact": "low",
+                    "confidence": "Medium",
+                    "description": "Reentrancy in FundPoolManager.rescueFund(address,uint256) (src/Generated.sol#48-54): External calls: - (sent,None) = to.call{value: amount}() (src/Generated.sol#51) Event emitted after the call(s): - FundRescued(to,amount) (src/Generated.sol#53)",
+                    "classification": "quality_warning",
+                    "blocking": false
+                },
+                {
+                    "check": "reentrancy-events",
+                    "impact": "low",
+                    "confidence": "Medium",
+                    "description": "Reentrancy in FundPoolManager.transferTo(address,uint256) (src/Generated.sol#39-46): External calls: - (sent,None) = to.call{value: amount}() (src/Generated.sol#43) Event emitted after the call(s): - TransferExecuted(to,amount) (src/Generated.sol#45)",
+                    "classification": "quality_warning",
+                    "blocking": false
+                }
+            ],
+            "command_success": true
+        },
+        "gas_used": 980597,
+        "gas_command_success": true,
+        "target_defect": "none"
+    },
+    "mid_action_execution_observation": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 2 finding(s) (low=2). Gas analysis: max observed value 980597.",
+    "mid_action_execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 0,
+            "stdout": "Compiling 25 files with Solc 0.8.33\nSolc 0.8.33 finished in 752.87ms\nCompiler run successful with warnings:\nWarning (9207): 'transfer' is deprecated and scheduled for removal. Use 'call{value: <amount>}(\"\")' instead.\n  --> test/Generated.t.sol:15:9:\n   |\n15 |         payable(address(c)).transfer(2 ether);\n   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n",
+            "stderr": "note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:4:8\n  |\n4 | import \"forge-std/Test.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unwrapped-modifier-logic]: wrap modifier logic to reduce code size\n  --> src/Generated.sol:13:5\n   |\n13 | /     modifier onlyOwner() {\n14 | |         require(msg.sender == _owner, \"Ownable: caller is not the owner\");\n15 | |         _;\n16 | |     }\n   | |_____^\n   |\nhelp: wrap modifier logic to reduce code size\n   |\n13 ~     modifier onlyOwner() {\n14 +         _onlyOwner();\n15 +         _;\n16 +     }\n17 + \n18 +     function _onlyOwner() internal {\n19 +         require(msg.sender == _owner, \"Ownable: caller is not the owner\");\n20 +     }\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#unwrapped-modifier-logic\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:5:8\n  |\n5 | import \"../src/Generated.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\n",
+            "success": true
+        },
+        "compile_diagnostics": {
+            "command_success": true,
+            "failure_types": [],
+            "items": [],
+            "repair_hints": []
+        },
+        "abi": {
+            "checked": true,
+            "success": true,
+            "required": [
+                "pools(address)",
+                "addPool(address,address)",
+                "removePool(address)",
+                "transferTo(address,uint256)",
+                "rescueFund(address,uint256)",
+                "receive()"
+            ],
+            "forbidden": [],
+            "available": [
+                "addPool(address,address)",
+                "constructor()",
+                "pools(address)",
+                "receive()",
+                "removePool(address)",
+                "rescueFund(address,uint256)",
+                "transferTo(address,uint256)"
+            ],
+            "missing": [],
+            "forbidden_present": [],
+            "artifact": "/tmp/indict_solidity_76455nds/out/Generated.sol/FundPoolManager.json"
+        },
+        "tests": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" -vv",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testOwnerAddsAndRemovesPool() (gas: 31248)\n[PASS] testRegisteredPoolTransfersFunds() (gas: 80448)\n[PASS] testUnregisteredPoolCannotTransfer() (gas: 16413)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 964.23\u00b5s (882.04\u00b5s CPU time)\n\nRan 1 test suite in 22.39ms (964.23\u00b5s CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "slither": {
+            "command": "slither \"src/Generated.sol\" --exclude-dependencies --exclude-informational --exclude-optimization --fail-none --json \"/tmp/indict_solidity_76455nds/slither-result.json\"",
+            "returncode": 0,
+            "stdout": "",
+            "stderr": "'forge clean' running (wd: /tmp/indict_solidity_76455nds)\n'forge config --json' running\n'forge build --build-info src/Generated.sol' running (wd: /tmp/indict_solidity_76455nds)\n\nDetector: reentrancy-events\nReentrancy in FundPoolManager.rescueFund(address,uint256) (src/Generated.sol#48-54):\n\tExternal calls:\n\t- (sent,None) = to.call{value: amount}() (src/Generated.sol#51)\n\tEvent emitted after the call(s):\n\t- FundRescued(to,amount) (src/Generated.sol#53)\nReentrancy in FundPoolManager.transferTo(address,uint256) (src/Generated.sol#39-46):\n\tExternal calls:\n\t- (sent,None) = to.call{value: amount}() (src/Generated.sol#43)\n\tEvent emitted after the call(s):\n\t- TransferExecuted(to,amount) (src/Generated.sol#45)\nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-4\nsrc/Generated.sol analyzed (1 contracts with 75 detectors), 2 result(s) found\n",
+            "success": true
+        },
+        "slither_skipped_reason": null,
+        "gas": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" --gas-report",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testOwnerAddsAndRemovesPool() (gas: 96610)\n[PASS] testRegisteredPoolTransfersFunds() (gas: 125232)\n[PASS] testUnregisteredPoolCannotTransfer() (gas: 37829)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 923.59\u00b5s (907.97\u00b5s CPU time)\n\n\u256d--------------------------------------------+-----------------+-------+--------+-------+---------\u256e\n| src/Generated.sol:FundPoolManager Contract |                 |       |        |       |         |\n+=================================================================================================+\n| Deployment Cost                            | Deployment Size |       |        |       |         |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| 980597                                     | 4298            |       |        |       |         |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n|                                            |                 |       |        |       |         |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| Function Name                              | Min             | Avg   | Median | Max   | # Calls |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| addPool                                    | 48359           | 48359 | 48359  | 48359 | 2       |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| pools                                      | 2956            | 2956  | 2956   | 2956  | 2       |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| receive                                    | 0               | 0     | 0      | 0     | 3       |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| removePool                                 | 25580           | 25580 | 25580  | 25580 | 1       |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| transferTo                                 | 24583           | 42545 | 42545  | 60507 | 2       |\n\u2570--------------------------------------------+-----------------+-------+--------+-------+---------\u256f\n\n\nRan 1 test suite in 3.30ms (923.59\u00b5s CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "vulnerability_count": 2,
+        "vulnerability_severity_counts": {
+            "low": 2
+        },
+        "slither_findings": [
+            {
+                "check": "reentrancy-events",
+                "impact": "low",
+                "confidence": "Medium",
+                "description": "Reentrancy in FundPoolManager.rescueFund(address,uint256) (src/Generated.sol#48-54): External calls: - (sent,None) = to.call{value: amount}() (src/Generated.sol#51) Event emitted after the call(s): - FundRescued(to,amount) (src/Generated.sol#53)",
+                "classification": "quality_warning",
+                "blocking": false
+            },
+            {
+                "check": "reentrancy-events",
+                "impact": "low",
+                "confidence": "Medium",
+                "description": "Reentrancy in FundPoolManager.transferTo(address,uint256) (src/Generated.sol#39-46): External calls: - (sent,None) = to.call{value: amount}() (src/Generated.sol#43) Event emitted after the call(s): - TransferExecuted(to,amount) (src/Generated.sol#45)",
+                "classification": "quality_warning",
+                "blocking": false
+            }
+        ],
+        "slither_classification_counts": {
+            "quality_warning": 2
+        },
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "max_gas_value": 980597,
+        "summary": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 2 finding(s) (low=2). Gas analysis: max observed value 980597."
+    },
+    "mid_structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "compile_diagnostics": {
+            "command_success": true,
+            "failure_types": [],
+            "items": [],
+            "repair_hints": []
+        },
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "pools(address)",
+            "addPool(address,address)",
+            "removePool(address)",
+            "transferTo(address,uint256)",
+            "rescueFund(address,uint256)",
+            "receive()"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": true,
+        "test_failure": null,
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "slither_findings": {
+            "count": 2,
+            "severity_counts": {
+                "low": 2
+            },
+            "classification_counts": {
+                "quality_warning": 2
+            },
+            "items": [
+                {
+                    "check": "reentrancy-events",
+                    "impact": "low",
+                    "confidence": "Medium",
+                    "description": "Reentrancy in FundPoolManager.rescueFund(address,uint256) (src/Generated.sol#48-54): External calls: - (sent,None) = to.call{value: amount}() (src/Generated.sol#51) Event emitted after the call(s): - FundRescued(to,amount) (src/Generated.sol#53)",
+                    "classification": "quality_warning",
+                    "blocking": false
+                },
+                {
+                    "check": "reentrancy-events",
+                    "impact": "low",
+                    "confidence": "Medium",
+                    "description": "Reentrancy in FundPoolManager.transferTo(address,uint256) (src/Generated.sol#39-46): External calls: - (sent,None) = to.call{value: amount}() (src/Generated.sol#43) Event emitted after the call(s): - TransferExecuted(to,amount) (src/Generated.sol#45)",
+                    "classification": "quality_warning",
+                    "blocking": false
+                }
+            ],
+            "command_success": true
+        },
+        "gas_used": 980597,
+        "gas_command_success": true,
+        "target_defect": "none"
+    },
+    "final_action_execution_observation": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 2 finding(s) (low=2). Gas analysis: max observed value 980597.",
+    "final_action_execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 0,
+            "stdout": "Compiling 25 files with Solc 0.8.33\nSolc 0.8.33 finished in 752.87ms\nCompiler run successful with warnings:\nWarning (9207): 'transfer' is deprecated and scheduled for removal. Use 'call{value: <amount>}(\"\")' instead.\n  --> test/Generated.t.sol:15:9:\n   |\n15 |         payable(address(c)).transfer(2 ether);\n   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n",
+            "stderr": "note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:4:8\n  |\n4 | import \"forge-std/Test.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unwrapped-modifier-logic]: wrap modifier logic to reduce code size\n  --> src/Generated.sol:13:5\n   |\n13 | /     modifier onlyOwner() {\n14 | |         require(msg.sender == _owner, \"Ownable: caller is not the owner\");\n15 | |         _;\n16 | |     }\n   | |_____^\n   |\nhelp: wrap modifier logic to reduce code size\n   |\n13 ~     modifier onlyOwner() {\n14 +         _onlyOwner();\n15 +         _;\n16 +     }\n17 + \n18 +     function _onlyOwner() internal {\n19 +         require(msg.sender == _owner, \"Ownable: caller is not the owner\");\n20 +     }\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#unwrapped-modifier-logic\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:5:8\n  |\n5 | import \"../src/Generated.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\n",
+            "success": true
+        },
+        "compile_diagnostics": {
+            "command_success": true,
+            "failure_types": [],
+            "items": [],
+            "repair_hints": []
+        },
+        "abi": {
+            "checked": true,
+            "success": true,
+            "required": [
+                "pools(address)",
+                "addPool(address,address)",
+                "removePool(address)",
+                "transferTo(address,uint256)",
+                "rescueFund(address,uint256)",
+                "receive()"
+            ],
+            "forbidden": [],
+            "available": [
+                "addPool(address,address)",
+                "constructor()",
+                "pools(address)",
+                "receive()",
+                "removePool(address)",
+                "rescueFund(address,uint256)",
+                "transferTo(address,uint256)"
+            ],
+            "missing": [],
+            "forbidden_present": [],
+            "artifact": "/tmp/indict_solidity_76455nds/out/Generated.sol/FundPoolManager.json"
+        },
+        "tests": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" -vv",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testOwnerAddsAndRemovesPool() (gas: 31248)\n[PASS] testRegisteredPoolTransfersFunds() (gas: 80448)\n[PASS] testUnregisteredPoolCannotTransfer() (gas: 16413)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 964.23\u00b5s (882.04\u00b5s CPU time)\n\nRan 1 test suite in 22.39ms (964.23\u00b5s CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "slither": {
+            "command": "slither \"src/Generated.sol\" --exclude-dependencies --exclude-informational --exclude-optimization --fail-none --json \"/tmp/indict_solidity_76455nds/slither-result.json\"",
+            "returncode": 0,
+            "stdout": "",
+            "stderr": "'forge clean' running (wd: /tmp/indict_solidity_76455nds)\n'forge config --json' running\n'forge build --build-info src/Generated.sol' running (wd: /tmp/indict_solidity_76455nds)\n\nDetector: reentrancy-events\nReentrancy in FundPoolManager.rescueFund(address,uint256) (src/Generated.sol#48-54):\n\tExternal calls:\n\t- (sent,None) = to.call{value: amount}() (src/Generated.sol#51)\n\tEvent emitted after the call(s):\n\t- FundRescued(to,amount) (src/Generated.sol#53)\nReentrancy in FundPoolManager.transferTo(address,uint256) (src/Generated.sol#39-46):\n\tExternal calls:\n\t- (sent,None) = to.call{value: amount}() (src/Generated.sol#43)\n\tEvent emitted after the call(s):\n\t- TransferExecuted(to,amount) (src/Generated.sol#45)\nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-4\nsrc/Generated.sol analyzed (1 contracts with 75 detectors), 2 result(s) found\n",
+            "success": true
+        },
+        "slither_skipped_reason": null,
+        "gas": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" --gas-report",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testOwnerAddsAndRemovesPool() (gas: 96610)\n[PASS] testRegisteredPoolTransfersFunds() (gas: 125232)\n[PASS] testUnregisteredPoolCannotTransfer() (gas: 37829)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 923.59\u00b5s (907.97\u00b5s CPU time)\n\n\u256d--------------------------------------------+-----------------+-------+--------+-------+---------\u256e\n| src/Generated.sol:FundPoolManager Contract |                 |       |        |       |         |\n+=================================================================================================+\n| Deployment Cost                            | Deployment Size |       |        |       |         |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| 980597                                     | 4298            |       |        |       |         |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n|                                            |                 |       |        |       |         |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| Function Name                              | Min             | Avg   | Median | Max   | # Calls |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| addPool                                    | 48359           | 48359 | 48359  | 48359 | 2       |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| pools                                      | 2956            | 2956  | 2956   | 2956  | 2       |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| receive                                    | 0               | 0     | 0      | 0     | 3       |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| removePool                                 | 25580           | 25580 | 25580  | 25580 | 1       |\n|--------------------------------------------+-----------------+-------+--------+-------+---------|\n| transferTo                                 | 24583           | 42545 | 42545  | 60507 | 2       |\n\u2570--------------------------------------------+-----------------+-------+--------+-------+---------\u256f\n\n\nRan 1 test suite in 3.30ms (923.59\u00b5s CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "vulnerability_count": 2,
+        "vulnerability_severity_counts": {
+            "low": 2
+        },
+        "slither_findings": [
+            {
+                "check": "reentrancy-events",
+                "impact": "low",
+                "confidence": "Medium",
+                "description": "Reentrancy in FundPoolManager.rescueFund(address,uint256) (src/Generated.sol#48-54): External calls: - (sent,None) = to.call{value: amount}() (src/Generated.sol#51) Event emitted after the call(s): - FundRescued(to,amount) (src/Generated.sol#53)",
+                "classification": "quality_warning",
+                "blocking": false
+            },
+            {
+                "check": "reentrancy-events",
+                "impact": "low",
+                "confidence": "Medium",
+                "description": "Reentrancy in FundPoolManager.transferTo(address,uint256) (src/Generated.sol#39-46): External calls: - (sent,None) = to.call{value: amount}() (src/Generated.sol#43) Event emitted after the call(s): - TransferExecuted(to,amount) (src/Generated.sol#45)",
+                "classification": "quality_warning",
+                "blocking": false
+            }
+        ],
+        "slither_classification_counts": {
+            "quality_warning": 2
+        },
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "max_gas_value": 980597,
+        "summary": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 2 finding(s) (low=2). Gas analysis: max observed value 980597."
+    },
+    "final_structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "compile_diagnostics": {
+            "command_success": true,
+            "failure_types": [],
+            "items": [],
+            "repair_hints": []
+        },
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "pools(address)",
+            "addPool(address,address)",
+            "removePool(address)",
+            "transferTo(address,uint256)",
+            "rescueFund(address,uint256)",
+            "receive()"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": true,
+        "test_failure": null,
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "slither_findings": {
+            "count": 2,
+            "severity_counts": {
+                "low": 2
+            },
+            "classification_counts": {
+                "quality_warning": 2
+            },
+            "items": [
+                {
+                    "check": "reentrancy-events",
+                    "impact": "low",
+                    "confidence": "Medium",
+                    "description": "Reentrancy in FundPoolManager.rescueFund(address,uint256) (src/Generated.sol#48-54): External calls: - (sent,None) = to.call{value: amount}() (src/Generated.sol#51) Event emitted after the call(s): - FundRescued(to,amount) (src/Generated.sol#53)",
+                    "classification": "quality_warning",
+                    "blocking": false
+                },
+                {
+                    "check": "reentrancy-events",
+                    "impact": "low",
+                    "confidence": "Medium",
+                    "description": "Reentrancy in FundPoolManager.transferTo(address,uint256) (src/Generated.sol#39-46): External calls: - (sent,None) = to.call{value: amount}() (src/Generated.sol#43) Event emitted after the call(s): - TransferExecuted(to,amount) (src/Generated.sol#45)",
+                    "classification": "quality_warning",
+                    "blocking": false
+                }
+            ],
+            "command_success": true
+        },
+        "gas_used": 980597,
+        "gas_command_success": true,
+        "target_defect": "none"
+    },
+    "stop_reason": "initial_action_passed_clean",
+    "critic_posthoc": "",
+    "mid_action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract FundPoolManager {\n    address private _owner;\n    mapping(address => address) private _pools;\n\n    event PoolAdded(address indexed pool, address indexed rewardToken);\n    event PoolRemoved(address indexed pool);\n    event TransferExecuted(address indexed to, uint256 amount);\n    event FundRescued(address indexed to, uint256 amount);\n\n    modifier onlyOwner() {\n        require(msg.sender == _owner, \"Ownable: caller is not the owner\");\n        _;\n    }\n\n    constructor() {\n        _owner = msg.sender;\n    }\n\n    function pools(address pool) public view returns (address) {\n        return _pools[pool];\n    }\n\n    function addPool(address pool, address rewardToken) public onlyOwner {\n        require(pool != address(0), \"Invalid pool address\");\n        require(_pools[pool] == address(0), \"Pool already exists\");\n        _pools[pool] = rewardToken;\n        emit PoolAdded(pool, rewardToken);\n    }\n\n    function removePool(address pool) public onlyOwner {\n        require(_pools[pool] != address(0), \"Pool does not exist\");\n        delete _pools[pool];\n        emit PoolRemoved(pool);\n    }\n\n    function transferTo(address payable to, uint256 amount) external {\n        require(to != address(0), \"Invalid recipient address\");\n        require(_pools[msg.sender] != address(0), \"Unauthorized pool\");\n        require(address(this).balance >= amount, \"Insufficient balance\");\n        (bool sent,) = to.call{value: amount}(\"\");\n        require(sent, \"Transfer failed\");\n        emit TransferExecuted(to, amount);\n    }\n\n    function rescueFund(address payable to, uint256 amount) public onlyOwner {\n        require(to != address(0), \"Invalid recipient address\");\n        require(address(this).balance >= amount, \"Insufficient balance\");\n        (bool sent,) = to.call{value: amount}(\"\");\n        require(sent, \"Transfer failed\");\n        emit FundRescued(to, amount);\n    }\n\n    receive() external payable {}\n\n}\n```",
+    "critic_scratchpad_posthoc": "",
+    "safety_critics_posthoc": [],
+    "safety_tool_output_posthoc": [],
+    "helpful_critics_posthoc": [],
+    "helpful_tool_output_posthoc": [],
+    "gas_critics_posthoc": [],
+    "gas_tool_output_posthoc": []
+}

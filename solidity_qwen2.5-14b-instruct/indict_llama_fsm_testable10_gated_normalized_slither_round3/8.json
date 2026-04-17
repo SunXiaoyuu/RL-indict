@@ -1,0 +1,872 @@
+{
+    "sample_idx": 8,
+    "action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract GrandGooseMansion {\n    address private _owner;\n    uint256 public supply;\n    uint256 public cost;\n    uint256 public maxSupply;\n    uint256 public preSaleWalletLimit;\n    mapping(address => uint256) private _preSaleWalletMinted;\n    mapping(address => bool) private _whitelist;\n    enum SaleStatus { Paused, Presale, PublicSale }\n    SaleStatus private _currentSaleStatus = SaleStatus.Paused;\n\n    constructor() {\n        _owner = msg.sender;\n        maxSupply = 10000; // Example value, adjust as needed\n        preSaleWalletLimit = 10; // Example value, adjust as needed\n    }\n\n    modifier onlyOwner() {\n        require(msg.sender == _owner, \"Not the owner\");\n        _;\n    }\n\n    function isWhitelisted(address user) public view returns (bool) {\n        return _whitelist[user];\n    }\n\n    function whitelistUser(address user, bool status) public onlyOwner {\n        _whitelist[user] = status;\n    }\n\n    function startPresale() public onlyOwner {\n        _currentSaleStatus = SaleStatus.Presale;\n    }\n\n    function startPublicSale() public onlyOwner {\n        _currentSaleStatus = SaleStatus.PublicSale;\n    }\n\n    function setCost(uint256 newCost) public onlyOwner {\n        cost = newCost;\n    }\n\n    function mintTokenWhitelisted(uint256 amount) public payable {\n        require(_currentSaleStatus == SaleStatus.Presale, \"Presale not active\");\n        require(_whitelist[msg.sender], \"Not whitelisted\");\n        require(amount > 0, \"Amount must be greater than 0\");\n        require(supply + amount <= maxSupply, \"Exceeds max supply\");\n        require(_preSaleWalletMinted[msg.sender] + amount <= preSaleWalletLimit, \"Exceeds wallet limit\");\n        require(msg.value == cost * amount, \"Incorrect payment\");\n\n        supply += amount;\n        _preSaleWalletMinted[msg.sender] += amount;\n    }\n\n    function mintTokenPublic(uint256 amount) public payable {\n        require(_currentSaleStatus == SaleStatus.PublicSale, \"Public sale not active\");\n        require(amount > 0, \"Amount must be greater than 0\");\n        require(supply + amount <= maxSupply, \"Exceeds max supply\");\n        require(msg.value == cost * amount, \"Incorrect payment\");\n\n        supply += amount;\n    }\n\n    function preSaleWalletMinted(address user) public view returns (uint256) {\n        return _preSaleWalletMinted[user];\n    }\n\n    function currentSaleStatus() public view returns (SaleStatus) {\n        return _currentSaleStatus;\n    }\n}\n```",
+    "scratchpad": "\nInitial Solution: ```solidity\n// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract GrandGooseMansion {\n    address private _owner;\n    uint256 public supply;\n    uint256 public cost;\n    uint256 public maxSupply;\n    uint256 public preSaleWalletLimit;\n    mapping(address => uint256) private _preSaleWalletMinted;\n    mapping(address => bool) private _whitelist;\n    enum SaleStatus { Paused, Presale, PublicSale }\n    SaleStatus private _currentSaleStatus = SaleStatus.Paused;\n\n    constructor() {\n        _owner = msg.sender;\n        maxSupply = 10000; // Example value, adjust as needed\n        preSaleWalletLimit = 10; // Example value, adjust as needed\n    }\n\n    modifier onlyOwner() {\n        require(msg.sender == _owner, \"Not the owner\");\n        _;\n    }\n\n    function isWhitelisted(address user) public view returns (bool) {\n        return _whitelist[user];\n    }\n\n    function whitelistUser(address user, bool status) public onlyOwner {\n        _whitelist[user] = status;\n    }\n\n    function startPresale() public onlyOwner {\n        _currentSaleStatus = SaleStatus.Presale;\n    }\n\n    function startPublicSale() public onlyOwner {\n        _currentSaleStatus = SaleStatus.PublicSale;\n    }\n\n    function setCost(uint256 newCost) public onlyOwner {\n        cost = newCost;\n    }\n\n    function mintTokenWhitelisted(uint256 amount) public payable {\n        require(_currentSaleStatus == SaleStatus.Presale, \"Presale not active\");\n        require(_whitelist[msg.sender], \"Not whitelisted\");\n        require(amount > 0, \"Amount must be greater than 0\");\n        require(supply + amount <= maxSupply, \"Exceeds max supply\");\n        require(_preSaleWalletMinted[msg.sender] + amount <= preSaleWalletLimit, \"Exceeds wallet limit\");\n        require(msg.value == cost * amount, \"Incorrect payment\");\n\n        supply += amount;\n        _preSaleWalletMinted[msg.sender] += amount;\n    }\n\n    function mintTokenPublic(uint256 amount) public payable {\n        require(_currentSaleStatus == SaleStatus.PublicSale, \"Public sale not active\");\n        require(amount > 0, \"Amount must be greater than 0\");\n        require(supply + amount <= maxSupply, \"Exceeds max supply\");\n        require(msg.value == cost * amount, \"Incorrect payment\");\n\n        supply += amount;\n    }\n\n    function preSaleWalletMinted(address user) public view returns (uint256) {\n        return _preSaleWalletMinted[user];\n    }\n\n    function currentSaleStatus() public view returns (SaleStatus) {\n        return _currentSaleStatus;\n    }\n}\n```\nInitial Structured Execution Feedback:\n```json\n{\n  \"target_defect\": \"none\",\n  \"compile_success\": true,\n  \"compile_diagnostics\": {\n    \"command_success\": true,\n    \"failure_types\": [],\n    \"items\": [],\n    \"repair_hints\": []\n  },\n  \"abi_success\": true,\n  \"abi_missing\": [],\n  \"abi_extra\": [],\n  \"abi_forbidden_present\": [],\n  \"test_success\": true,\n  \"test_failure\": \"\",\n  \"failed_tests\": [],\n  \"slither_classification_counts\": {\n    \"spec_conflict\": 1,\n    \"quality_warning\": 1\n  },\n  \"slither_command_success\": true,\n  \"slither_skipped_reason\": null,\n  \"top_slither_findings\": [\n    {\n      \"check\": \"locked-ether\",\n      \"impact\": \"medium\",\n      \"classification\": \"spec_conflict\",\n      \"description\": \"Contract locking ether found: Contract GrandGooseMansion (src/Generated.sol#4-75) has payable functions: - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#46-...\"\n    },\n    {\n      \"check\": \"events-maths\",\n      \"impact\": \"low\",\n      \"classification\": \"quality_warning\",\n      \"description\": \"GrandGooseMansion.setCost(uint256) (src/Generated.sol#42-44) should emit an event for: - cost = newCost (src/Generated.sol#43)\"\n    }\n  ],\n  \"gas_used\": 1066667\n}\n```\nStop Reason: initial_action_passed_clean",
+    "critic": [
+        "### Summary of Strongest Points from the Debate\n\n1. **Compile Error**: The primary issue is a `duplicate_identifier_or_getter` error caused by explicitly defining getter functions for public state variables that Solidity automatically generates.\n\n2. **Functionality**: The explicit getter functions are unnecessary and redundant, leading to compile errors. Removing these functions will resolve the issue while preserving the intended functionality.\n\n3. **Security**: There are no immediate security concerns raised in the current feedback. However, ensuring that the contract compiles correctly and passes all tests is essential for security.\n\n4. **Gas Efficiency**: Removing redundant getter functions can slightly improve gas efficiency by reducing unnecessary bytecode.\n\n### Ordered Repair List\n\n1. **Target Defect**: `compile_error:duplicate_identifier_or_getter`\n2. **Compile Diagnostics**: \n   - **Failure Type**: `duplicate_identifier_or_getter`\n   - **Location**: `candidate_contract`\n   - **Repair Hint**: \"Remove duplicate declarations. For public variables/mappings, do not also add an explicit same-name getter.\"\n\n3. **ABI Extra**: \n   - Explicit getter functions for `supply`, `cost`, `maxSupply`, `preSaleWalletLimit`, and `currentSaleStatus` should be removed as they are redundant.\n\n4. **Test Failure**: \n   - No specific failed tests are mentioned, but the compile error indicates that the contract does not pass tests due to the duplicate identifier issue.\n   - **Smallest Behavior Change Needed**: Remove the explicit getter functions to resolve the compile error and ensure the contract passes all tests.\n\n5. **Security Blocking or Security Review**: \n   - No specific security issues are flagged in the current feedback. Ensure that the contract complies with the specification and passes all tests to maintain security.\n\n6. **Gas Used**: \n   - Removing redundant getter functions can improve gas efficiency by reducing unnecessary bytecode.\n\n### Implementation-Level Feedback for the Code Generator\n\n1. **Remove Redundant Getter Functions**:\n   - Remove the following explicit getter functions from the contract:\n     ```solidity\n     function supply() public view returns (uint256) { return supply; }\n     function cost() public view returns (uint256) { return cost; }\n     function maxSupply() public view returns (uint256) { return maxSupply; }\n     function preSaleWalletLimit() public view returns (uint256) { return preSaleWalletLimit; }\n     function currentSaleStatus() public view returns (SaleStatus) { return _currentSaleStatus; }\n     ```\n\n2. **Ensure ABI Compliance**:\n   - Do not add any unrequested public/external APIs unless explicitly required by the task.\n\n3. **Test Deployment**:\n   - Match the required constructor ABI and test deployment to ensure the contract compiles and deploys successfully.\n\n4. **Preserve Required Functionality**:\n   - Ensure all other required functionalities and ABI signatures are preserved.\n\n5. **Final Corrected Code**:\n   ```solidity\n   // SPDX-License-Identifier: MIT\n   pragma solidity ^0.8.20;\n\n   contract GrandGooseMansion {\n       address private _owner;\n       uint256 public supply;\n       uint256 public cost;\n       uint256 public maxSupply;\n       uint256 public preSaleWalletLimit;\n       mapping(address => uint256) private _preSaleWalletMinted;\n       mapping(address => bool) private _whitelist;\n       enum SaleStatus { Paused, Presale, PublicSale }\n       SaleStatus private _currentSaleStatus = SaleStatus.Paused;\n\n       constructor() {\n           _owner = msg.sender;\n       }\n\n       modifier onlyOwner() {\n           require(msg.sender == _owner, \"Not the owner\");\n           _;\n       }\n   }\n   ```\n\nBy following these steps, the contract will be free of compile errors, secure, and reasonably gas-efficient.",
+        "### Summary of Strongest Points from the Debate\n\n1. **Compile Success**: The contract compiles successfully, but there are issues with ABI and tests.\n2. **ABI Missing**: The `currentSaleStatus()` function is missing from the ABI.\n3. **Test Failures**: Both `testPublicMint` and `testWhitelistedPresaleMint` fail due to exceeding the maximum supply and pre-sale wallet limit.\n4. **Security Blocking**: Two high-impact security issues related to uninitialized state variables (`maxSupply` and `preSaleWalletLimit`).\n5. **Spec Conflict**: A medium-impact issue related to the contract locking ether through payable functions.\n\n### Ordered Repair List\n\n1. **Target Defect**: `abi_missing`\n2. **Compile Diagnostics**: \n   - **Command Success**: True\n   - **Failure Types**: None\n   - **Items**: None\n   - **Repair Hints**: None\n\n3. **ABI Missing**: \n   - Implement the `currentSaleStatus()` getter.\n   ```solidity\n   function currentSaleStatus() public view returns (SaleStatus) {\n       return _currentSaleStatus;\n   }\n   ```\n\n4. **Test Failure**: \n   - **Name**: `testPublicMint`\n     - **Failure Type**: `sale_phase_transition`\n     - **Reason**: `Exceeds max supply`\n     - **Expected**: Test should pass without exceeding max supply.\n     - **Actual**: Fails due to exceeding max supply.\n     - **Smallest Behavior Change Needed**: Initialize `maxSupply` and `preSaleWalletLimit` in the constructor.\n   - **Name**: `testWhitelistedPresaleMint`\n     - **Failure Type**: `sale_phase_transition`\n     - **Reason**: `Exceeds max supply`\n     - **Expected**: Test should pass without exceeding max supply.\n     - **Actual**: Fails due to exceeding max supply.\n     - **Smallest Behavior Change Needed**: Initialize `maxSupply` and `preSaleWalletLimit` in the constructor.\n\n5. **Security Blocking or Security Review**:\n   - **Check**: `uninitialized-state`\n     - **Impact**: High\n     - **Classification**: `security_blocking`\n     - **Description**: `maxSupply` and `preSaleWalletLimit` are never initialized.\n     - **Fix**: Initialize `maxSupply` and `preSaleWalletLimit` in the constructor.\n   ```solidity\n   constructor() {\n       _owner = msg.sender;\n       maxSupply = 10000; // Example value, adjust as needed\n       preSaleWalletLimit = 10; // Example value, adjust as needed\n   }\n   ```\n\n6. **Spec Conflict**:\n   - **Check**: `locked-ether`\n     - **Impact**: Medium\n     - **Classification**: `spec_conflict`\n     - **Description**: Payable functions lock ether.\n     - **Fix**: Ensure payable functions are necessary and handle ether properly. Consider removing payable if not required.\n\n7. **Gas Used**: \n   - Ensure minimal changes are made to improve gas efficiency by avoiding unnecessary operations.\n\n### Implementation-Level Feedback for the Code Generator\n\n1. **Implement `currentSaleStatus()` Getter**:\n   - Add the `currentSaleStatus()` getter function.\n   ```solidity\n   function currentSaleStatus() public view returns (SaleStatus) {\n       return _currentSaleStatus;\n   }\n   ```\n\n2. **Initialize `maxSupply` and `preSaleWalletLimit`**:\n   - Initialize `maxSupply` and `preSaleWalletLimit` in the constructor.\n   ```solidity\n   constructor() {\n       _owner = msg.sender;\n       maxSupply = 10000; // Example value, adjust as needed\n       preSaleWalletLimit = 10; // Example value, adjust as needed\n   }\n   ```\n\n3. **Ensure ABI Compliance**:\n   - Ensure all required public/external functions and their signatures are present and correctly implemented.\n   - Do not add any unrequested public/external APIs unless explicitly required by the task.\n\n4. **Test Deployment**:\n   - Match the required constructor ABI and test deployment to ensure the contract compiles and deploys successfully.\n\n5. **Final Corrected Code**:\n   ```solidity\n   // SPDX-License-Identifier: MIT\n   pragma solidity ^0.8.20;\n\n   contract GrandGooseMansion {\n       address private _owner;\n       uint256 public supply;\n       uint256 public cost;\n       uint256 public maxSupply;\n       uint256 public preSaleWalletLimit;\n       mapping(address => uint256) private _preSaleWalletMinted;\n       mapping(address => bool) private _whitelist;\n       enum SaleStatus { Paused, Presale, PublicSale }\n       SaleStatus private _currentSaleStatus = SaleStatus.Paused;\n\n       constructor() {",
+        ""
+    ],
+    "initial_action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract GrandGooseMansion {\n    address private _owner;\n    uint256 public supply;\n    uint256 public cost;\n    uint256 public maxSupply;\n    uint256 public preSaleWalletLimit;\n    mapping(address => uint256) private _preSaleWalletMinted;\n    mapping(address => bool) private _whitelist;\n    enum SaleStatus { Paused, Presale, PublicSale }\n    SaleStatus private _currentSaleStatus = SaleStatus.Paused;\n\n    constructor() {\n        _owner = msg.sender;\n        maxSupply = 10000; // Example value, adjust as needed\n        preSaleWalletLimit = 10; // Example value, adjust as needed\n    }\n\n    modifier onlyOwner() {\n        require(msg.sender == _owner, \"Not the owner\");\n        _;\n    }\n\n    function isWhitelisted(address user) public view returns (bool) {\n        return _whitelist[user];\n    }\n\n    function whitelistUser(address user, bool status) public onlyOwner {\n        _whitelist[user] = status;\n    }\n\n    function startPresale() public onlyOwner {\n        _currentSaleStatus = SaleStatus.Presale;\n    }\n\n    function startPublicSale() public onlyOwner {\n        _currentSaleStatus = SaleStatus.PublicSale;\n    }\n\n    function setCost(uint256 newCost) public onlyOwner {\n        cost = newCost;\n    }\n\n    function mintTokenWhitelisted(uint256 amount) public payable {\n        require(_currentSaleStatus == SaleStatus.Presale, \"Presale not active\");\n        require(_whitelist[msg.sender], \"Not whitelisted\");\n        require(amount > 0, \"Amount must be greater than 0\");\n        require(supply + amount <= maxSupply, \"Exceeds max supply\");\n        require(_preSaleWalletMinted[msg.sender] + amount <= preSaleWalletLimit, \"Exceeds wallet limit\");\n        require(msg.value == cost * amount, \"Incorrect payment\");\n\n        supply += amount;\n        _preSaleWalletMinted[msg.sender] += amount;\n    }\n\n    function mintTokenPublic(uint256 amount) public payable {\n        require(_currentSaleStatus == SaleStatus.PublicSale, \"Public sale not active\");\n        require(amount > 0, \"Amount must be greater than 0\");\n        require(supply + amount <= maxSupply, \"Exceeds max supply\");\n        require(msg.value == cost * amount, \"Incorrect payment\");\n\n        supply += amount;\n    }\n\n    function preSaleWalletMinted(address user) public view returns (uint256) {\n        return _preSaleWalletMinted[user];\n    }\n\n    function currentSaleStatus() public view returns (SaleStatus) {\n        return _currentSaleStatus;\n    }\n}\n```",
+    "critic_scratchpad": "",
+    "runtime_config": {
+        "cost_profile": "gated",
+        "critic_mode": "gated",
+        "feedback_mode": "compact",
+        "posthoc_policy": "failures",
+        "critic_tools_enabled": false,
+        "early_stop": true,
+        "solidity_prompt_mode": "normalized",
+        "critic_rounds": 1
+    },
+    "llm_call_stats": {
+        "total_calls": 0,
+        "actor_calls": 0,
+        "critic_calls": 0,
+        "tool_planning_calls": 0,
+        "prompt_chars": 0,
+        "completion_chars": 0,
+        "max_tokens_requested": 0
+    },
+    "previous_structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "compile_diagnostics": {
+            "command_success": true,
+            "failure_types": [],
+            "items": [],
+            "repair_hints": []
+        },
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "supply()",
+            "cost()",
+            "maxSupply()",
+            "preSaleWalletLimit()",
+            "currentSaleStatus()",
+            "whitelistUser(address,bool)",
+            "startPresale()",
+            "startPublicSale()",
+            "setCost(uint256)",
+            "isWhitelisted(address)",
+            "mintTokenWhitelisted(uint256)",
+            "mintTokenPublic(uint256)",
+            "preSaleWalletMinted(address)"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": true,
+        "test_failure": null,
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "slither_findings": {
+            "count": 2,
+            "severity_counts": {
+                "medium": 1,
+                "low": 1
+            },
+            "classification_counts": {
+                "spec_conflict": 1,
+                "quality_warning": 1
+            },
+            "items": [
+                {
+                    "check": "locked-ether",
+                    "impact": "medium",
+                    "confidence": "High",
+                    "description": "Contract locking ether found: Contract GrandGooseMansion (src/Generated.sol#4-75) has payable functions: - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#46-56) - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#58-65) But does not have a function to withdraw the ether",
+                    "classification": "spec_conflict",
+                    "blocking": false
+                },
+                {
+                    "check": "events-maths",
+                    "impact": "low",
+                    "confidence": "Medium",
+                    "description": "GrandGooseMansion.setCost(uint256) (src/Generated.sol#42-44) should emit an event for: - cost = newCost (src/Generated.sol#43)",
+                    "classification": "quality_warning",
+                    "blocking": false
+                }
+            ],
+            "command_success": true
+        },
+        "gas_used": 1066667,
+        "gas_command_success": true,
+        "target_defect": "none"
+    },
+    "safety_critics": [],
+    "safety_tool_output": [],
+    "helpful_critics": [],
+    "helpful_tool_output": [],
+    "gas_critics": [],
+    "gas_tool_output": [],
+    "initial_action_execution_observation": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 2 finding(s) (low=1, medium=1). Gas analysis: max observed value 1066667.",
+    "initial_action_execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 0,
+            "stdout": "Compiling 25 files with Solc 0.8.33\nSolc 0.8.33 finished in 768.21ms\nCompiler run successful!\n",
+            "stderr": "note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:4:8\n  |\n4 | import \"forge-std/Test.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:5:8\n  |\n5 | import \"../src/Generated.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unwrapped-modifier-logic]: wrap modifier logic to reduce code size\n  --> src/Generated.sol:21:5\n   |\n21 | /     modifier onlyOwner() {\n22 | |         require(msg.sender == _owner, \"Not the owner\");\n23 | |         _;\n24 | |     }\n   | |_____^\n   |\nhelp: wrap modifier logic to reduce code size\n   |\n21 ~     modifier onlyOwner() {\n22 +         _onlyOwner();\n23 +         _;\n24 +     }\n25 + \n26 +     function _onlyOwner() internal {\n27 +         require(msg.sender == _owner, \"Not the owner\");\n28 +     }\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#unwrapped-modifier-logic\n\n",
+            "success": true
+        },
+        "compile_diagnostics": {
+            "command_success": true,
+            "failure_types": [],
+            "items": [],
+            "repair_hints": []
+        },
+        "abi": {
+            "checked": true,
+            "success": true,
+            "required": [
+                "supply()",
+                "cost()",
+                "maxSupply()",
+                "preSaleWalletLimit()",
+                "currentSaleStatus()",
+                "whitelistUser(address,bool)",
+                "startPresale()",
+                "startPublicSale()",
+                "setCost(uint256)",
+                "isWhitelisted(address)",
+                "mintTokenWhitelisted(uint256)",
+                "mintTokenPublic(uint256)",
+                "preSaleWalletMinted(address)"
+            ],
+            "forbidden": [],
+            "available": [
+                "constructor()",
+                "cost()",
+                "currentSaleStatus()",
+                "isWhitelisted(address)",
+                "maxSupply()",
+                "mintTokenPublic(uint256)",
+                "mintTokenWhitelisted(uint256)",
+                "preSaleWalletLimit()",
+                "preSaleWalletMinted(address)",
+                "setCost(uint256)",
+                "startPresale()",
+                "startPublicSale()",
+                "supply()",
+                "whitelistUser(address,bool)"
+            ],
+            "missing": [],
+            "forbidden_present": [],
+            "artifact": "/tmp/indict_solidity_5skybml5/out/Generated.sol/GrandGooseMansion.json"
+        },
+        "tests": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" -vv",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testNonWhitelistedPresaleMintReverts() (gas: 45902)\n[PASS] testPublicMint() (gas: 71274)\n[PASS] testWhitelistedPresaleMint() (gas: 122547)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.20ms (727.05\u00b5s CPU time)\n\nRan 1 test suite in 15.65ms (1.20ms CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "slither": {
+            "command": "slither \"src/Generated.sol\" --exclude-dependencies --exclude-informational --exclude-optimization --fail-none --json \"/tmp/indict_solidity_5skybml5/slither-result.json\"",
+            "returncode": 0,
+            "stdout": "",
+            "stderr": "'forge clean' running (wd: /tmp/indict_solidity_5skybml5)\n'forge config --json' running\n'forge build --build-info src/Generated.sol' running (wd: /tmp/indict_solidity_5skybml5)\n\nDetector: locked-ether\nContract locking ether found:\n\tContract GrandGooseMansion (src/Generated.sol#4-75) has payable functions:\n\t - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#46-56)\n\t - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#58-65)\n\tBut does not have a function to withdraw the ether\nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#contracts-that-lock-ether\n\nDetector: events-maths\nGrandGooseMansion.setCost(uint256) (src/Generated.sol#42-44) should emit an event for: \n\t- cost = newCost (src/Generated.sol#43) \nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#missing-events-arithmetic\nsrc/Generated.sol analyzed (1 contracts with 75 detectors), 2 result(s) found\n",
+            "success": true
+        },
+        "slither_skipped_reason": null,
+        "gas": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" --gas-report",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testNonWhitelistedPresaleMintReverts() (gas: 90170)\n[PASS] testPublicMint() (gas: 117542)\n[PASS] testWhitelistedPresaleMint() (gas: 202671)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.20ms (1.02ms CPU time)\n\n\u256d----------------------------------------------+-----------------+-------+--------+-------+---------\u256e\n| src/Generated.sol:GrandGooseMansion Contract |                 |       |        |       |         |\n+===================================================================================================+\n| Deployment Cost                              | Deployment Size |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| 1066667                                      | 4584            |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n|                                              |                 |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| Function Name                                | Min             | Avg   | Median | Max   | # Calls |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| mintTokenPublic                              | 50927           | 50927 | 50927  | 50927 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| mintTokenWhitelisted                         | 26401           | 52265 | 52265  | 78129 | 2       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| preSaleWalletMinted                          | 2917            | 2917  | 2917   | 2917  | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| setCost                                      | 45970           | 45970 | 45970  | 45970 | 3       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| startPresale                                 | 45584           | 45584 | 45584  | 45584 | 2       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| startPublicSale                              | 45606           | 45606 | 45606  | 45606 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| supply                                       | 2426            | 2426  | 2426   | 2426  | 2       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| whitelistUser                                | 46447           | 46447 | 46447  | 46447 | 1       |\n\u2570----------------------------------------------+-----------------+-------+--------+-------+---------\u256f\n\n\nRan 1 test suite in 4.32ms (1.20ms CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "vulnerability_count": 2,
+        "vulnerability_severity_counts": {
+            "medium": 1,
+            "low": 1
+        },
+        "slither_findings": [
+            {
+                "check": "locked-ether",
+                "impact": "medium",
+                "confidence": "High",
+                "description": "Contract locking ether found: Contract GrandGooseMansion (src/Generated.sol#4-75) has payable functions: - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#46-56) - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#58-65) But does not have a function to withdraw the ether",
+                "classification": "spec_conflict",
+                "blocking": false
+            },
+            {
+                "check": "events-maths",
+                "impact": "low",
+                "confidence": "Medium",
+                "description": "GrandGooseMansion.setCost(uint256) (src/Generated.sol#42-44) should emit an event for: - cost = newCost (src/Generated.sol#43)",
+                "classification": "quality_warning",
+                "blocking": false
+            }
+        ],
+        "slither_classification_counts": {
+            "spec_conflict": 1,
+            "quality_warning": 1
+        },
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "max_gas_value": 1066667,
+        "summary": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 2 finding(s) (low=1, medium=1). Gas analysis: max observed value 1066667."
+    },
+    "initial_structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "compile_diagnostics": {
+            "command_success": true,
+            "failure_types": [],
+            "items": [],
+            "repair_hints": []
+        },
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "supply()",
+            "cost()",
+            "maxSupply()",
+            "preSaleWalletLimit()",
+            "currentSaleStatus()",
+            "whitelistUser(address,bool)",
+            "startPresale()",
+            "startPublicSale()",
+            "setCost(uint256)",
+            "isWhitelisted(address)",
+            "mintTokenWhitelisted(uint256)",
+            "mintTokenPublic(uint256)",
+            "preSaleWalletMinted(address)"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": true,
+        "test_failure": null,
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "slither_findings": {
+            "count": 2,
+            "severity_counts": {
+                "medium": 1,
+                "low": 1
+            },
+            "classification_counts": {
+                "spec_conflict": 1,
+                "quality_warning": 1
+            },
+            "items": [
+                {
+                    "check": "locked-ether",
+                    "impact": "medium",
+                    "confidence": "High",
+                    "description": "Contract locking ether found: Contract GrandGooseMansion (src/Generated.sol#4-75) has payable functions: - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#46-56) - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#58-65) But does not have a function to withdraw the ether",
+                    "classification": "spec_conflict",
+                    "blocking": false
+                },
+                {
+                    "check": "events-maths",
+                    "impact": "low",
+                    "confidence": "Medium",
+                    "description": "GrandGooseMansion.setCost(uint256) (src/Generated.sol#42-44) should emit an event for: - cost = newCost (src/Generated.sol#43)",
+                    "classification": "quality_warning",
+                    "blocking": false
+                }
+            ],
+            "command_success": true
+        },
+        "gas_used": 1066667,
+        "gas_command_success": true,
+        "target_defect": "none"
+    },
+    "execution_observation": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 2 finding(s) (low=1, medium=1). Gas analysis: max observed value 1066667.",
+    "execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 0,
+            "stdout": "Compiling 25 files with Solc 0.8.33\nSolc 0.8.33 finished in 768.21ms\nCompiler run successful!\n",
+            "stderr": "note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:4:8\n  |\n4 | import \"forge-std/Test.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:5:8\n  |\n5 | import \"../src/Generated.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unwrapped-modifier-logic]: wrap modifier logic to reduce code size\n  --> src/Generated.sol:21:5\n   |\n21 | /     modifier onlyOwner() {\n22 | |         require(msg.sender == _owner, \"Not the owner\");\n23 | |         _;\n24 | |     }\n   | |_____^\n   |\nhelp: wrap modifier logic to reduce code size\n   |\n21 ~     modifier onlyOwner() {\n22 +         _onlyOwner();\n23 +         _;\n24 +     }\n25 + \n26 +     function _onlyOwner() internal {\n27 +         require(msg.sender == _owner, \"Not the owner\");\n28 +     }\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#unwrapped-modifier-logic\n\n",
+            "success": true
+        },
+        "compile_diagnostics": {
+            "command_success": true,
+            "failure_types": [],
+            "items": [],
+            "repair_hints": []
+        },
+        "abi": {
+            "checked": true,
+            "success": true,
+            "required": [
+                "supply()",
+                "cost()",
+                "maxSupply()",
+                "preSaleWalletLimit()",
+                "currentSaleStatus()",
+                "whitelistUser(address,bool)",
+                "startPresale()",
+                "startPublicSale()",
+                "setCost(uint256)",
+                "isWhitelisted(address)",
+                "mintTokenWhitelisted(uint256)",
+                "mintTokenPublic(uint256)",
+                "preSaleWalletMinted(address)"
+            ],
+            "forbidden": [],
+            "available": [
+                "constructor()",
+                "cost()",
+                "currentSaleStatus()",
+                "isWhitelisted(address)",
+                "maxSupply()",
+                "mintTokenPublic(uint256)",
+                "mintTokenWhitelisted(uint256)",
+                "preSaleWalletLimit()",
+                "preSaleWalletMinted(address)",
+                "setCost(uint256)",
+                "startPresale()",
+                "startPublicSale()",
+                "supply()",
+                "whitelistUser(address,bool)"
+            ],
+            "missing": [],
+            "forbidden_present": [],
+            "artifact": "/tmp/indict_solidity_5skybml5/out/Generated.sol/GrandGooseMansion.json"
+        },
+        "tests": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" -vv",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testNonWhitelistedPresaleMintReverts() (gas: 45902)\n[PASS] testPublicMint() (gas: 71274)\n[PASS] testWhitelistedPresaleMint() (gas: 122547)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.20ms (727.05\u00b5s CPU time)\n\nRan 1 test suite in 15.65ms (1.20ms CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "slither": {
+            "command": "slither \"src/Generated.sol\" --exclude-dependencies --exclude-informational --exclude-optimization --fail-none --json \"/tmp/indict_solidity_5skybml5/slither-result.json\"",
+            "returncode": 0,
+            "stdout": "",
+            "stderr": "'forge clean' running (wd: /tmp/indict_solidity_5skybml5)\n'forge config --json' running\n'forge build --build-info src/Generated.sol' running (wd: /tmp/indict_solidity_5skybml5)\n\nDetector: locked-ether\nContract locking ether found:\n\tContract GrandGooseMansion (src/Generated.sol#4-75) has payable functions:\n\t - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#46-56)\n\t - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#58-65)\n\tBut does not have a function to withdraw the ether\nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#contracts-that-lock-ether\n\nDetector: events-maths\nGrandGooseMansion.setCost(uint256) (src/Generated.sol#42-44) should emit an event for: \n\t- cost = newCost (src/Generated.sol#43) \nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#missing-events-arithmetic\nsrc/Generated.sol analyzed (1 contracts with 75 detectors), 2 result(s) found\n",
+            "success": true
+        },
+        "slither_skipped_reason": null,
+        "gas": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" --gas-report",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testNonWhitelistedPresaleMintReverts() (gas: 90170)\n[PASS] testPublicMint() (gas: 117542)\n[PASS] testWhitelistedPresaleMint() (gas: 202671)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.20ms (1.02ms CPU time)\n\n\u256d----------------------------------------------+-----------------+-------+--------+-------+---------\u256e\n| src/Generated.sol:GrandGooseMansion Contract |                 |       |        |       |         |\n+===================================================================================================+\n| Deployment Cost                              | Deployment Size |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| 1066667                                      | 4584            |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n|                                              |                 |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| Function Name                                | Min             | Avg   | Median | Max   | # Calls |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| mintTokenPublic                              | 50927           | 50927 | 50927  | 50927 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| mintTokenWhitelisted                         | 26401           | 52265 | 52265  | 78129 | 2       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| preSaleWalletMinted                          | 2917            | 2917  | 2917   | 2917  | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| setCost                                      | 45970           | 45970 | 45970  | 45970 | 3       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| startPresale                                 | 45584           | 45584 | 45584  | 45584 | 2       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| startPublicSale                              | 45606           | 45606 | 45606  | 45606 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| supply                                       | 2426            | 2426  | 2426   | 2426  | 2       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| whitelistUser                                | 46447           | 46447 | 46447  | 46447 | 1       |\n\u2570----------------------------------------------+-----------------+-------+--------+-------+---------\u256f\n\n\nRan 1 test suite in 4.32ms (1.20ms CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "vulnerability_count": 2,
+        "vulnerability_severity_counts": {
+            "medium": 1,
+            "low": 1
+        },
+        "slither_findings": [
+            {
+                "check": "locked-ether",
+                "impact": "medium",
+                "confidence": "High",
+                "description": "Contract locking ether found: Contract GrandGooseMansion (src/Generated.sol#4-75) has payable functions: - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#46-56) - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#58-65) But does not have a function to withdraw the ether",
+                "classification": "spec_conflict",
+                "blocking": false
+            },
+            {
+                "check": "events-maths",
+                "impact": "low",
+                "confidence": "Medium",
+                "description": "GrandGooseMansion.setCost(uint256) (src/Generated.sol#42-44) should emit an event for: - cost = newCost (src/Generated.sol#43)",
+                "classification": "quality_warning",
+                "blocking": false
+            }
+        ],
+        "slither_classification_counts": {
+            "spec_conflict": 1,
+            "quality_warning": 1
+        },
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "max_gas_value": 1066667,
+        "summary": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 2 finding(s) (low=1, medium=1). Gas analysis: max observed value 1066667."
+    },
+    "structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "compile_diagnostics": {
+            "command_success": true,
+            "failure_types": [],
+            "items": [],
+            "repair_hints": []
+        },
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "supply()",
+            "cost()",
+            "maxSupply()",
+            "preSaleWalletLimit()",
+            "currentSaleStatus()",
+            "whitelistUser(address,bool)",
+            "startPresale()",
+            "startPublicSale()",
+            "setCost(uint256)",
+            "isWhitelisted(address)",
+            "mintTokenWhitelisted(uint256)",
+            "mintTokenPublic(uint256)",
+            "preSaleWalletMinted(address)"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": true,
+        "test_failure": null,
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "slither_findings": {
+            "count": 2,
+            "severity_counts": {
+                "medium": 1,
+                "low": 1
+            },
+            "classification_counts": {
+                "spec_conflict": 1,
+                "quality_warning": 1
+            },
+            "items": [
+                {
+                    "check": "locked-ether",
+                    "impact": "medium",
+                    "confidence": "High",
+                    "description": "Contract locking ether found: Contract GrandGooseMansion (src/Generated.sol#4-75) has payable functions: - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#46-56) - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#58-65) But does not have a function to withdraw the ether",
+                    "classification": "spec_conflict",
+                    "blocking": false
+                },
+                {
+                    "check": "events-maths",
+                    "impact": "low",
+                    "confidence": "Medium",
+                    "description": "GrandGooseMansion.setCost(uint256) (src/Generated.sol#42-44) should emit an event for: - cost = newCost (src/Generated.sol#43)",
+                    "classification": "quality_warning",
+                    "blocking": false
+                }
+            ],
+            "command_success": true
+        },
+        "gas_used": 1066667,
+        "gas_command_success": true,
+        "target_defect": "none"
+    },
+    "mid_action_execution_observation": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 2 finding(s) (low=1, medium=1). Gas analysis: max observed value 1066667.",
+    "mid_action_execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 0,
+            "stdout": "Compiling 25 files with Solc 0.8.33\nSolc 0.8.33 finished in 768.21ms\nCompiler run successful!\n",
+            "stderr": "note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:4:8\n  |\n4 | import \"forge-std/Test.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:5:8\n  |\n5 | import \"../src/Generated.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unwrapped-modifier-logic]: wrap modifier logic to reduce code size\n  --> src/Generated.sol:21:5\n   |\n21 | /     modifier onlyOwner() {\n22 | |         require(msg.sender == _owner, \"Not the owner\");\n23 | |         _;\n24 | |     }\n   | |_____^\n   |\nhelp: wrap modifier logic to reduce code size\n   |\n21 ~     modifier onlyOwner() {\n22 +         _onlyOwner();\n23 +         _;\n24 +     }\n25 + \n26 +     function _onlyOwner() internal {\n27 +         require(msg.sender == _owner, \"Not the owner\");\n28 +     }\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#unwrapped-modifier-logic\n\n",
+            "success": true
+        },
+        "compile_diagnostics": {
+            "command_success": true,
+            "failure_types": [],
+            "items": [],
+            "repair_hints": []
+        },
+        "abi": {
+            "checked": true,
+            "success": true,
+            "required": [
+                "supply()",
+                "cost()",
+                "maxSupply()",
+                "preSaleWalletLimit()",
+                "currentSaleStatus()",
+                "whitelistUser(address,bool)",
+                "startPresale()",
+                "startPublicSale()",
+                "setCost(uint256)",
+                "isWhitelisted(address)",
+                "mintTokenWhitelisted(uint256)",
+                "mintTokenPublic(uint256)",
+                "preSaleWalletMinted(address)"
+            ],
+            "forbidden": [],
+            "available": [
+                "constructor()",
+                "cost()",
+                "currentSaleStatus()",
+                "isWhitelisted(address)",
+                "maxSupply()",
+                "mintTokenPublic(uint256)",
+                "mintTokenWhitelisted(uint256)",
+                "preSaleWalletLimit()",
+                "preSaleWalletMinted(address)",
+                "setCost(uint256)",
+                "startPresale()",
+                "startPublicSale()",
+                "supply()",
+                "whitelistUser(address,bool)"
+            ],
+            "missing": [],
+            "forbidden_present": [],
+            "artifact": "/tmp/indict_solidity_5skybml5/out/Generated.sol/GrandGooseMansion.json"
+        },
+        "tests": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" -vv",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testNonWhitelistedPresaleMintReverts() (gas: 45902)\n[PASS] testPublicMint() (gas: 71274)\n[PASS] testWhitelistedPresaleMint() (gas: 122547)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.20ms (727.05\u00b5s CPU time)\n\nRan 1 test suite in 15.65ms (1.20ms CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "slither": {
+            "command": "slither \"src/Generated.sol\" --exclude-dependencies --exclude-informational --exclude-optimization --fail-none --json \"/tmp/indict_solidity_5skybml5/slither-result.json\"",
+            "returncode": 0,
+            "stdout": "",
+            "stderr": "'forge clean' running (wd: /tmp/indict_solidity_5skybml5)\n'forge config --json' running\n'forge build --build-info src/Generated.sol' running (wd: /tmp/indict_solidity_5skybml5)\n\nDetector: locked-ether\nContract locking ether found:\n\tContract GrandGooseMansion (src/Generated.sol#4-75) has payable functions:\n\t - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#46-56)\n\t - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#58-65)\n\tBut does not have a function to withdraw the ether\nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#contracts-that-lock-ether\n\nDetector: events-maths\nGrandGooseMansion.setCost(uint256) (src/Generated.sol#42-44) should emit an event for: \n\t- cost = newCost (src/Generated.sol#43) \nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#missing-events-arithmetic\nsrc/Generated.sol analyzed (1 contracts with 75 detectors), 2 result(s) found\n",
+            "success": true
+        },
+        "slither_skipped_reason": null,
+        "gas": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" --gas-report",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testNonWhitelistedPresaleMintReverts() (gas: 90170)\n[PASS] testPublicMint() (gas: 117542)\n[PASS] testWhitelistedPresaleMint() (gas: 202671)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.20ms (1.02ms CPU time)\n\n\u256d----------------------------------------------+-----------------+-------+--------+-------+---------\u256e\n| src/Generated.sol:GrandGooseMansion Contract |                 |       |        |       |         |\n+===================================================================================================+\n| Deployment Cost                              | Deployment Size |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| 1066667                                      | 4584            |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n|                                              |                 |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| Function Name                                | Min             | Avg   | Median | Max   | # Calls |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| mintTokenPublic                              | 50927           | 50927 | 50927  | 50927 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| mintTokenWhitelisted                         | 26401           | 52265 | 52265  | 78129 | 2       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| preSaleWalletMinted                          | 2917            | 2917  | 2917   | 2917  | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| setCost                                      | 45970           | 45970 | 45970  | 45970 | 3       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| startPresale                                 | 45584           | 45584 | 45584  | 45584 | 2       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| startPublicSale                              | 45606           | 45606 | 45606  | 45606 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| supply                                       | 2426            | 2426  | 2426   | 2426  | 2       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| whitelistUser                                | 46447           | 46447 | 46447  | 46447 | 1       |\n\u2570----------------------------------------------+-----------------+-------+--------+-------+---------\u256f\n\n\nRan 1 test suite in 4.32ms (1.20ms CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "vulnerability_count": 2,
+        "vulnerability_severity_counts": {
+            "medium": 1,
+            "low": 1
+        },
+        "slither_findings": [
+            {
+                "check": "locked-ether",
+                "impact": "medium",
+                "confidence": "High",
+                "description": "Contract locking ether found: Contract GrandGooseMansion (src/Generated.sol#4-75) has payable functions: - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#46-56) - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#58-65) But does not have a function to withdraw the ether",
+                "classification": "spec_conflict",
+                "blocking": false
+            },
+            {
+                "check": "events-maths",
+                "impact": "low",
+                "confidence": "Medium",
+                "description": "GrandGooseMansion.setCost(uint256) (src/Generated.sol#42-44) should emit an event for: - cost = newCost (src/Generated.sol#43)",
+                "classification": "quality_warning",
+                "blocking": false
+            }
+        ],
+        "slither_classification_counts": {
+            "spec_conflict": 1,
+            "quality_warning": 1
+        },
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "max_gas_value": 1066667,
+        "summary": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 2 finding(s) (low=1, medium=1). Gas analysis: max observed value 1066667."
+    },
+    "mid_structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "compile_diagnostics": {
+            "command_success": true,
+            "failure_types": [],
+            "items": [],
+            "repair_hints": []
+        },
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "supply()",
+            "cost()",
+            "maxSupply()",
+            "preSaleWalletLimit()",
+            "currentSaleStatus()",
+            "whitelistUser(address,bool)",
+            "startPresale()",
+            "startPublicSale()",
+            "setCost(uint256)",
+            "isWhitelisted(address)",
+            "mintTokenWhitelisted(uint256)",
+            "mintTokenPublic(uint256)",
+            "preSaleWalletMinted(address)"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": true,
+        "test_failure": null,
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "slither_findings": {
+            "count": 2,
+            "severity_counts": {
+                "medium": 1,
+                "low": 1
+            },
+            "classification_counts": {
+                "spec_conflict": 1,
+                "quality_warning": 1
+            },
+            "items": [
+                {
+                    "check": "locked-ether",
+                    "impact": "medium",
+                    "confidence": "High",
+                    "description": "Contract locking ether found: Contract GrandGooseMansion (src/Generated.sol#4-75) has payable functions: - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#46-56) - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#58-65) But does not have a function to withdraw the ether",
+                    "classification": "spec_conflict",
+                    "blocking": false
+                },
+                {
+                    "check": "events-maths",
+                    "impact": "low",
+                    "confidence": "Medium",
+                    "description": "GrandGooseMansion.setCost(uint256) (src/Generated.sol#42-44) should emit an event for: - cost = newCost (src/Generated.sol#43)",
+                    "classification": "quality_warning",
+                    "blocking": false
+                }
+            ],
+            "command_success": true
+        },
+        "gas_used": 1066667,
+        "gas_command_success": true,
+        "target_defect": "none"
+    },
+    "final_action_execution_observation": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 2 finding(s) (low=1, medium=1). Gas analysis: max observed value 1066667.",
+    "final_action_execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 0,
+            "stdout": "Compiling 25 files with Solc 0.8.33\nSolc 0.8.33 finished in 768.21ms\nCompiler run successful!\n",
+            "stderr": "note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:4:8\n  |\n4 | import \"forge-std/Test.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:5:8\n  |\n5 | import \"../src/Generated.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unwrapped-modifier-logic]: wrap modifier logic to reduce code size\n  --> src/Generated.sol:21:5\n   |\n21 | /     modifier onlyOwner() {\n22 | |         require(msg.sender == _owner, \"Not the owner\");\n23 | |         _;\n24 | |     }\n   | |_____^\n   |\nhelp: wrap modifier logic to reduce code size\n   |\n21 ~     modifier onlyOwner() {\n22 +         _onlyOwner();\n23 +         _;\n24 +     }\n25 + \n26 +     function _onlyOwner() internal {\n27 +         require(msg.sender == _owner, \"Not the owner\");\n28 +     }\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#unwrapped-modifier-logic\n\n",
+            "success": true
+        },
+        "compile_diagnostics": {
+            "command_success": true,
+            "failure_types": [],
+            "items": [],
+            "repair_hints": []
+        },
+        "abi": {
+            "checked": true,
+            "success": true,
+            "required": [
+                "supply()",
+                "cost()",
+                "maxSupply()",
+                "preSaleWalletLimit()",
+                "currentSaleStatus()",
+                "whitelistUser(address,bool)",
+                "startPresale()",
+                "startPublicSale()",
+                "setCost(uint256)",
+                "isWhitelisted(address)",
+                "mintTokenWhitelisted(uint256)",
+                "mintTokenPublic(uint256)",
+                "preSaleWalletMinted(address)"
+            ],
+            "forbidden": [],
+            "available": [
+                "constructor()",
+                "cost()",
+                "currentSaleStatus()",
+                "isWhitelisted(address)",
+                "maxSupply()",
+                "mintTokenPublic(uint256)",
+                "mintTokenWhitelisted(uint256)",
+                "preSaleWalletLimit()",
+                "preSaleWalletMinted(address)",
+                "setCost(uint256)",
+                "startPresale()",
+                "startPublicSale()",
+                "supply()",
+                "whitelistUser(address,bool)"
+            ],
+            "missing": [],
+            "forbidden_present": [],
+            "artifact": "/tmp/indict_solidity_5skybml5/out/Generated.sol/GrandGooseMansion.json"
+        },
+        "tests": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" -vv",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testNonWhitelistedPresaleMintReverts() (gas: 45902)\n[PASS] testPublicMint() (gas: 71274)\n[PASS] testWhitelistedPresaleMint() (gas: 122547)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.20ms (727.05\u00b5s CPU time)\n\nRan 1 test suite in 15.65ms (1.20ms CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "slither": {
+            "command": "slither \"src/Generated.sol\" --exclude-dependencies --exclude-informational --exclude-optimization --fail-none --json \"/tmp/indict_solidity_5skybml5/slither-result.json\"",
+            "returncode": 0,
+            "stdout": "",
+            "stderr": "'forge clean' running (wd: /tmp/indict_solidity_5skybml5)\n'forge config --json' running\n'forge build --build-info src/Generated.sol' running (wd: /tmp/indict_solidity_5skybml5)\n\nDetector: locked-ether\nContract locking ether found:\n\tContract GrandGooseMansion (src/Generated.sol#4-75) has payable functions:\n\t - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#46-56)\n\t - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#58-65)\n\tBut does not have a function to withdraw the ether\nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#contracts-that-lock-ether\n\nDetector: events-maths\nGrandGooseMansion.setCost(uint256) (src/Generated.sol#42-44) should emit an event for: \n\t- cost = newCost (src/Generated.sol#43) \nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#missing-events-arithmetic\nsrc/Generated.sol analyzed (1 contracts with 75 detectors), 2 result(s) found\n",
+            "success": true
+        },
+        "slither_skipped_reason": null,
+        "gas": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" --gas-report",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testNonWhitelistedPresaleMintReverts() (gas: 90170)\n[PASS] testPublicMint() (gas: 117542)\n[PASS] testWhitelistedPresaleMint() (gas: 202671)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 1.20ms (1.02ms CPU time)\n\n\u256d----------------------------------------------+-----------------+-------+--------+-------+---------\u256e\n| src/Generated.sol:GrandGooseMansion Contract |                 |       |        |       |         |\n+===================================================================================================+\n| Deployment Cost                              | Deployment Size |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| 1066667                                      | 4584            |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n|                                              |                 |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| Function Name                                | Min             | Avg   | Median | Max   | # Calls |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| mintTokenPublic                              | 50927           | 50927 | 50927  | 50927 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| mintTokenWhitelisted                         | 26401           | 52265 | 52265  | 78129 | 2       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| preSaleWalletMinted                          | 2917            | 2917  | 2917   | 2917  | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| setCost                                      | 45970           | 45970 | 45970  | 45970 | 3       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| startPresale                                 | 45584           | 45584 | 45584  | 45584 | 2       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| startPublicSale                              | 45606           | 45606 | 45606  | 45606 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| supply                                       | 2426            | 2426  | 2426   | 2426  | 2       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| whitelistUser                                | 46447           | 46447 | 46447  | 46447 | 1       |\n\u2570----------------------------------------------+-----------------+-------+--------+-------+---------\u256f\n\n\nRan 1 test suite in 4.32ms (1.20ms CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "vulnerability_count": 2,
+        "vulnerability_severity_counts": {
+            "medium": 1,
+            "low": 1
+        },
+        "slither_findings": [
+            {
+                "check": "locked-ether",
+                "impact": "medium",
+                "confidence": "High",
+                "description": "Contract locking ether found: Contract GrandGooseMansion (src/Generated.sol#4-75) has payable functions: - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#46-56) - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#58-65) But does not have a function to withdraw the ether",
+                "classification": "spec_conflict",
+                "blocking": false
+            },
+            {
+                "check": "events-maths",
+                "impact": "low",
+                "confidence": "Medium",
+                "description": "GrandGooseMansion.setCost(uint256) (src/Generated.sol#42-44) should emit an event for: - cost = newCost (src/Generated.sol#43)",
+                "classification": "quality_warning",
+                "blocking": false
+            }
+        ],
+        "slither_classification_counts": {
+            "spec_conflict": 1,
+            "quality_warning": 1
+        },
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "max_gas_value": 1066667,
+        "summary": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 2 finding(s) (low=1, medium=1). Gas analysis: max observed value 1066667."
+    },
+    "final_structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "compile_diagnostics": {
+            "command_success": true,
+            "failure_types": [],
+            "items": [],
+            "repair_hints": []
+        },
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "supply()",
+            "cost()",
+            "maxSupply()",
+            "preSaleWalletLimit()",
+            "currentSaleStatus()",
+            "whitelistUser(address,bool)",
+            "startPresale()",
+            "startPublicSale()",
+            "setCost(uint256)",
+            "isWhitelisted(address)",
+            "mintTokenWhitelisted(uint256)",
+            "mintTokenPublic(uint256)",
+            "preSaleWalletMinted(address)"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": true,
+        "test_failure": null,
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "slither_findings": {
+            "count": 2,
+            "severity_counts": {
+                "medium": 1,
+                "low": 1
+            },
+            "classification_counts": {
+                "spec_conflict": 1,
+                "quality_warning": 1
+            },
+            "items": [
+                {
+                    "check": "locked-ether",
+                    "impact": "medium",
+                    "confidence": "High",
+                    "description": "Contract locking ether found: Contract GrandGooseMansion (src/Generated.sol#4-75) has payable functions: - GrandGooseMansion.mintTokenWhitelisted(uint256) (src/Generated.sol#46-56) - GrandGooseMansion.mintTokenPublic(uint256) (src/Generated.sol#58-65) But does not have a function to withdraw the ether",
+                    "classification": "spec_conflict",
+                    "blocking": false
+                },
+                {
+                    "check": "events-maths",
+                    "impact": "low",
+                    "confidence": "Medium",
+                    "description": "GrandGooseMansion.setCost(uint256) (src/Generated.sol#42-44) should emit an event for: - cost = newCost (src/Generated.sol#43)",
+                    "classification": "quality_warning",
+                    "blocking": false
+                }
+            ],
+            "command_success": true
+        },
+        "gas_used": 1066667,
+        "gas_command_success": true,
+        "target_defect": "none"
+    },
+    "stop_reason": "initial_action_passed_clean",
+    "critic_posthoc": [
+        "### Summary of Strongest Points from the Debate\n\n1. **Compile Success**: The contract compiles successfully, but there are ABI and test failures.\n2. **ABI Issues**: The `currentSaleStatus()` getter is missing, causing ABI failures.\n3. **Test Failures**: Two tests (`testPublicMint` and `testWhitelistedPresaleMint`) fail due to exceeding the `maxSupply`. This is likely due to uninitialized `maxSupply` and `preSaleWalletLimit`.\n4. **Security Issues**: High-severity issues identified by Slither indicate uninitialized state variables (`maxSupply` and `preSaleWalletLimit`), which could lead to undefined behavior or overflows.\n5. **Gas Efficiency**: The removal of redundant getter functions improves gas efficiency, and further optimizations could be considered if necessary.\n\n### Ordered Repair List\n\n1. **Target Defect**: `abi_missing`\n2. **ABI Missing**: \n   - **Failure Type**: `abi_missing`\n   - **Location**: `currentSaleStatus()`\n   - **Repair Hint**: \"Add the missing `currentSaleStatus()` getter to the contract.\"\n\n3. **Test Failure**: \n   - **Failed Tests**:\n     - `testPublicMint`: Fails with \"Exceeds max supply\".\n     - `testWhitelistedPresaleMint`: Fails with \"Exceeds max supply\".\n   - **Failure Type**: `sale_phase_transition`\n   - **Reason**: \"Exceeds max supply\"\n   - **Smallest Behavior Change Needed**: Initialize `maxSupply` and `preSaleWalletLimit` in the constructor and ensure they are properly set before minting tokens.\n\n4. **Security Blocking or Security Review**:\n   - **High-Impact Findings**:\n     - **Uninitialized State Variables**: `maxSupply` and `preSaleWalletLimit` are never initialized. This leads to potential overflows or undefined behavior.\n     - **Repair Hint**: \"Initialize `maxSupply` and `preSaleWalletLimit` in the constructor and ensure they are properly set before minting tokens.\"\n\n5. **Gas Used**: \n   - Ensuring proper initialization and removing redundant getter functions can improve gas efficiency.\n\n### Implementation-Level Feedback for the Code Generator\n\n1. **Add `currentSaleStatus` Getter**:\n   ```solidity\n   function currentSaleStatus() public view returns (SaleStatus) {\n       return _currentSaleStatus;\n   }\n   ```\n\n2. **Initialize `maxSupply` and `preSaleWalletLimit`**:\n   ```solidity\n   constructor(uint256 _maxSupply, uint256 _preSaleWalletLimit) {\n       _owner = msg.sender;\n       maxSupply = _maxSupply;\n       preSaleWalletLimit = _preSaleWalletLimit;\n   }\n   ```\n\n3. **Ensure ABI Compliance**:\n   - Ensure all required ABI signatures are present and correct.\n   - Avoid adding any unrequested public/external APIs unless explicitly required by the task.\n\n4. **Preserve Required Functionality**:\n   - Ensure all other required functionalities and ABI signatures are preserved.\n\n5. **Final Corrected Code**:\n   ```solidity\n   // SPDX-License-Identifier: MIT\n   pragma solidity ^0.8.20;\n\n   contract GrandGooseMansion {\n       address private _owner;\n       uint256 public supply;\n       uint256 public cost;\n       uint256 public maxSupply;\n       uint256 public preSaleWalletLimit;\n       mapping(address => uint256) private _preSaleWalletMinted;\n       mapping(address => bool) private _whitelist;\n       enum SaleStatus { Paused, Presale, PublicSale }\n       SaleStatus private _currentSaleStatus = SaleStatus.Paused;\n\n       event OwnerTransferred(address indexed previousOwner, address indexed newOwner);\n\n       constructor(uint256 _maxSupply, uint256 _preSaleWalletLimit) {\n           _owner = msg.sender;\n           maxSupply = _maxSupply;\n           preSaleWalletLimit = _preSaleWalletLimit;\n       }\n\n       modifier onlyOwner() {\n           require(msg.sender == _owner, \"Not the owner\");\n           _;\n       }\n\n       function isWhitelisted(address user) public view returns (bool) {\n           return _whitelist[user];\n       }\n\n       function whitelistUser(address user, bool status) public onlyOwner {\n           _whitelist[user] = status;\n       }\n\n       function currentSaleStatus() public view returns (SaleStatus) {\n           return _currentSaleStatus;\n       }\n   }\n   ```\n\nBy following these steps, the contract will be free of ABI and test failures, secure, and reasonably gas-efficient.",
+        "",
+        ""
+    ],
+    "mid_action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract GrandGooseMansion {\n    address private _owner;\n    uint256 public supply;\n    uint256 public cost;\n    uint256 public maxSupply;\n    uint256 public preSaleWalletLimit;\n    mapping(address => uint256) private _preSaleWalletMinted;\n    mapping(address => bool) private _whitelist;\n    enum SaleStatus { Paused, Presale, PublicSale }\n    SaleStatus private _currentSaleStatus = SaleStatus.Paused;\n\n    constructor() {\n        _owner = msg.sender;\n        maxSupply = 10000; // Example value, adjust as needed\n        preSaleWalletLimit = 10; // Example value, adjust as needed\n    }\n\n    modifier onlyOwner() {\n        require(msg.sender == _owner, \"Not the owner\");\n        _;\n    }\n\n    function isWhitelisted(address user) public view returns (bool) {\n        return _whitelist[user];\n    }\n\n    function whitelistUser(address user, bool status) public onlyOwner {\n        _whitelist[user] = status;\n    }\n\n    function startPresale() public onlyOwner {\n        _currentSaleStatus = SaleStatus.Presale;\n    }\n\n    function startPublicSale() public onlyOwner {\n        _currentSaleStatus = SaleStatus.PublicSale;\n    }\n\n    function setCost(uint256 newCost) public onlyOwner {\n        cost = newCost;\n    }\n\n    function mintTokenWhitelisted(uint256 amount) public payable {\n        require(_currentSaleStatus == SaleStatus.Presale, \"Presale not active\");\n        require(_whitelist[msg.sender], \"Not whitelisted\");\n        require(amount > 0, \"Amount must be greater than 0\");\n        require(supply + amount <= maxSupply, \"Exceeds max supply\");\n        require(_preSaleWalletMinted[msg.sender] + amount <= preSaleWalletLimit, \"Exceeds wallet limit\");\n        require(msg.value == cost * amount, \"Incorrect payment\");\n\n        supply += amount;\n        _preSaleWalletMinted[msg.sender] += amount;\n    }\n\n    function mintTokenPublic(uint256 amount) public payable {\n        require(_currentSaleStatus == SaleStatus.PublicSale, \"Public sale not active\");\n        require(amount > 0, \"Amount must be greater than 0\");\n        require(supply + amount <= maxSupply, \"Exceeds max supply\");\n        require(msg.value == cost * amount, \"Incorrect payment\");\n\n        supply += amount;\n    }\n\n    function preSaleWalletMinted(address user) public view returns (uint256) {\n        return _preSaleWalletMinted[user];\n    }\n\n    function currentSaleStatus() public view returns (SaleStatus) {\n        return _currentSaleStatus;\n    }\n}\n```",
+    "critic_scratchpad_posthoc": "",
+    "safety_critics_posthoc": [],
+    "safety_tool_output_posthoc": [],
+    "helpful_critics_posthoc": [],
+    "helpful_tool_output_posthoc": [],
+    "gas_critics_posthoc": [],
+    "gas_tool_output_posthoc": []
+}

@@ -1,0 +1,786 @@
+{
+    "sample_idx": 9,
+    "action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract ClosedPresaleMint {\n    enum State { CLOSED, PRESALE, PUBLIC }\n    State public currentState = State.CLOSED;\n\n    address private _owner;\n    uint256 private _price;\n    uint256 private _totalSupply;\n    uint256 private _maxSupply;\n    mapping(address => bool) private _claimedWhitelistStatus;\n\n    event PresaleStarted();\n    event PublicSaleStarted();\n    event NFTMinted(address indexed buyer);\n    event PublicNFTMinted(address indexed buyer, uint256 amount);\n\n    constructor(uint256 price_, uint256 maxSupply_) {\n        _owner = msg.sender;\n        _price = price_;\n        _maxSupply = maxSupply_;\n    }\n\n    modifier onlyOwner() {\n        require(msg.sender == _owner, \"Not owner\");\n        _;\n    }\n\n    function price() public view returns (uint256) {\n        return _price;\n    }\n\n    function totalSupply() public view returns (uint256) {\n        return _totalSupply;\n    }\n\n    function maxSupply() public view returns (uint256) {\n        return _maxSupply;\n    }\n\n    function claimedWhitelistStatus(address user) public view returns (bool) {\n        return _claimedWhitelistStatus[user];\n    }\n\n    function startPresale() external onlyOwner {\n        require(currentState == State.CLOSED, \"Presale cannot start while public sale is active\");\n        currentState = State.PRESALE;\n        emit PresaleStarted();\n    }\n\n    function startPublicSale() external onlyOwner {\n        require(currentState != State.PUBLIC, \"Public sale is already active\");\n        currentState = State.PUBLIC;\n        emit PublicSaleStarted();\n    }\n\n    function mintNFT() external payable {\n        require(currentState == State.PRESALE, \"Presale is not active\");\n        require(!_claimedWhitelistStatus[msg.sender], \"Already claimed whitelist status\");\n        require(msg.value == _price, \"Incorrect payment amount\");\n        require(_totalSupply + 1 <= _maxSupply, \"Exceeds max supply\");\n\n        _claimedWhitelistStatus[msg.sender] = true;\n        _totalSupply += 1;\n        emit NFTMinted(msg.sender);\n    }\n\n    function mintPublicNFT(uint256 amount) external payable {\n        require(currentState == State.PUBLIC, \"Public sale is not active\");\n        require(amount > 0, \"Amount must be greater than zero\");\n        require(msg.value == amount * _price, \"Incorrect payment amount\");\n        require(_totalSupply + amount <= _maxSupply, \"Exceeds max supply\");\n\n        _totalSupply += amount;\n        emit PublicNFTMinted(msg.sender, amount);\n    }\n}\n```",
+    "scratchpad": "\nInitial Solution: ```solidity\n// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract ClosedPresaleMint {\n    enum State { CLOSED, PRESALE, PUBLIC }\n    State public currentState = State.CLOSED;\n\n    address private _owner;\n    uint256 private _price;\n    uint256 private _totalSupply;\n    uint256 private _maxSupply;\n    mapping(address => bool) private _claimedWhitelistStatus;\n\n    event PresaleStarted();\n    event PublicSaleStarted();\n    event NFTMinted(address indexed buyer);\n    event PublicNFTMinted(address indexed buyer, uint256 amount);\n\n    constructor(uint256 price_, uint256 maxSupply_) {\n        _owner = msg.sender;\n        _price = price_;\n        _maxSupply = maxSupply_;\n    }\n\n    modifier onlyOwner() {\n        require(msg.sender == _owner, \"Not owner\");\n        _;\n    }\n\n    function price() public view returns (uint256) {\n        return _price;\n    }\n\n    function totalSupply() public view returns (uint256) {\n        return _totalSupply;\n    }\n\n    function maxSupply() public view returns (uint256) {\n        return _maxSupply;\n    }\n\n    function claimedWhitelistStatus(address user) public view returns (bool) {\n        return _claimedWhitelistStatus[user];\n    }\n\n    function startPresale() external onlyOwner {\n        require(currentState == State.CLOSED, \"Presale cannot start while closed\");\n        currentState = State.PRESALE;\n        emit PresaleStarted();\n    }\n\n    function startPublicSale() external onlyOwner {\n        require(currentState == State.PRESALE, \"Public sale cannot start while presale is not active\");\n        currentState = State.PUBLIC;\n        emit PublicSaleStarted();\n    }\n\n    function mintNFT() external payable {\n        require(currentState == State.PRESALE, \"Presale is not active\");\n        require(!_claimedWhitelistStatus[msg.sender], \"Already claimed whitelist status\");\n        require(msg.value == _price, \"Incorrect payment amount\");\n        require(_totalSupply + 1 <= _maxSupply, \"Exceeds max supply\");\n\n        _claimedWhitelistStatus[msg.sender] = true;\n        _totalSupply += 1;\n        emit NFTMinted(msg.sender);\n    }\n\n    function mintPublicNFT(uint256 amount) external payable {\n        require(currentState == State.PUBLIC, \"Public sale is not active\");\n        require(amount > 0, \"Amount must be greater than zero\");\n        require(msg.value == amount * _price, \"Incorrect payment amount\");\n        require(_totalSupply + amount <= _maxSupply, \"Exceeds max supply\");\n\n        _totalSupply += amount;\n        emit PublicNFTMinted(msg.sender, amount);\n    }\n}\n```\nInitial Structured Execution Feedback:\n```json\n{\n  \"target_defect\": \"test_failure:sale_phase_transition\",\n  \"compile_success\": true,\n  \"compile_diagnostics\": {\n    \"command_success\": true,\n    \"failure_types\": [],\n    \"items\": [],\n    \"repair_hints\": []\n  },\n  \"abi_success\": true,\n  \"abi_missing\": [],\n  \"abi_extra\": [],\n  \"abi_forbidden_present\": [],\n  \"test_success\": false,\n  \"test_failure\": \"No files changed, compilation skipped Ran 3 tests for test/Generated.t.sol:GeneratedTest [PASS] testCannotMintWhileClosed() (gas: 20093) [PASS] testPresaleMintOnce() (gas: 87160) [FAIL: Public sale cannot start while presale is not activ...\",\n  \"failed_tests\": [\n    {\n      \"name\": \"testPublicMint\",\n      \"failure_type\": \"sale_phase_transition\",\n      \"reason\": \"Public sale cannot start while presale is not active\",\n      \"expected\": null,\n      \"actual\": null,\n      \"repair_hint\": \"Inspect sale state transitions and avoid stricter ordering than the required tests/spec allow.\"\n    }\n  ],\n  \"slither_classification_counts\": {\n    \"spec_conflict\": 1\n  },\n  \"slither_command_success\": true,\n  \"slither_skipped_reason\": null,\n  \"top_slither_findings\": [\n    {\n      \"check\": \"locked-ether\",\n      \"impact\": \"medium\",\n      \"classification\": \"spec_conflict\",\n      \"description\": \"Contract locking ether found: Contract ClosedPresaleMint (src/Generated.sol#4-79) has payable functions: - ClosedPresaleMint.mintNFT() (src/Generated.sol#58-67) - ClosedPresaleM...\"\n    }\n  ],\n  \"gas_used\": null\n}\n```\nCritic: ### Summary of Strongest Points from the Debate\n\nThe main issues identified in the debate are:\n\n1. **Test Failure**: The `testPublicMint` test fails due to a `sale_phase_transition` error. The public sale cannot start while the presale is not active.\n2. **Compile Diagnostics**: There were no specific compile errors or diagnostics, but a duplicate identifier or getter error was previously noted and fixed.\n3. **ABI Issues**: No missing or extra ABI methods were reported.\n4. **Security Review**: The contract locks ether, which is flagged as a medium impact issue due to payable functions (`mintNFT`) that do not handle received funds appropriately.\n\n### Required Changes to Correct, Secure, and Reasonably Gas-Efficient Contract\n\n#### Repair List:\n1. **Target Defect**: Fix the `startPublicSale` function to allow transitioning from both `CLOSED` and `PRESALE` states.\n   - **Failed Test**: `testPublicMint`\n   - **Failure Type**: `sale_phase_transition`\n   - **Reason**: \"Public sale cannot start while presale is not active\"\n   - **Smallest Behavior Change Needed**: Modify the `startPublicSale` function to check if the current state is not `PUBLIC` rather than specifically `PRESALE`.\n\n   ```solidity\n   function startPublicSale() external onlyOwner {\n       require(currentState != State.PUBLIC, \"Public sale is already active\");\n       currentState = State.PUBLIC;\n       emit PublicSaleStarted();\n   }\n   ```\n\n2. **Compile Error**: Ensure the contract compiles without errors.\n   - **Repair Hint**: The duplicate `currentState` function declaration was previously removed, ensuring no duplicate getters.\n\n3. **ABI Missing/Extra**: Ensure no unrequested public/external APIs are present.\n   - **Repair Hint**: The contract does not have any extra public/external APIs. Ensure no unnecessary functions are added.\n\n4. **Security Blocking**: Address the `locked-ether` issue.\n   - **Repair Hint**: The payable functions should not lock ether. Ensure that any payable functions handle received funds appropriately, possibly by sending back any excess Ether or handling it in a way that aligns with the contract's intended behavior.\n\n5. **Gas Used**: Optimize for gas efficiency.\n   - **Repair Hint**: Minimize stack depth and use efficient data types. Avoid unnecessary state changes and ensure that only required operations are performed.\n\n### Updated Solidity Code\n\nHere is the revised Solidity code with the necessary changes:\n\n```solidity\n// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract ClosedPresaleMint {\n    enum State { CLOSED, PRESALE, PUBLIC }\n    State public currentState = State.CLOSED;\n\n    address private _owner;\n    uint256 private _price;\n    uint256 private _totalSupply;\n    uint256 private _maxSupply;\n    mapping(address => bool) private _claimedWhitelistStatus;\n\n    event PresaleStarted();\n    event PublicSaleStarted();\n    event NFTMinted(address indexed buyer);\n    event PublicNFTMinted(address indexed buyer, uint256 amount);\n\n    constructor(uint256 price_, uint256 maxSupply_) {\n        _owner = msg.sender;\n        _price = price_;\n        _maxSupply = maxSupply_;\n    }\n\n    modifier onlyOwner() {\n        require(msg.sender == _owner, \"Not owner\");\n        _;\n    }\n\n    function price() public view returns (uint256) {\n        return _price;\n    }\n\n    function totalSupply() public view returns (uint256) {\n        return _totalSupply;\n    }\n\n    function maxSupply() public view returns (uint256) {\n        return _maxSupply;\n    }\n\n    function claimedWhitelistStatus(address user) public view returns (bool) {\n        return _claimedWhitelistStatus[user];\n    }\n\n    function startPresale() external onlyOwner {\n        require(currentState == State.CLOSED, \"Presale cannot start while public sale is active\");\n        currentState = State.PRESALE;\n        emit PresaleStarted();\n    }\n\n    function startPublicSale() external onlyOwner {\n        require(currentState != State.PUBLIC, \"Public sale is already active\");\n        currentState = State.PUBLIC;\n        emit PublicSaleStarted();\n    }\n\n    function mintNFT() external payable {\n        require(currentState == State.PUBLIC, \"Minting is not allowed in this phase\");\n        require(msg.value >= _price, \"Insufficient payment\");\n        require(_totalSupply + 1 <= _maxSupply, \"Max supply reached\");\n\n        _totalSupply++;\n        emit NFTMinted(msg.sender);\n    }\n\n    // Additional logic and functions can be added here as per the task requirements.\n}\n```\n\n### Additional Considerations for Gas Efficiency and Security\n\n- **Gas Efficiency**: Ensure that all functions are optimized for gas usage where possible, such as minimizing\nImproved Solution: Based on the above analysis, here's the updated version of the Solidity code in a single code block (wrap in ```solidity):\n```solidity\n// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract ClosedPresaleMint {\n    enum State { CLOSED, PRESALE, PUBLIC }\n    State public currentState = State.CLOSED;\n\n    address private _owner;\n    uint256 private _price;\n    uint256 private _totalSupply;\n    uint256 private _maxSupply;\n    mapping(address => bool) private _claimedWhitelistStatus;\n\n    event PresaleStarted();\n    event PublicSaleStarted();\n    event NFTMinted(address indexed buyer);\n    event PublicNFTMinted(address indexed buyer, uint256 amount);\n\n    constructor(uint256 price_, uint256 maxSupply_) {\n        _owner = msg.sender;\n        _price = price_;\n        _maxSupply = maxSupply_;\n    }\n\n    modifier onlyOwner() {\n        require(msg.sender == _owner, \"Not owner\");\n        _;\n    }\n\n    function price() public view returns (uint256) {\n        return _price;\n    }\n\n    function totalSupply() public view returns (uint256) {\n        return _totalSupply;\n    }\n\n    function maxSupply() public view returns (uint256) {\n        return _maxSupply;\n    }\n\n    function claimedWhitelistStatus(address user) public view returns (bool) {\n        return _claimedWhitelistStatus[user];\n    }\n\n    function startPresale() external onlyOwner {\n        require(currentState == State.CLOSED, \"Presale cannot start while public sale is active\");\n        currentState = State.PRESALE;\n        emit PresaleStarted();\n    }\n\n    function startPublicSale() external onlyOwner {\n        require(currentState != State.PUBLIC, \"Public sale is already active\");\n        currentState = State.PUBLIC;\n        emit PublicSaleStarted();\n    }\n\n    function mintNFT() external payable {\n        require(currentState == State.PRESALE, \"Presale is not active\");\n        require(!_claimedWhitelistStatus[msg.sender], \"Already claimed whitelist status\");\n        require(msg.value == _price, \"Incorrect payment amount\");\n        require(_totalSupply + 1 <= _maxSupply, \"Exceeds max supply\");\n\n        _claimedWhitelistStatus[msg.sender] = true;\n        _totalSupply += 1;\n        emit NFTMinted(msg.sender);\n    }\n\n    function mintPublicNFT(uint256 amount) external payable {\n        require(currentState == State.PUBLIC, \"Public sale is not active\");\n        require(amount > 0, \"Amount must be greater than zero\");\n        require(msg.value == amount * _price, \"Incorrect payment amount\");\n        require(_totalSupply + amount <= _maxSupply, \"Exceeds max supply\");\n\n        _totalSupply += amount;\n        emit PublicNFTMinted(msg.sender, amount);\n    }\n}\n```\nFirst Improved Solution: ```solidity\n// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract ClosedPresaleMint {\n    enum State { CLOSED, PRESALE, PUBLIC }\n    State public currentState = State.CLOSED;\n\n    address private _owner;\n    uint256 private _price;\n    uint256 private _totalSupply;\n    uint256 private _maxSupply;\n    mapping(address => bool) private _claimedWhitelistStatus;\n\n    event PresaleStarted();\n    event PublicSaleStarted();\n    event NFTMinted(address indexed buyer);\n    event PublicNFTMinted(address indexed buyer, uint256 amount);\n\n    constructor(uint256 price_, uint256 maxSupply_) {\n        _owner = msg.sender;\n        _price = price_;\n        _maxSupply = maxSupply_;\n    }\n\n    modifier onlyOwner() {\n        require(msg.sender == _owner, \"Not owner\");\n        _;\n    }\n\n    function price() public view returns (uint256) {\n        return _price;\n    }\n\n    function totalSupply() public view returns (uint256) {\n        return _totalSupply;\n    }\n\n    function maxSupply() public view returns (uint256) {\n        return _maxSupply;\n    }\n\n    function claimedWhitelistStatus(address user) public view returns (bool) {\n        return _claimedWhitelistStatus[user];\n    }\n\n    function startPresale() external onlyOwner {\n        require(currentState == State.CLOSED, \"Presale cannot start while public sale is active\");\n        currentState = State.PRESALE;\n        emit PresaleStarted();\n    }\n\n    function startPublicSale() external onlyOwner {\n        require(currentState != State.PUBLIC, \"Public sale is already active\");\n        currentState = State.PUBLIC;\n        emit PublicSaleStarted();\n    }\n\n    function mintNFT() external payable {\n        require(currentState == State.PRESALE, \"Presale is not active\");\n        require(!_claimedWhitelistStatus[msg.sender], \"Already claimed whitelist status\");\n        require(msg.value == _price, \"Incorrect payment amount\");\n        require(_totalSupply + 1 <= _maxSupply, \"Exceeds max supply\");\n\n        _claimedWhitelistStatus[msg.sender] = true;\n        _totalSupply += 1;\n        emit NFTMinted(msg.sender);\n    }\n\n    function mintPublicNFT(uint256 amount) external payable {\n        require(currentState == State.PUBLIC, \"Public sale is not active\");\n        require(amount > 0, \"Amount must be greater than zero\");\n        require(msg.value == amount * _price, \"Incorrect payment amount\");\n        require(_totalSupply + amount <= _maxSupply, \"Exceeds max supply\");\n\n        _totalSupply += amount;\n        emit PublicNFTMinted(msg.sender, amount);\n    }\n}\n```\nFirst Improved Structured Execution Feedback:\n```json\n{\n  \"target_defect\": \"none\",\n  \"compile_success\": true,\n  \"compile_diagnostics\": {\n    \"command_success\": true,\n    \"failure_types\": [],\n    \"items\": [],\n    \"repair_hints\": []\n  },\n  \"abi_success\": true,\n  \"abi_missing\": [],\n  \"abi_extra\": [],\n  \"abi_forbidden_present\": [],\n  \"test_success\": true,\n  \"test_failure\": \"\",\n  \"failed_tests\": [],\n  \"slither_classification_counts\": {\n    \"spec_conflict\": 1\n  },\n  \"slither_command_success\": true,\n  \"slither_skipped_reason\": null,\n  \"top_slither_findings\": [\n    {\n      \"check\": \"locked-ether\",\n      \"impact\": \"medium\",\n      \"classification\": \"spec_conflict\",\n      \"description\": \"Contract locking ether found: Contract ClosedPresaleMint (src/Generated.sol#4-79) has payable functions: - ClosedPresaleMint.mintNFT() (src/Generated.sol#58-67) - ClosedPresaleM...\"\n    }\n  ],\n  \"gas_used\": 976164\n}\n```\nStop Reason: first_rewrite_passed_clean",
+    "critic": [
+        "### Summary of Strongest Points from the Debate\n\nThe primary issue identified in the debate is a **duplicate identifier or getter** error caused by declaring both a public state variable and a separate function named `currentState`. This results in a `duplicate_identifier_or_getter` compile error. There are no reported test failures or ABI issues, and the security review did not identify any immediate blocking issues. However, the contract must be corrected to ensure it compiles successfully and adheres to the specified functionality.\n\n### Required Changes to Correct, Secure, and Reasonably Gas-Efficient Contract\n\n1. **Target Defect**: Remove the duplicate `currentState` function declaration.\n   - **Repair List**:\n     - **Compile Error**: `duplicate_identifier_or_getter`\n     - **Location**: Remove the `function currentState() public view returns (State)` declaration.\n     - **Reason**: The public state variable `currentState` already generates a getter automatically, so the additional function is redundant.\n\n2. **Ensure Compliance with Task Requirements**:\n   - Ensure all other required public/external functions, constructors, mappings, and getters are preserved as specified in the task.\n   - Do not add any extra functions, events, or modifiers unless explicitly required by the task.\n\n### Corrected Solidity Code\n\nHere is the revised Solidity code with the duplicate `currentState` function removed:\n\n```solidity\n// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract ClosedPresaleMint {\n    enum State { CLOSED, PRESALE, PUBLIC }\n    State public currentState = State.CLOSED;\n\n    address private _owner;\n    uint256 private _price;\n    uint256 private _totalSupply;\n    uint256 private _maxSupply;\n    mapping(address => bool) private _claimedWhitelistStatus;\n\n    event PresaleStarted();\n    event PublicSaleStarted();\n    event NFTMinted(address indexed buyer);\n    event PublicNFTMinted(address indexed buyer, uint256 amount);\n\n    constructor(uint256 price_, uint256 maxSupply_) {\n        _owner = msg.sender;\n        _price = price_;\n        _maxSupply = maxSupply_;\n    }\n\n    modifier onlyOwner() {\n        require(msg.sender == _owner, \"Not owner\");\n        _;\n    }\n\n    function price() public view returns (uint256) {\n        return _price;\n    }\n\n    function totalSupply() public view returns (uint256) {\n        return _totalSupply;\n    }\n\n    function maxSupply() public view returns (uint256) {\n        return _maxSupply;\n    }\n\n    function claimedWhitelistStatus(address user) public view returns (bool) {\n        return _claimedWhitelistStatus[user];\n    }\n\n    // Additional logic and functions can be added here as per the task requirements.\n}\n```\n\n### Additional Considerations for Gas Efficiency and Security\n\n- **Gas Efficiency**: Ensure that all functions are optimized for gas usage where possible, such as minimizing stack depth and using efficient data types.\n- **Security**: Regularly review the contract for potential vulnerabilities using tools like Slither, but focus on only addressing those that directly conflict with the task specifications.\n- **Testing**: Ensure all existing tests pass after making these changes and consider adding more comprehensive tests if necessary.\n\nBy following these steps, the contract should be both functional and secure while remaining gas-efficient.",
+        "### Summary of Strongest Points from the Debate\n\nThe main issues identified in the debate are:\n\n1. **Test Failure**: The `testPublicMint` test fails due to a `sale_phase_transition` error. The public sale cannot start while the presale is not active.\n2. **Compile Diagnostics**: There were no specific compile errors or diagnostics, but a duplicate identifier or getter error was previously noted and fixed.\n3. **ABI Issues**: No missing or extra ABI methods were reported.\n4. **Security Review**: The contract locks ether, which is flagged as a medium impact issue due to payable functions (`mintNFT`) that do not handle received funds appropriately.\n\n### Required Changes to Correct, Secure, and Reasonably Gas-Efficient Contract\n\n#### Repair List:\n1. **Target Defect**: Fix the `startPublicSale` function to allow transitioning from both `CLOSED` and `PRESALE` states.\n   - **Failed Test**: `testPublicMint`\n   - **Failure Type**: `sale_phase_transition`\n   - **Reason**: \"Public sale cannot start while presale is not active\"\n   - **Smallest Behavior Change Needed**: Modify the `startPublicSale` function to check if the current state is not `PUBLIC` rather than specifically `PRESALE`.\n\n   ```solidity\n   function startPublicSale() external onlyOwner {\n       require(currentState != State.PUBLIC, \"Public sale is already active\");\n       currentState = State.PUBLIC;\n       emit PublicSaleStarted();\n   }\n   ```\n\n2. **Compile Error**: Ensure the contract compiles without errors.\n   - **Repair Hint**: The duplicate `currentState` function declaration was previously removed, ensuring no duplicate getters.\n\n3. **ABI Missing/Extra**: Ensure no unrequested public/external APIs are present.\n   - **Repair Hint**: The contract does not have any extra public/external APIs. Ensure no unnecessary functions are added.\n\n4. **Security Blocking**: Address the `locked-ether` issue.\n   - **Repair Hint**: The payable functions should not lock ether. Ensure that any payable functions handle received funds appropriately, possibly by sending back any excess Ether or handling it in a way that aligns with the contract's intended behavior.\n\n5. **Gas Used**: Optimize for gas efficiency.\n   - **Repair Hint**: Minimize stack depth and use efficient data types. Avoid unnecessary state changes and ensure that only required operations are performed.\n\n### Updated Solidity Code\n\nHere is the revised Solidity code with the necessary changes:\n\n```solidity\n// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract ClosedPresaleMint {\n    enum State { CLOSED, PRESALE, PUBLIC }\n    State public currentState = State.CLOSED;\n\n    address private _owner;\n    uint256 private _price;\n    uint256 private _totalSupply;\n    uint256 private _maxSupply;\n    mapping(address => bool) private _claimedWhitelistStatus;\n\n    event PresaleStarted();\n    event PublicSaleStarted();\n    event NFTMinted(address indexed buyer);\n    event PublicNFTMinted(address indexed buyer, uint256 amount);\n\n    constructor(uint256 price_, uint256 maxSupply_) {\n        _owner = msg.sender;\n        _price = price_;\n        _maxSupply = maxSupply_;\n    }\n\n    modifier onlyOwner() {\n        require(msg.sender == _owner, \"Not owner\");\n        _;\n    }\n\n    function price() public view returns (uint256) {\n        return _price;\n    }\n\n    function totalSupply() public view returns (uint256) {\n        return _totalSupply;\n    }\n\n    function maxSupply() public view returns (uint256) {\n        return _maxSupply;\n    }\n\n    function claimedWhitelistStatus(address user) public view returns (bool) {\n        return _claimedWhitelistStatus[user];\n    }\n\n    function startPresale() external onlyOwner {\n        require(currentState == State.CLOSED, \"Presale cannot start while public sale is active\");\n        currentState = State.PRESALE;\n        emit PresaleStarted();\n    }\n\n    function startPublicSale() external onlyOwner {\n        require(currentState != State.PUBLIC, \"Public sale is already active\");\n        currentState = State.PUBLIC;\n        emit PublicSaleStarted();\n    }\n\n    function mintNFT() external payable {\n        require(currentState == State.PUBLIC, \"Minting is not allowed in this phase\");\n        require(msg.value >= _price, \"Insufficient payment\");\n        require(_totalSupply + 1 <= _maxSupply, \"Max supply reached\");\n\n        _totalSupply++;\n        emit NFTMinted(msg.sender);\n    }\n\n    // Additional logic and functions can be added here as per the task requirements.\n}\n```\n\n### Additional Considerations for Gas Efficiency and Security\n\n- **Gas Efficiency**: Ensure that all functions are optimized for gas usage where possible, such as minimizing"
+    ],
+    "initial_action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract ClosedPresaleMint {\n    enum State { CLOSED, PRESALE, PUBLIC }\n    State public currentState = State.CLOSED;\n\n    address private _owner;\n    uint256 private _price;\n    uint256 private _totalSupply;\n    uint256 private _maxSupply;\n    mapping(address => bool) private _claimedWhitelistStatus;\n\n    event PresaleStarted();\n    event PublicSaleStarted();\n    event NFTMinted(address indexed buyer);\n    event PublicNFTMinted(address indexed buyer, uint256 amount);\n\n    constructor(uint256 price_, uint256 maxSupply_) {\n        _owner = msg.sender;\n        _price = price_;\n        _maxSupply = maxSupply_;\n    }\n\n    modifier onlyOwner() {\n        require(msg.sender == _owner, \"Not owner\");\n        _;\n    }\n\n    function price() public view returns (uint256) {\n        return _price;\n    }\n\n    function totalSupply() public view returns (uint256) {\n        return _totalSupply;\n    }\n\n    function maxSupply() public view returns (uint256) {\n        return _maxSupply;\n    }\n\n    function claimedWhitelistStatus(address user) public view returns (bool) {\n        return _claimedWhitelistStatus[user];\n    }\n\n    function startPresale() external onlyOwner {\n        require(currentState == State.CLOSED, \"Presale cannot start while closed\");\n        currentState = State.PRESALE;\n        emit PresaleStarted();\n    }\n\n    function startPublicSale() external onlyOwner {\n        require(currentState == State.PRESALE, \"Public sale cannot start while presale is not active\");\n        currentState = State.PUBLIC;\n        emit PublicSaleStarted();\n    }\n\n    function mintNFT() external payable {\n        require(currentState == State.PRESALE, \"Presale is not active\");\n        require(!_claimedWhitelistStatus[msg.sender], \"Already claimed whitelist status\");\n        require(msg.value == _price, \"Incorrect payment amount\");\n        require(_totalSupply + 1 <= _maxSupply, \"Exceeds max supply\");\n\n        _claimedWhitelistStatus[msg.sender] = true;\n        _totalSupply += 1;\n        emit NFTMinted(msg.sender);\n    }\n\n    function mintPublicNFT(uint256 amount) external payable {\n        require(currentState == State.PUBLIC, \"Public sale is not active\");\n        require(amount > 0, \"Amount must be greater than zero\");\n        require(msg.value == amount * _price, \"Incorrect payment amount\");\n        require(_totalSupply + amount <= _maxSupply, \"Exceeds max supply\");\n\n        _totalSupply += amount;\n        emit PublicNFTMinted(msg.sender, amount);\n    }\n}\n```",
+    "critic_scratchpad": "\nThe following critic(s) provide some analysis of previous solution(s). Use them as reference only to improve and update your critic based on the latest solution.\nPrevious Round Structured Execution Feedback:\n```json\n{\n  \"target_defect\": \"test_failure:sale_phase_transition\",\n  \"compile_success\": true,\n  \"compile_diagnostics\": {\n    \"command_success\": true,\n    \"failure_types\": [],\n    \"items\": [],\n    \"repair_hints\": []\n  },\n  \"abi_success\": true,\n  \"abi_missing\": [],\n  \"abi_extra\": [],\n  \"abi_forbidden_present\": [],\n  \"test_success\": false,\n  \"test_failure\": \"No files changed, compilation skipped Ran 3 tests for test/Generated.t.sol:GeneratedTest [PASS] testCannotMintWhileClosed() (gas: 20093) [PASS] testPresaleMintOnce() (gas: 87160) [FAIL: Public sale cannot start while presale is not activ...\",\n  \"failed_tests\": [\n    {\n      \"name\": \"testPublicMint\",\n      \"failure_type\": \"sale_phase_transition\",\n      \"reason\": \"Public sale cannot start while presale is not active\",\n      \"expected\": null,\n      \"actual\": null,\n      \"repair_hint\": \"Inspect sale state transitions and avoid stricter ordering than the required tests/spec allow.\"\n    }\n  ],\n  \"slither_classification_counts\": {\n    \"spec_conflict\": 1\n  },\n  \"slither_command_success\": true,\n  \"slither_skipped_reason\": null,\n  \"top_slither_findings\": [\n    {\n      \"check\": \"locked-ether\",\n      \"impact\": \"medium\",\n      \"classification\": \"spec_conflict\",\n      \"description\": \"Contract locking ether found: Contract ClosedPresaleMint (src/Generated.sol#4-79) has payable functions: - ClosedPresaleMint.mintNFT() (src/Generated.sol#58-67) - ClosedPresaleM...\"\n    }\n  ],\n  \"gas_used\": null\n}\n```\nPast Critic: ### Summary of Strongest Points from the Debate\n\nThe primary issue identified in the debate is a **duplicate identifier or getter** error caused by declaring both a public state variable and a separate function named `currentState`. This results in a `duplicate_identifier_or_getter` compile error. There are no reported test failures or ABI issues, and the security review did not identify any immediate blocking issues. However, the contract must be corrected to ensure it compiles successfully and adheres to the specified functionality.\n\n### Required Changes to Correct, Secure, and Reasonably Gas-Efficient Contract\n\n1. **Target Defect**: Remove the duplicate `currentState` function declaration.\n   - **Repair List**:\n     - **Compile Error**: `duplicate_identifier_or_getter`\n     - **Location**: Remove the `function currentState() public view returns (State)` declaration.\n     - **Reason**: The public state variable `currentState` already generates a getter automatically, so the additional function is redundant.\n\n2. **Ensure Compliance with Task Requirements**:\n   - Ensure all other required public/external functions, constructors, mappings, and getters are preserved as specified in the task.\n   - Do not add any extra functions, events, or modifiers unless explicitly required by the task.\n\n### Corrected Solidity Code\n\nHere is the revised Solidity code with the duplicate `currentState` function removed:\n\n```solidity\n// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract ClosedPresaleMint {\n    enum State { CLOSED, PRESALE, PUBLIC }\n    State public currentState = State.CLOSED;\n\n    address private _owner;\n    uint256 private _price;\n    uint256 private _totalSupply;\n    uint256 private _maxSupply;\n    mapping(address => bool) private _claimedWhitelistStatus;\n\n    event PresaleStarted();\n    event PublicSaleStarted();\n    event NFTMinted(address indexed buyer);\n    event PublicNFTMinted(address indexed buyer, uint256 amount);\n\n    constructor(uint256 price_, uint256 maxSupply_) {\n        _owner = msg.sender;\n        _price = price_;\n        _maxSupply = maxSupply_;\n    }\n\n    modifier onlyOwner() {\n        require(msg.sender == _owner, \"Not owner\");\n        _;\n    }\n\n    function price() public view returns (uint256) {\n        return _price;\n    }\n\n    function totalSupply() public view returns (uint256) {\n        return _totalSupply;\n    }\n\n    function maxSupply() public view returns (uint256) {\n        return _maxSupply;\n    }\n\n    function claimedWhitelistStatus(address user) public view returns (bool) {\n        return _claimedWhitelistStatus[user];\n    }\n\n    // Additional logic and functions can be added here as per the task requirements.\n}\n```\n\n### Additional Considerations for Gas Efficiency and Security\n\n- **Gas Efficiency**: Ensure that all functions are optimized for gas usage where possible, such as minimizing stack depth and using efficient data types.\n- **Security**: Regularly review the contract for potential vulnerabilities using tools like Slither, but focus on only addressing those that directly conflict with the task specifications.\n- **Testing**: Ensure all existing tests pass after making these changes and consider adding more comprehensive tests if necessary.\n\nBy following these steps, the contract should be both functional and secure while remaining gas-efficient.\nCurrent Structured Execution Feedback:\n```json\n{\n  \"target_defect\": \"test_failure:sale_phase_transition\",\n  \"compile_success\": true,\n  \"compile_diagnostics\": {\n    \"command_success\": true,\n    \"failure_types\": [],\n    \"items\": [],\n    \"repair_hints\": []\n  },\n  \"abi_success\": true,\n  \"abi_missing\": [],\n  \"abi_extra\": [],\n  \"abi_forbidden_present\": [],\n  \"test_success\": false,\n  \"test_failure\": \"No files changed, compilation skipped Ran 3 tests for test/Generated.t.sol:GeneratedTest [PASS] testCannotMintWhileClosed() (gas: 20093) [PASS] testPresaleMintOnce() (gas: 87160) [FAIL: Public sale cannot start while presale is not activ...\",\n  \"failed_tests\": [\n    {\n      \"name\": \"testPublicMint\",\n      \"failure_type\": \"sale_phase_transition\",\n      \"reason\": \"Public sale cannot start while presale is not active\",\n      \"expected\": null,\n      \"actual\": null,\n      \"repair_hint\": \"Inspect sale state transitions and avoid stricter ordering than the required tests/spec allow.\"\n    }\n  ],\n  \"slither_classification_counts\": {\n    \"spec_conflict\": 1\n  },\n  \"slither_command_success\": true,\n  \"slither_skipped_reason\": null,\n  \"top_slither_findings\": [\n    {\n      \"check\": \"locked-ether\",\n      \"impact\": \"medium\",\n      \"classification\": \"spec_conflict\",\n      \"description\": \"Contract locking ether found: Contract ClosedPresaleMint (src/Generated.sol#4-79) has payable functions: - ClosedPresaleMint.mintNFT() (src/Generated.sol#58-67) - ClosedPresaleM...\"\n    }\n  ],\n  \"gas_used\": null\n}\n```\nFunctionality Critic: based on the above discussion, here is my updated analysis of solution functionality and correctness: ### Interface Diagnosis:\n- **Missing ABI**: None.\n- **Extra ABI**: None.\n- **Duplicate Getter Risk**: Removed the duplicate `currentState()` function declaration, which was causing a compile error. The public state variable `currentState` already generates a getter automatically.\n\n### Behavior Diagnosis:\n- **Failed Test Name**: `testPublicMint`.\n- **Failure Type**: `sale_phase_transition`.\n- **Reason**: \"Public sale cannot start while presale is not active\".\n- **Likely Faulty Function/State**: The `startPublicSale()` function incorrectly checks if the current state is `State.PRESALE` instead of `State.CLOSED` or `State.PRESALE`.\n\n### Repair Instruction:\n- **Correct the `startPublicSale()` function**:\n  - Change the `require` statement inside `startPublicSale()` to allow starting the public sale from either the `CLOSED` or `PRESALE` state.\n  \n  ```solidity\n  function startPublicSale() external onlyOwner {\n      require(currentState != State.PUBLIC, \"Public sale is already active\");\n      currentState = State.PUBLIC;\n      emit PublicSaleStarted();\n  }\n  ```\n\n- **Ensure the contract compiles and passes all tests**:\n  - No additional changes are needed regarding the ABI, public/external functions, or other required features.\n  \n- **Do Not Make These Changes**:\n  - Do not add any extra functions, events, or modifiers unless explicitly required by the task.\n  - Do not modify the `currentState` getter or its public visibility.\n  - Do not alter the constructor or other required public/external functions' signatures or types.\n\n### Updated Solidity Code:\n```solidity\n// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract ClosedPresaleMint {\n    enum State { CLOSED, PRESALE, PUBLIC }\n    State public currentState = State.CLOSED;\n\n    address private _owner;\n    uint256 private _price;\n    uint256 private _totalSupply;\n    uint256 private _maxSupply;\n    mapping(address => bool) private _claimedWhitelistStatus;\n\n    event PresaleStarted();\n    event PublicSaleStarted();\n    event NFTMinted(address indexed buyer);\n    event PublicNFTMinted(address indexed buyer, uint256 amount);\n\n    constructor(uint256 price_, uint256 maxSupply_) {\n        _owner = msg.sender;\n        _price = price_;",
+    "runtime_config": {
+        "cost_profile": "gated",
+        "critic_mode": "gated",
+        "feedback_mode": "compact",
+        "posthoc_policy": "failures",
+        "critic_tools_enabled": false,
+        "early_stop": true,
+        "solidity_prompt_mode": "normalized",
+        "critic_rounds": 1
+    },
+    "llm_call_stats": {
+        "total_calls": 3,
+        "actor_calls": 1,
+        "critic_calls": 2,
+        "tool_planning_calls": 0,
+        "prompt_chars": 38141,
+        "completion_chars": 9417,
+        "max_tokens_requested": 2560
+    },
+    "previous_structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "compile_diagnostics": {
+            "command_success": true,
+            "failure_types": [],
+            "items": [],
+            "repair_hints": []
+        },
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "constructor(uint256,uint256)",
+            "currentState()",
+            "startPresale()",
+            "startPublicSale()",
+            "price()",
+            "totalSupply()",
+            "maxSupply()",
+            "claimedWhitelistStatus(address)",
+            "mintNFT()",
+            "mintPublicNFT(uint256)"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": false,
+        "test_failure": "No files changed, compilation skipped\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testCannotMintWhileClosed() (gas: 20093)\n[PASS] testPresaleMintOnce() (gas: 87160)\n[FAIL: Public sale cannot start while presale is not active] testPublicMint() (gas: 8162)\nSuite result: FAILED. 2 passed; 1 failed; 0 skipped; finished in 908.73\u00b5s (571.97\u00b5s CPU time)\nRan 1 test suite in 24.24ms (908.73\u00b5s CPU time): 2 tests passed, 1 failed, 0 skipped (3 total tests)\nFailing tests:\nEncountered 1 failing test in test/Generated.t.sol:GeneratedTest\n[FAIL: Public sale cannot start while presale is not active] testPublicMint() (gas: 8162)\nEncountered a total of 1 failing tests, 2 tests succeeded\nTip: Run `forge test --rerun` to retry only the 1 failed test",
+        "test_diagnostics": {
+            "command_success": false,
+            "passed_count": 2,
+            "failed_count": 1,
+            "failed_tests": [
+                {
+                    "name": "testPublicMint",
+                    "reason": "Public sale cannot start while presale is not active",
+                    "gas": 8162,
+                    "failure_type": "sale_phase_transition",
+                    "expected": null,
+                    "actual": null,
+                    "repair_hint": "Inspect sale state transitions and avoid stricter ordering than the required tests/spec allow."
+                }
+            ],
+            "failure_types": [
+                "sale_phase_transition"
+            ],
+            "repair_hints": [
+                "Inspect sale state transitions and avoid stricter ordering than the required tests/spec allow."
+            ]
+        },
+        "slither_findings": {
+            "count": 1,
+            "severity_counts": {
+                "medium": 1
+            },
+            "classification_counts": {
+                "spec_conflict": 1
+            },
+            "items": [
+                {
+                    "check": "locked-ether",
+                    "impact": "medium",
+                    "confidence": "High",
+                    "description": "Contract locking ether found: Contract ClosedPresaleMint (src/Generated.sol#4-79) has payable functions: - ClosedPresaleMint.mintNFT() (src/Generated.sol#58-67) - ClosedPresaleMint.mintPublicNFT(uint256) (src/Generated.sol#69-77) But does not have a function to withdraw the ether",
+                    "classification": "spec_conflict",
+                    "blocking": false
+                }
+            ],
+            "command_success": true
+        },
+        "gas_used": null,
+        "gas_command_success": false,
+        "target_defect": "test_failure:sale_phase_transition"
+    },
+    "safety_critics": [],
+    "safety_tool_output": [],
+    "helpful_critics": [
+        "### Interface Diagnosis:\n- **Missing ABI**: None.\n- **Extra ABI**: None.\n- **Duplicate Getter Risk**: Removed the duplicate `currentState()` function declaration, which was causing a compile error. The public state variable `currentState` already generates a getter automatically.\n\n### Behavior Diagnosis:\n- **Failed Test Name**: `testPublicMint`.\n- **Failure Type**: `sale_phase_transition`.\n- **Reason**: \"Public sale cannot start while presale is not active\".\n- **Likely Faulty Function/State**: The `startPublicSale()` function incorrectly checks if the current state is `State.PRESALE` instead of `State.CLOSED` or `State.PRESALE`.\n\n### Repair Instruction:\n- **Correct the `startPublicSale()` function**:\n  - Change the `require` statement inside `startPublicSale()` to allow starting the public sale from either the `CLOSED` or `PRESALE` state.\n  \n  ```solidity\n  function startPublicSale() external onlyOwner {\n      require(currentState != State.PUBLIC, \"Public sale is already active\");\n      currentState = State.PUBLIC;\n      emit PublicSaleStarted();\n  }\n  ```\n\n- **Ensure the contract compiles and passes all tests**:\n  - No additional changes are needed regarding the ABI, public/external functions, or other required features.\n  \n- **Do Not Make These Changes**:\n  - Do not add any extra functions, events, or modifiers unless explicitly required by the task.\n  - Do not modify the `currentState` getter or its public visibility.\n  - Do not alter the constructor or other required public/external functions' signatures or types.\n\n### Updated Solidity Code:\n```solidity\n// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract ClosedPresaleMint {\n    enum State { CLOSED, PRESALE, PUBLIC }\n    State public currentState = State.CLOSED;\n\n    address private _owner;\n    uint256 private _price;\n    uint256 private _totalSupply;\n    uint256 private _maxSupply;\n    mapping(address => bool) private _claimedWhitelistStatus;\n\n    event PresaleStarted();\n    event PublicSaleStarted();\n    event NFTMinted(address indexed buyer);\n    event PublicNFTMinted(address indexed buyer, uint256 amount);\n\n    constructor(uint256 price_, uint256 maxSupply_) {\n        _owner = msg.sender;\n        _price = price_;"
+    ],
+    "helpful_tool_output": [
+        {
+            "tool": [],
+            "output": []
+        }
+    ],
+    "gas_critics": [],
+    "gas_tool_output": [],
+    "initial_action_execution_observation": "Compilation: success. ABI: passed. Tests: failed. No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testCannotMintWhileClosed() (gas: 20093)\n[PASS] testPresaleMintOnce() (gas: 87160)\n[FAIL: Public sale cannot start while presale is not active] testPublicMint() (gas: 8162)\nSuite result: FAILED. 2 passed; 1 failed; 0 skipped; finished in 1.00ms (1.05ms CPU time)\n\nRan 1 test suite in 23.34ms (1.00ms CPU time): 2 tests passed, 1 failed, 0 skipped (3 total tests)\n\nFailing tests:\nEncountered 1 failing test in test/Generated.t.sol:GeneratedTest\n[FAIL: Public sale cannot start while presale is not active] testPublicMint() (gas: 8162)\n\nEncountered a total of 1 failing tests, 2 tests succeeded\n\nTip: Run `forge test --rerun` to retry only the 1 failed test Static analysis: 1 finding(s) (medium=1). Gas analysis: unavailable.",
+    "initial_action_execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 0,
+            "stdout": "Compiling 25 files with Solc 0.8.33\nSolc 0.8.33 finished in 753.07ms\nCompiler run successful!\n",
+            "stderr": "note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:4:8\n  |\n4 | import \"forge-std/Test.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[mixed-case-function]: function names should use mixedCase\n  --> src/Generated.sol:58:14\n   |\n58 |     function mintNFT() external payable {\n   |              ^^^^^^^ help: consider using: `mintNft`\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#mixed-case-function\n\nnote[mixed-case-function]: function names should use mixedCase\n  --> src/Generated.sol:69:14\n   |\n69 |     function mintPublicNFT(uint256 amount) external payable {\n   |              ^^^^^^^^^^^^^ help: consider using: `mintPublicNft`\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#mixed-case-function\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:5:8\n  |\n5 | import \"../src/Generated.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[unwrapped-modifier-logic]: wrap modifier logic to reduce code size\n  --> src/Generated.sol:25:5\n   |\n25 | /     modifier onlyOwner() {\n26 | |         require(msg.sender == _owner, \"Not owner\");\n27 | |         _;\n28 | |     }\n   | |_____^\n   |\nhelp: wrap modifier logic to reduce code size\n   |\n25 ~     modifier onlyOwner() {\n26 +         _onlyOwner();\n27 +         _;\n28 +     }\n29 + \n30 +     function _onlyOwner() internal {\n31 +         require(msg.sender == _owner, \"Not owner\");\n32 +     }\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#unwrapped-modifier-logic\n\n",
+            "success": true
+        },
+        "compile_diagnostics": {
+            "command_success": true,
+            "failure_types": [],
+            "items": [],
+            "repair_hints": []
+        },
+        "abi": {
+            "checked": true,
+            "success": true,
+            "required": [
+                "constructor(uint256,uint256)",
+                "currentState()",
+                "startPresale()",
+                "startPublicSale()",
+                "price()",
+                "totalSupply()",
+                "maxSupply()",
+                "claimedWhitelistStatus(address)",
+                "mintNFT()",
+                "mintPublicNFT(uint256)"
+            ],
+            "forbidden": [],
+            "available": [
+                "claimedWhitelistStatus(address)",
+                "constructor(uint256,uint256)",
+                "currentState()",
+                "maxSupply()",
+                "mintNFT()",
+                "mintPublicNFT(uint256)",
+                "price()",
+                "startPresale()",
+                "startPublicSale()",
+                "totalSupply()"
+            ],
+            "missing": [],
+            "forbidden_present": [],
+            "artifact": "/tmp/indict_solidity_s3onwcqo/out/Generated.sol/ClosedPresaleMint.json"
+        },
+        "tests": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" -vv",
+            "returncode": 1,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testCannotMintWhileClosed() (gas: 20093)\n[PASS] testPresaleMintOnce() (gas: 87160)\n[FAIL: Public sale cannot start while presale is not active] testPublicMint() (gas: 8162)\nSuite result: FAILED. 2 passed; 1 failed; 0 skipped; finished in 1.00ms (1.05ms CPU time)\n\nRan 1 test suite in 23.34ms (1.00ms CPU time): 2 tests passed, 1 failed, 0 skipped (3 total tests)\n\nFailing tests:\nEncountered 1 failing test in test/Generated.t.sol:GeneratedTest\n[FAIL: Public sale cannot start while presale is not active] testPublicMint() (gas: 8162)\n\nEncountered a total of 1 failing tests, 2 tests succeeded\n\nTip: Run `forge test --rerun` to retry only the 1 failed test\n",
+            "stderr": "",
+            "success": false
+        },
+        "slither": {
+            "command": "slither \"src/Generated.sol\" --exclude-dependencies --exclude-informational --exclude-optimization --fail-none --json \"/tmp/indict_solidity_s3onwcqo/slither-result.json\"",
+            "returncode": 0,
+            "stdout": "",
+            "stderr": "'forge clean' running (wd: /tmp/indict_solidity_s3onwcqo)\n'forge config --json' running\n'forge build --build-info src/Generated.sol' running (wd: /tmp/indict_solidity_s3onwcqo)\n\nDetector: locked-ether\nContract locking ether found:\n\tContract ClosedPresaleMint (src/Generated.sol#4-79) has payable functions:\n\t - ClosedPresaleMint.mintNFT() (src/Generated.sol#58-67)\n\t - ClosedPresaleMint.mintPublicNFT(uint256) (src/Generated.sol#69-77)\n\tBut does not have a function to withdraw the ether\nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#contracts-that-lock-ether\nsrc/Generated.sol analyzed (1 contracts with 75 detectors), 1 result(s) found\n",
+            "success": true
+        },
+        "slither_skipped_reason": null,
+        "gas": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" --gas-report",
+            "returncode": 1,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testCannotMintWhileClosed() (gas: 41157)\n[PASS] testPresaleMintOnce() (gas: 175852)\n[FAIL: Public sale cannot start while presale is not active] testPublicMint() (gas: 29226)\nSuite result: FAILED. 2 passed; 1 failed; 0 skipped; finished in 1.26ms (1.07ms CPU time)\n\n\u256d----------------------------------------------+-----------------+-------+--------+-------+---------\u256e\n| src/Generated.sol:ClosedPresaleMint Contract |                 |       |        |       |         |\n+===================================================================================================+\n| Deployment Cost                              | Deployment Size |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| 984284                                       | 4413            |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n|                                              |                 |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| Function Name                                | Min             | Avg   | Median | Max   | # Calls |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| claimedWhitelistStatus                       | 2892            | 2892  | 2892   | 2892  | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| mintNFT                                      | 23743           | 41228 | 25985  | 73958 | 3       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| startPresale                                 | 27497           | 27497 | 27497  | 27497 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| startPublicSale                              | 23960           | 23960 | 23960  | 23960 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| totalSupply                                  | 2432            | 2432  | 2432   | 2432  | 1       |\n\u2570----------------------------------------------+-----------------+-------+--------+-------+---------\u256f\n\n\nRan 1 test suite in 6.04ms (1.26ms CPU time): 2 tests passed, 1 failed, 0 skipped (3 total tests)\n\nFailing tests:\nEncountered 1 failing test in test/Generated.t.sol:GeneratedTest\n[FAIL: Public sale cannot start while presale is not active] testPublicMint() (gas: 29226)\n\nEncountered a total of 1 failing tests, 2 tests succeeded\n\nTip: Run `forge test --rerun` to retry only the 1 failed test\n",
+            "stderr": "",
+            "success": false
+        },
+        "vulnerability_count": 1,
+        "vulnerability_severity_counts": {
+            "medium": 1
+        },
+        "slither_findings": [
+            {
+                "check": "locked-ether",
+                "impact": "medium",
+                "confidence": "High",
+                "description": "Contract locking ether found: Contract ClosedPresaleMint (src/Generated.sol#4-79) has payable functions: - ClosedPresaleMint.mintNFT() (src/Generated.sol#58-67) - ClosedPresaleMint.mintPublicNFT(uint256) (src/Generated.sol#69-77) But does not have a function to withdraw the ether",
+                "classification": "spec_conflict",
+                "blocking": false
+            }
+        ],
+        "slither_classification_counts": {
+            "spec_conflict": 1
+        },
+        "test_diagnostics": {
+            "command_success": false,
+            "passed_count": 2,
+            "failed_count": 1,
+            "failed_tests": [
+                {
+                    "name": "testPublicMint",
+                    "reason": "Public sale cannot start while presale is not active",
+                    "gas": 8162,
+                    "failure_type": "sale_phase_transition",
+                    "expected": null,
+                    "actual": null,
+                    "repair_hint": "Inspect sale state transitions and avoid stricter ordering than the required tests/spec allow."
+                }
+            ],
+            "failure_types": [
+                "sale_phase_transition"
+            ],
+            "repair_hints": [
+                "Inspect sale state transitions and avoid stricter ordering than the required tests/spec allow."
+            ]
+        },
+        "max_gas_value": null,
+        "summary": "Compilation: success. ABI: passed. Tests: failed. No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testCannotMintWhileClosed() (gas: 20093)\n[PASS] testPresaleMintOnce() (gas: 87160)\n[FAIL: Public sale cannot start while presale is not active] testPublicMint() (gas: 8162)\nSuite result: FAILED. 2 passed; 1 failed; 0 skipped; finished in 1.00ms (1.05ms CPU time)\n\nRan 1 test suite in 23.34ms (1.00ms CPU time): 2 tests passed, 1 failed, 0 skipped (3 total tests)\n\nFailing tests:\nEncountered 1 failing test in test/Generated.t.sol:GeneratedTest\n[FAIL: Public sale cannot start while presale is not active] testPublicMint() (gas: 8162)\n\nEncountered a total of 1 failing tests, 2 tests succeeded\n\nTip: Run `forge test --rerun` to retry only the 1 failed test Static analysis: 1 finding(s) (medium=1). Gas analysis: unavailable."
+    },
+    "initial_structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "compile_diagnostics": {
+            "command_success": true,
+            "failure_types": [],
+            "items": [],
+            "repair_hints": []
+        },
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "constructor(uint256,uint256)",
+            "currentState()",
+            "startPresale()",
+            "startPublicSale()",
+            "price()",
+            "totalSupply()",
+            "maxSupply()",
+            "claimedWhitelistStatus(address)",
+            "mintNFT()",
+            "mintPublicNFT(uint256)"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": false,
+        "test_failure": "No files changed, compilation skipped\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testCannotMintWhileClosed() (gas: 20093)\n[PASS] testPresaleMintOnce() (gas: 87160)\n[FAIL: Public sale cannot start while presale is not active] testPublicMint() (gas: 8162)\nSuite result: FAILED. 2 passed; 1 failed; 0 skipped; finished in 1.00ms (1.05ms CPU time)\nRan 1 test suite in 23.34ms (1.00ms CPU time): 2 tests passed, 1 failed, 0 skipped (3 total tests)\nFailing tests:\nEncountered 1 failing test in test/Generated.t.sol:GeneratedTest\n[FAIL: Public sale cannot start while presale is not active] testPublicMint() (gas: 8162)\nEncountered a total of 1 failing tests, 2 tests succeeded\nTip: Run `forge test --rerun` to retry only the 1 failed test",
+        "test_diagnostics": {
+            "command_success": false,
+            "passed_count": 2,
+            "failed_count": 1,
+            "failed_tests": [
+                {
+                    "name": "testPublicMint",
+                    "reason": "Public sale cannot start while presale is not active",
+                    "gas": 8162,
+                    "failure_type": "sale_phase_transition",
+                    "expected": null,
+                    "actual": null,
+                    "repair_hint": "Inspect sale state transitions and avoid stricter ordering than the required tests/spec allow."
+                }
+            ],
+            "failure_types": [
+                "sale_phase_transition"
+            ],
+            "repair_hints": [
+                "Inspect sale state transitions and avoid stricter ordering than the required tests/spec allow."
+            ]
+        },
+        "slither_findings": {
+            "count": 1,
+            "severity_counts": {
+                "medium": 1
+            },
+            "classification_counts": {
+                "spec_conflict": 1
+            },
+            "items": [
+                {
+                    "check": "locked-ether",
+                    "impact": "medium",
+                    "confidence": "High",
+                    "description": "Contract locking ether found: Contract ClosedPresaleMint (src/Generated.sol#4-79) has payable functions: - ClosedPresaleMint.mintNFT() (src/Generated.sol#58-67) - ClosedPresaleMint.mintPublicNFT(uint256) (src/Generated.sol#69-77) But does not have a function to withdraw the ether",
+                    "classification": "spec_conflict",
+                    "blocking": false
+                }
+            ],
+            "command_success": true
+        },
+        "gas_used": null,
+        "gas_command_success": false,
+        "target_defect": "test_failure:sale_phase_transition"
+    },
+    "execution_observation": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 1 finding(s) (medium=1). Gas analysis: max observed value 976164.",
+    "execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 0,
+            "stdout": "Compiling 25 files with Solc 0.8.33\nSolc 0.8.33 finished in 757.71ms\nCompiler run successful!\n",
+            "stderr": "note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:4:8\n  |\n4 | import \"forge-std/Test.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[mixed-case-function]: function names should use mixedCase\n  --> src/Generated.sol:58:14\n   |\n58 |     function mintNFT() external payable {\n   |              ^^^^^^^ help: consider using: `mintNft`\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#mixed-case-function\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:5:8\n  |\n5 | import \"../src/Generated.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[mixed-case-function]: function names should use mixedCase\n  --> src/Generated.sol:69:14\n   |\n69 |     function mintPublicNFT(uint256 amount) external payable {\n   |              ^^^^^^^^^^^^^ help: consider using: `mintPublicNft`\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#mixed-case-function\n\nnote[unwrapped-modifier-logic]: wrap modifier logic to reduce code size\n  --> src/Generated.sol:25:5\n   |\n25 | /     modifier onlyOwner() {\n26 | |         require(msg.sender == _owner, \"Not owner\");\n27 | |         _;\n28 | |     }\n   | |_____^\n   |\nhelp: wrap modifier logic to reduce code size\n   |\n25 ~     modifier onlyOwner() {\n26 +         _onlyOwner();\n27 +         _;\n28 +     }\n29 + \n30 +     function _onlyOwner() internal {\n31 +         require(msg.sender == _owner, \"Not owner\");\n32 +     }\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#unwrapped-modifier-logic\n\n",
+            "success": true
+        },
+        "compile_diagnostics": {
+            "command_success": true,
+            "failure_types": [],
+            "items": [],
+            "repair_hints": []
+        },
+        "abi": {
+            "checked": true,
+            "success": true,
+            "required": [
+                "constructor(uint256,uint256)",
+                "currentState()",
+                "startPresale()",
+                "startPublicSale()",
+                "price()",
+                "totalSupply()",
+                "maxSupply()",
+                "claimedWhitelistStatus(address)",
+                "mintNFT()",
+                "mintPublicNFT(uint256)"
+            ],
+            "forbidden": [],
+            "available": [
+                "claimedWhitelistStatus(address)",
+                "constructor(uint256,uint256)",
+                "currentState()",
+                "maxSupply()",
+                "mintNFT()",
+                "mintPublicNFT(uint256)",
+                "price()",
+                "startPresale()",
+                "startPublicSale()",
+                "totalSupply()"
+            ],
+            "missing": [],
+            "forbidden_present": [],
+            "artifact": "/tmp/indict_solidity_hlxzea6g/out/Generated.sol/ClosedPresaleMint.json"
+        },
+        "tests": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" -vv",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testCannotMintWhileClosed() (gas: 20093)\n[PASS] testPresaleMintOnce() (gas: 87160)\n[PASS] testPublicMint() (gas: 54853)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 898.47\u00b5s (678.01\u00b5s CPU time)\n\nRan 1 test suite in 23.60ms (898.47\u00b5s CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "slither": {
+            "command": "slither \"src/Generated.sol\" --exclude-dependencies --exclude-informational --exclude-optimization --fail-none --json \"/tmp/indict_solidity_hlxzea6g/slither-result.json\"",
+            "returncode": 0,
+            "stdout": "",
+            "stderr": "'forge clean' running (wd: /tmp/indict_solidity_hlxzea6g)\n'forge config --json' running\n'forge build --build-info src/Generated.sol' running (wd: /tmp/indict_solidity_hlxzea6g)\n\nDetector: locked-ether\nContract locking ether found:\n\tContract ClosedPresaleMint (src/Generated.sol#4-79) has payable functions:\n\t - ClosedPresaleMint.mintNFT() (src/Generated.sol#58-67)\n\t - ClosedPresaleMint.mintPublicNFT(uint256) (src/Generated.sol#69-77)\n\tBut does not have a function to withdraw the ether\nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#contracts-that-lock-ether\nsrc/Generated.sol analyzed (1 contracts with 75 detectors), 1 result(s) found\n",
+            "success": true
+        },
+        "slither_skipped_reason": null,
+        "gas": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" --gas-report",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testCannotMintWhileClosed() (gas: 41157)\n[PASS] testPresaleMintOnce() (gas: 175852)\n[PASS] testPublicMint() (gas: 101121)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 886.50\u00b5s (807.97\u00b5s CPU time)\n\n\u256d----------------------------------------------+-----------------+-------+--------+-------+---------\u256e\n| src/Generated.sol:ClosedPresaleMint Contract |                 |       |        |       |         |\n+===================================================================================================+\n| Deployment Cost                              | Deployment Size |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| 976164                                       | 4374            |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n|                                              |                 |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| Function Name                                | Min             | Avg   | Median | Max   | # Calls |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| claimedWhitelistStatus                       | 2892            | 2892  | 2892   | 2892  | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| mintNFT                                      | 23743           | 41228 | 25985  | 73958 | 3       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| mintPublicNFT                                | 52519           | 52519 | 52519  | 52519 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| startPresale                                 | 27497           | 27497 | 27497  | 27497 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| startPublicSale                              | 27520           | 27520 | 27520  | 27520 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| totalSupply                                  | 2432            | 2432  | 2432   | 2432  | 2       |\n\u2570----------------------------------------------+-----------------+-------+--------+-------+---------\u256f\n\n\nRan 1 test suite in 5.90ms (886.50\u00b5s CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "vulnerability_count": 1,
+        "vulnerability_severity_counts": {
+            "medium": 1
+        },
+        "slither_findings": [
+            {
+                "check": "locked-ether",
+                "impact": "medium",
+                "confidence": "High",
+                "description": "Contract locking ether found: Contract ClosedPresaleMint (src/Generated.sol#4-79) has payable functions: - ClosedPresaleMint.mintNFT() (src/Generated.sol#58-67) - ClosedPresaleMint.mintPublicNFT(uint256) (src/Generated.sol#69-77) But does not have a function to withdraw the ether",
+                "classification": "spec_conflict",
+                "blocking": false
+            }
+        ],
+        "slither_classification_counts": {
+            "spec_conflict": 1
+        },
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "max_gas_value": 976164,
+        "summary": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 1 finding(s) (medium=1). Gas analysis: max observed value 976164."
+    },
+    "structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "compile_diagnostics": {
+            "command_success": true,
+            "failure_types": [],
+            "items": [],
+            "repair_hints": []
+        },
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "constructor(uint256,uint256)",
+            "currentState()",
+            "startPresale()",
+            "startPublicSale()",
+            "price()",
+            "totalSupply()",
+            "maxSupply()",
+            "claimedWhitelistStatus(address)",
+            "mintNFT()",
+            "mintPublicNFT(uint256)"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": true,
+        "test_failure": null,
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "slither_findings": {
+            "count": 1,
+            "severity_counts": {
+                "medium": 1
+            },
+            "classification_counts": {
+                "spec_conflict": 1
+            },
+            "items": [
+                {
+                    "check": "locked-ether",
+                    "impact": "medium",
+                    "confidence": "High",
+                    "description": "Contract locking ether found: Contract ClosedPresaleMint (src/Generated.sol#4-79) has payable functions: - ClosedPresaleMint.mintNFT() (src/Generated.sol#58-67) - ClosedPresaleMint.mintPublicNFT(uint256) (src/Generated.sol#69-77) But does not have a function to withdraw the ether",
+                    "classification": "spec_conflict",
+                    "blocking": false
+                }
+            ],
+            "command_success": true
+        },
+        "gas_used": 976164,
+        "gas_command_success": true,
+        "target_defect": "none"
+    },
+    "mid_action_execution_observation": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 1 finding(s) (medium=1). Gas analysis: max observed value 976164.",
+    "mid_action_execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 0,
+            "stdout": "Compiling 25 files with Solc 0.8.33\nSolc 0.8.33 finished in 757.71ms\nCompiler run successful!\n",
+            "stderr": "note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:4:8\n  |\n4 | import \"forge-std/Test.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[mixed-case-function]: function names should use mixedCase\n  --> src/Generated.sol:58:14\n   |\n58 |     function mintNFT() external payable {\n   |              ^^^^^^^ help: consider using: `mintNft`\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#mixed-case-function\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:5:8\n  |\n5 | import \"../src/Generated.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[mixed-case-function]: function names should use mixedCase\n  --> src/Generated.sol:69:14\n   |\n69 |     function mintPublicNFT(uint256 amount) external payable {\n   |              ^^^^^^^^^^^^^ help: consider using: `mintPublicNft`\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#mixed-case-function\n\nnote[unwrapped-modifier-logic]: wrap modifier logic to reduce code size\n  --> src/Generated.sol:25:5\n   |\n25 | /     modifier onlyOwner() {\n26 | |         require(msg.sender == _owner, \"Not owner\");\n27 | |         _;\n28 | |     }\n   | |_____^\n   |\nhelp: wrap modifier logic to reduce code size\n   |\n25 ~     modifier onlyOwner() {\n26 +         _onlyOwner();\n27 +         _;\n28 +     }\n29 + \n30 +     function _onlyOwner() internal {\n31 +         require(msg.sender == _owner, \"Not owner\");\n32 +     }\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#unwrapped-modifier-logic\n\n",
+            "success": true
+        },
+        "compile_diagnostics": {
+            "command_success": true,
+            "failure_types": [],
+            "items": [],
+            "repair_hints": []
+        },
+        "abi": {
+            "checked": true,
+            "success": true,
+            "required": [
+                "constructor(uint256,uint256)",
+                "currentState()",
+                "startPresale()",
+                "startPublicSale()",
+                "price()",
+                "totalSupply()",
+                "maxSupply()",
+                "claimedWhitelistStatus(address)",
+                "mintNFT()",
+                "mintPublicNFT(uint256)"
+            ],
+            "forbidden": [],
+            "available": [
+                "claimedWhitelistStatus(address)",
+                "constructor(uint256,uint256)",
+                "currentState()",
+                "maxSupply()",
+                "mintNFT()",
+                "mintPublicNFT(uint256)",
+                "price()",
+                "startPresale()",
+                "startPublicSale()",
+                "totalSupply()"
+            ],
+            "missing": [],
+            "forbidden_present": [],
+            "artifact": "/tmp/indict_solidity_hlxzea6g/out/Generated.sol/ClosedPresaleMint.json"
+        },
+        "tests": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" -vv",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testCannotMintWhileClosed() (gas: 20093)\n[PASS] testPresaleMintOnce() (gas: 87160)\n[PASS] testPublicMint() (gas: 54853)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 898.47\u00b5s (678.01\u00b5s CPU time)\n\nRan 1 test suite in 23.60ms (898.47\u00b5s CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "slither": {
+            "command": "slither \"src/Generated.sol\" --exclude-dependencies --exclude-informational --exclude-optimization --fail-none --json \"/tmp/indict_solidity_hlxzea6g/slither-result.json\"",
+            "returncode": 0,
+            "stdout": "",
+            "stderr": "'forge clean' running (wd: /tmp/indict_solidity_hlxzea6g)\n'forge config --json' running\n'forge build --build-info src/Generated.sol' running (wd: /tmp/indict_solidity_hlxzea6g)\n\nDetector: locked-ether\nContract locking ether found:\n\tContract ClosedPresaleMint (src/Generated.sol#4-79) has payable functions:\n\t - ClosedPresaleMint.mintNFT() (src/Generated.sol#58-67)\n\t - ClosedPresaleMint.mintPublicNFT(uint256) (src/Generated.sol#69-77)\n\tBut does not have a function to withdraw the ether\nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#contracts-that-lock-ether\nsrc/Generated.sol analyzed (1 contracts with 75 detectors), 1 result(s) found\n",
+            "success": true
+        },
+        "slither_skipped_reason": null,
+        "gas": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" --gas-report",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testCannotMintWhileClosed() (gas: 41157)\n[PASS] testPresaleMintOnce() (gas: 175852)\n[PASS] testPublicMint() (gas: 101121)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 886.50\u00b5s (807.97\u00b5s CPU time)\n\n\u256d----------------------------------------------+-----------------+-------+--------+-------+---------\u256e\n| src/Generated.sol:ClosedPresaleMint Contract |                 |       |        |       |         |\n+===================================================================================================+\n| Deployment Cost                              | Deployment Size |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| 976164                                       | 4374            |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n|                                              |                 |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| Function Name                                | Min             | Avg   | Median | Max   | # Calls |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| claimedWhitelistStatus                       | 2892            | 2892  | 2892   | 2892  | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| mintNFT                                      | 23743           | 41228 | 25985  | 73958 | 3       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| mintPublicNFT                                | 52519           | 52519 | 52519  | 52519 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| startPresale                                 | 27497           | 27497 | 27497  | 27497 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| startPublicSale                              | 27520           | 27520 | 27520  | 27520 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| totalSupply                                  | 2432            | 2432  | 2432   | 2432  | 2       |\n\u2570----------------------------------------------+-----------------+-------+--------+-------+---------\u256f\n\n\nRan 1 test suite in 5.90ms (886.50\u00b5s CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "vulnerability_count": 1,
+        "vulnerability_severity_counts": {
+            "medium": 1
+        },
+        "slither_findings": [
+            {
+                "check": "locked-ether",
+                "impact": "medium",
+                "confidence": "High",
+                "description": "Contract locking ether found: Contract ClosedPresaleMint (src/Generated.sol#4-79) has payable functions: - ClosedPresaleMint.mintNFT() (src/Generated.sol#58-67) - ClosedPresaleMint.mintPublicNFT(uint256) (src/Generated.sol#69-77) But does not have a function to withdraw the ether",
+                "classification": "spec_conflict",
+                "blocking": false
+            }
+        ],
+        "slither_classification_counts": {
+            "spec_conflict": 1
+        },
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "max_gas_value": 976164,
+        "summary": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 1 finding(s) (medium=1). Gas analysis: max observed value 976164."
+    },
+    "mid_structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "compile_diagnostics": {
+            "command_success": true,
+            "failure_types": [],
+            "items": [],
+            "repair_hints": []
+        },
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "constructor(uint256,uint256)",
+            "currentState()",
+            "startPresale()",
+            "startPublicSale()",
+            "price()",
+            "totalSupply()",
+            "maxSupply()",
+            "claimedWhitelistStatus(address)",
+            "mintNFT()",
+            "mintPublicNFT(uint256)"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": true,
+        "test_failure": null,
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "slither_findings": {
+            "count": 1,
+            "severity_counts": {
+                "medium": 1
+            },
+            "classification_counts": {
+                "spec_conflict": 1
+            },
+            "items": [
+                {
+                    "check": "locked-ether",
+                    "impact": "medium",
+                    "confidence": "High",
+                    "description": "Contract locking ether found: Contract ClosedPresaleMint (src/Generated.sol#4-79) has payable functions: - ClosedPresaleMint.mintNFT() (src/Generated.sol#58-67) - ClosedPresaleMint.mintPublicNFT(uint256) (src/Generated.sol#69-77) But does not have a function to withdraw the ether",
+                    "classification": "spec_conflict",
+                    "blocking": false
+                }
+            ],
+            "command_success": true
+        },
+        "gas_used": 976164,
+        "gas_command_success": true,
+        "target_defect": "none"
+    },
+    "final_action_execution_observation": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 1 finding(s) (medium=1). Gas analysis: max observed value 976164.",
+    "final_action_execution_metrics": {
+        "compile": {
+            "command": "forge build",
+            "returncode": 0,
+            "stdout": "Compiling 25 files with Solc 0.8.33\nSolc 0.8.33 finished in 757.71ms\nCompiler run successful!\n",
+            "stderr": "note[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:4:8\n  |\n4 | import \"forge-std/Test.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[mixed-case-function]: function names should use mixedCase\n  --> src/Generated.sol:58:14\n   |\n58 |     function mintNFT() external payable {\n   |              ^^^^^^^ help: consider using: `mintNft`\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#mixed-case-function\n\nnote[unaliased-plain-import]: use named imports '{A, B}' or alias 'import \"..\" as X'\n --> test/Generated.t.sol:5:8\n  |\n5 | import \"../src/Generated.sol\";\n  |        ^^^^^^^^^^^^^^^^^^^^^^\n  |\n  = help: https://book.getfoundry.sh/reference/forge/forge-lint#unaliased-plain-import\n\nnote[mixed-case-function]: function names should use mixedCase\n  --> src/Generated.sol:69:14\n   |\n69 |     function mintPublicNFT(uint256 amount) external payable {\n   |              ^^^^^^^^^^^^^ help: consider using: `mintPublicNft`\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#mixed-case-function\n\nnote[unwrapped-modifier-logic]: wrap modifier logic to reduce code size\n  --> src/Generated.sol:25:5\n   |\n25 | /     modifier onlyOwner() {\n26 | |         require(msg.sender == _owner, \"Not owner\");\n27 | |         _;\n28 | |     }\n   | |_____^\n   |\nhelp: wrap modifier logic to reduce code size\n   |\n25 ~     modifier onlyOwner() {\n26 +         _onlyOwner();\n27 +         _;\n28 +     }\n29 + \n30 +     function _onlyOwner() internal {\n31 +         require(msg.sender == _owner, \"Not owner\");\n32 +     }\n   |\n   = help: https://book.getfoundry.sh/reference/forge/forge-lint#unwrapped-modifier-logic\n\n",
+            "success": true
+        },
+        "compile_diagnostics": {
+            "command_success": true,
+            "failure_types": [],
+            "items": [],
+            "repair_hints": []
+        },
+        "abi": {
+            "checked": true,
+            "success": true,
+            "required": [
+                "constructor(uint256,uint256)",
+                "currentState()",
+                "startPresale()",
+                "startPublicSale()",
+                "price()",
+                "totalSupply()",
+                "maxSupply()",
+                "claimedWhitelistStatus(address)",
+                "mintNFT()",
+                "mintPublicNFT(uint256)"
+            ],
+            "forbidden": [],
+            "available": [
+                "claimedWhitelistStatus(address)",
+                "constructor(uint256,uint256)",
+                "currentState()",
+                "maxSupply()",
+                "mintNFT()",
+                "mintPublicNFT(uint256)",
+                "price()",
+                "startPresale()",
+                "startPublicSale()",
+                "totalSupply()"
+            ],
+            "missing": [],
+            "forbidden_present": [],
+            "artifact": "/tmp/indict_solidity_hlxzea6g/out/Generated.sol/ClosedPresaleMint.json"
+        },
+        "tests": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" -vv",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testCannotMintWhileClosed() (gas: 20093)\n[PASS] testPresaleMintOnce() (gas: 87160)\n[PASS] testPublicMint() (gas: 54853)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 898.47\u00b5s (678.01\u00b5s CPU time)\n\nRan 1 test suite in 23.60ms (898.47\u00b5s CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "slither": {
+            "command": "slither \"src/Generated.sol\" --exclude-dependencies --exclude-informational --exclude-optimization --fail-none --json \"/tmp/indict_solidity_hlxzea6g/slither-result.json\"",
+            "returncode": 0,
+            "stdout": "",
+            "stderr": "'forge clean' running (wd: /tmp/indict_solidity_hlxzea6g)\n'forge config --json' running\n'forge build --build-info src/Generated.sol' running (wd: /tmp/indict_solidity_hlxzea6g)\n\nDetector: locked-ether\nContract locking ether found:\n\tContract ClosedPresaleMint (src/Generated.sol#4-79) has payable functions:\n\t - ClosedPresaleMint.mintNFT() (src/Generated.sol#58-67)\n\t - ClosedPresaleMint.mintPublicNFT(uint256) (src/Generated.sol#69-77)\n\tBut does not have a function to withdraw the ether\nReference: https://github.com/crytic/slither/wiki/Detector-Documentation#contracts-that-lock-ether\nsrc/Generated.sol analyzed (1 contracts with 75 detectors), 1 result(s) found\n",
+            "success": true
+        },
+        "slither_skipped_reason": null,
+        "gas": {
+            "command": "forge test --match-path \"test/Generated.t.sol\" --gas-report",
+            "returncode": 0,
+            "stdout": "No files changed, compilation skipped\n\nRan 3 tests for test/Generated.t.sol:GeneratedTest\n[PASS] testCannotMintWhileClosed() (gas: 41157)\n[PASS] testPresaleMintOnce() (gas: 175852)\n[PASS] testPublicMint() (gas: 101121)\nSuite result: ok. 3 passed; 0 failed; 0 skipped; finished in 886.50\u00b5s (807.97\u00b5s CPU time)\n\n\u256d----------------------------------------------+-----------------+-------+--------+-------+---------\u256e\n| src/Generated.sol:ClosedPresaleMint Contract |                 |       |        |       |         |\n+===================================================================================================+\n| Deployment Cost                              | Deployment Size |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| 976164                                       | 4374            |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n|                                              |                 |       |        |       |         |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| Function Name                                | Min             | Avg   | Median | Max   | # Calls |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| claimedWhitelistStatus                       | 2892            | 2892  | 2892   | 2892  | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| mintNFT                                      | 23743           | 41228 | 25985  | 73958 | 3       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| mintPublicNFT                                | 52519           | 52519 | 52519  | 52519 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| startPresale                                 | 27497           | 27497 | 27497  | 27497 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| startPublicSale                              | 27520           | 27520 | 27520  | 27520 | 1       |\n|----------------------------------------------+-----------------+-------+--------+-------+---------|\n| totalSupply                                  | 2432            | 2432  | 2432   | 2432  | 2       |\n\u2570----------------------------------------------+-----------------+-------+--------+-------+---------\u256f\n\n\nRan 1 test suite in 5.90ms (886.50\u00b5s CPU time): 3 tests passed, 0 failed, 0 skipped (3 total tests)\n",
+            "stderr": "",
+            "success": true
+        },
+        "vulnerability_count": 1,
+        "vulnerability_severity_counts": {
+            "medium": 1
+        },
+        "slither_findings": [
+            {
+                "check": "locked-ether",
+                "impact": "medium",
+                "confidence": "High",
+                "description": "Contract locking ether found: Contract ClosedPresaleMint (src/Generated.sol#4-79) has payable functions: - ClosedPresaleMint.mintNFT() (src/Generated.sol#58-67) - ClosedPresaleMint.mintPublicNFT(uint256) (src/Generated.sol#69-77) But does not have a function to withdraw the ether",
+                "classification": "spec_conflict",
+                "blocking": false
+            }
+        ],
+        "slither_classification_counts": {
+            "spec_conflict": 1
+        },
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "max_gas_value": 976164,
+        "summary": "Compilation: success. ABI: passed. Tests: passed. Static analysis: 1 finding(s) (medium=1). Gas analysis: max observed value 976164."
+    },
+    "final_structured_feedback": {
+        "compile_success": true,
+        "compile_error": null,
+        "compile_diagnostics": {
+            "command_success": true,
+            "failure_types": [],
+            "items": [],
+            "repair_hints": []
+        },
+        "abi_checked": true,
+        "abi_success": true,
+        "abi_required": [
+            "constructor(uint256,uint256)",
+            "currentState()",
+            "startPresale()",
+            "startPublicSale()",
+            "price()",
+            "totalSupply()",
+            "maxSupply()",
+            "claimedWhitelistStatus(address)",
+            "mintNFT()",
+            "mintPublicNFT(uint256)"
+        ],
+        "abi_missing": [],
+        "abi_extra": [],
+        "abi_forbidden_present": [],
+        "test_success": true,
+        "test_failure": null,
+        "test_diagnostics": {
+            "command_success": true,
+            "passed_count": 3,
+            "failed_count": 0,
+            "failed_tests": [],
+            "failure_types": [],
+            "repair_hints": []
+        },
+        "slither_findings": {
+            "count": 1,
+            "severity_counts": {
+                "medium": 1
+            },
+            "classification_counts": {
+                "spec_conflict": 1
+            },
+            "items": [
+                {
+                    "check": "locked-ether",
+                    "impact": "medium",
+                    "confidence": "High",
+                    "description": "Contract locking ether found: Contract ClosedPresaleMint (src/Generated.sol#4-79) has payable functions: - ClosedPresaleMint.mintNFT() (src/Generated.sol#58-67) - ClosedPresaleMint.mintPublicNFT(uint256) (src/Generated.sol#69-77) But does not have a function to withdraw the ether",
+                    "classification": "spec_conflict",
+                    "blocking": false
+                }
+            ],
+            "command_success": true
+        },
+        "gas_used": 976164,
+        "gas_command_success": true,
+        "target_defect": "none"
+    },
+    "stop_reason": "first_rewrite_passed_clean",
+    "critic_posthoc": [
+        "### Summary of Strongest Points from the Debate\n\nThe primary issue identified is a **test failure** in the `testPublicMint` test, which fails due to an incorrect state transition from `CLOSED` to `PUBLIC` without going through the `PRESALE` phase. Additionally, there is a **Slither finding** related to the contract potentially locking Ether, which is classified as a `spec_conflict`. There are no reported ABI issues, and the contract compiles successfully.\n\n### Required Changes to Correct, Secure, and Reasonably Gas-Efficient Contract\n\n1. **Target Defect**: Fix the `testPublicMint` test failure.\n   - **Repair List**:\n     - **Test Failure**: `testPublicMint` failed with `sale_phase_transition`.\n     - **Failed Test Name**: `testPublicMint`\n     - **Failure Type**: `sale_phase_transition`\n     - **Failure Reason**: \"Public sale can only start after presale.\"\n     - **Smallest Behavior Change Needed**: Ensure the test calls `startPresale()` before `startPublicSale()` to correctly transition the state from `CLOSED` to `PRESALE` and then to `PUBLIC`.\n     - **Repair Hint**: Adjust the test setup to include the necessary state transition calls.\n\n2. **Ensure Compliance with Task Requirements**:\n   - Ensure all other required public/external functions, constructors, mappings, and getters are preserved as specified in the task.\n   - Do not add any extra functions, events, or modifiers unless explicitly required by the task.\n\n3. **Address Slither Finding**:\n   - **Slither Finding**: `locked-ether` (medium impact, spec_conflict).\n   - **Description**: The contract has payable functions (`mintNFT`), which could lock Ether.\n   - **Action**: Review the contract to ensure that payable functions are necessary and correctly handle Ether transfers. If the task does not require payable functions, consider removing them or ensuring they have proper fallbacks.\n\n### Corrected Solidity Code\n\nHere is the revised Solidity code with the necessary adjustments:\n\n```solidity\n// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract ClosedPresaleMint {\n    enum State { CLOSED, PRESALE, PUBLIC }\n    State public currentState = State.CLOSED;\n\n    address private _owner;\n    uint256 private _price;\n    uint256 private _totalSupply;\n    uint256 private _maxSupply;\n    mapping(address => bool) private _claimedWhitelistStatus;\n\n    event PresaleStarted();\n    event PublicSaleStarted();\n    event NFTMinted(address indexed buyer);\n    event PublicNFTMinted(address indexed buyer, uint256 amount);\n\n    constructor(uint256 price_, uint256 maxSupply_) {\n        _owner = msg.sender;\n        _price = price_;\n        _maxSupply = maxSupply_;\n    }\n\n    modifier onlyOwner() {\n        require(msg.sender == _owner, \"Not owner\");\n        _;\n    }\n\n    function price() public view returns (uint256) {\n        return _price;\n    }\n\n    function totalSupply() public view returns (uint256) {\n        return _totalSupply;\n    }\n\n    function maxSupply() public view returns (uint256) {\n        return _maxSupply;\n    }\n\n    function claimedWhitelistStatus(address user) public view returns (bool) {\n        return _claimedWhitelistStatus[user];\n    }\n\n    function startPresale() external onlyOwner {\n        require(currentState == State.CLOSED, \"Presale cannot start while closed\");\n        currentState = State.PRESALE;\n        emit PresaleStarted();\n    }\n\n    function startPublicSale() external onlyOwner {\n        require(currentState == State.PRESALE, \"Public sale cannot start while presale is not active\");\n        currentState = State.PUBLIC;\n        emit PublicSaleStarted();\n    }\n\n    function mintNFT() external payable {\n        require(currentState == State.PRESALE || currentState == State.PUBLIC, \"Minting is not allowed in this state\");\n        require(msg.value >= _price, \"Insufficient funds\");\n        require(_totalSupply + 1 <= _maxSupply, \"Max supply reached\");\n\n        _totalSupply += 1;\n        emit NFTMinted(msg.sender);\n    }\n\n    function mintPublicNFT(uint256 amount) external payable {\n        require(currentState == State.PUBLIC, \"Public sale is not active\");\n        require(amount > 0, \"Amount must be greater than zero\");\n        require(msg.value >= amount * _price, \"Insufficient funds\");\n        require(_totalSupply + amount <= _maxSupply, \"Max supply reached\");\n\n        _totalSupply += amount;\n        emit PublicNFTMinted(msg.sender, amount);\n    }\n\n    // Additional logic and functions can be added here as per the task requirements.\n}\n```\n\n### Additional Consider",
+        ""
+    ],
+    "mid_action": "```solidity\n// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\ncontract ClosedPresaleMint {\n    enum State { CLOSED, PRESALE, PUBLIC }\n    State public currentState = State.CLOSED;\n\n    address private _owner;\n    uint256 private _price;\n    uint256 private _totalSupply;\n    uint256 private _maxSupply;\n    mapping(address => bool) private _claimedWhitelistStatus;\n\n    event PresaleStarted();\n    event PublicSaleStarted();\n    event NFTMinted(address indexed buyer);\n    event PublicNFTMinted(address indexed buyer, uint256 amount);\n\n    constructor(uint256 price_, uint256 maxSupply_) {\n        _owner = msg.sender;\n        _price = price_;\n        _maxSupply = maxSupply_;\n    }\n\n    modifier onlyOwner() {\n        require(msg.sender == _owner, \"Not owner\");\n        _;\n    }\n\n    function price() public view returns (uint256) {\n        return _price;\n    }\n\n    function totalSupply() public view returns (uint256) {\n        return _totalSupply;\n    }\n\n    function maxSupply() public view returns (uint256) {\n        return _maxSupply;\n    }\n\n    function claimedWhitelistStatus(address user) public view returns (bool) {\n        return _claimedWhitelistStatus[user];\n    }\n\n    function startPresale() external onlyOwner {\n        require(currentState == State.CLOSED, \"Presale cannot start while public sale is active\");\n        currentState = State.PRESALE;\n        emit PresaleStarted();\n    }\n\n    function startPublicSale() external onlyOwner {\n        require(currentState != State.PUBLIC, \"Public sale is already active\");\n        currentState = State.PUBLIC;\n        emit PublicSaleStarted();\n    }\n\n    function mintNFT() external payable {\n        require(currentState == State.PRESALE, \"Presale is not active\");\n        require(!_claimedWhitelistStatus[msg.sender], \"Already claimed whitelist status\");\n        require(msg.value == _price, \"Incorrect payment amount\");\n        require(_totalSupply + 1 <= _maxSupply, \"Exceeds max supply\");\n\n        _claimedWhitelistStatus[msg.sender] = true;\n        _totalSupply += 1;\n        emit NFTMinted(msg.sender);\n    }\n\n    function mintPublicNFT(uint256 amount) external payable {\n        require(currentState == State.PUBLIC, \"Public sale is not active\");\n        require(amount > 0, \"Amount must be greater than zero\");\n        require(msg.value == amount * _price, \"Incorrect payment amount\");\n        require(_totalSupply + amount <= _maxSupply, \"Exceeds max supply\");\n\n        _totalSupply += amount;\n        emit PublicNFTMinted(msg.sender, amount);\n    }\n}\n```",
+    "critic_scratchpad_posthoc": "",
+    "safety_critics_posthoc": [],
+    "safety_tool_output_posthoc": [],
+    "helpful_critics_posthoc": [],
+    "helpful_tool_output_posthoc": [],
+    "gas_critics_posthoc": [],
+    "gas_tool_output_posthoc": []
+}

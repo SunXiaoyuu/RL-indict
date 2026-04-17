@@ -1,0 +1,7 @@
+{
+  "source_results_dir": "solidity_qwen2.5-14b-instruct/indict_llama_fsm_testable10_gated_normalized_round3",
+  "dataset": "data/solidity_fsm_testable_10.json",
+  "action_key": "action",
+  "generated_at": "2026-04-17T16:53:53",
+  "note": "Re-evaluation only; no LLM calls were made."
+}
